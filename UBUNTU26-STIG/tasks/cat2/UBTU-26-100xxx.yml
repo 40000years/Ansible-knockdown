@@ -201,7 +201,6 @@
       TMOUT={{ ubtu26stig_session_timeout }}
       export TMOUT
       readonly TMOUT
-    create: true
     mode: '0644'
     owner: root
     group: root
