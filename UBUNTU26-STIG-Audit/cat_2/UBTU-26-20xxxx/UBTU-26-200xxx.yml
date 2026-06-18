@@ -1,0 +1,158 @@
+# UBTU-26-200020 to UBTU-26-200680
+# CAT II - 20XXXX Audit / auditd Logging Controls
+
+{{ if .Vars.ubtu26stig_200020 }}
+package:
+  auditd:
+    title: "UBTU-26-200020 | auditd must be installed"
+    installed: true
+    meta:
+      stig_id: UBTU-26-200020
+      severity: CAT_II
+      title: "auditd package"
+
+service:
+  auditd:
+    title: "UBTU-26-200020 | auditd service must be enabled and running"
+    enabled: true
+    running: true
+    meta:
+      stig_id: UBTU-26-200020
+      severity: CAT_II
+      title: "auditd service state"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_200040 }}
+command:
+  UBTU-26-200040_audit_sudo_rs:
+    title: "UBTU-26-200040 | sudo-rs (or sudo) privilege invocations must be audited"
+    exec: "auditctl -l 2>/dev/null | grep -E '/usr/bin/sudo|/usr/bin/su$' || grep -rE '(sudo|su)' /etc/audit/rules.d/ 2>/dev/null || echo 'NOT_CONFIGURED'"
+    exit-status: 0
+    stdout:
+      - "!/NOT_CONFIGURED/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-200040
+      severity: CAT_II
+      title: "sudo/su privilege escalation must be audited"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_200041 }}
+command:
+  UBTU-26-200041_audit_sudoers:
+    title: "UBTU-26-200041 | sudoers file modifications must be audited"
+    exec: "auditctl -l 2>/dev/null | grep -E '/etc/sudoers' || grep -rE '/etc/sudoers' /etc/audit/rules.d/ 2>/dev/null || echo 'NOT_CONFIGURED'"
+    exit-status: 0
+    stdout:
+      - "!/NOT_CONFIGURED/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-200041
+      severity: CAT_II
+      title: "sudoers file changes must be audited"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_200042 }}
+command:
+  UBTU-26-200042_audit_passwd:
+    title: "UBTU-26-200042 | Password file modifications must be audited"
+    exec: "auditctl -l 2>/dev/null | grep -E '/etc/passwd' || grep -rE '/etc/passwd' /etc/audit/rules.d/ 2>/dev/null || echo 'NOT_CONFIGURED'"
+    exit-status: 0
+    stdout:
+      - "!/NOT_CONFIGURED/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-200042
+      severity: CAT_II
+      title: "/etc/passwd changes must be audited"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_200043 }}
+command:
+  UBTU-26-200043_audit_shadow:
+    title: "UBTU-26-200043 | Shadow file modifications must be audited"
+    exec: "auditctl -l 2>/dev/null | grep -E '/etc/shadow' || grep -rE '/etc/shadow' /etc/audit/rules.d/ 2>/dev/null || echo 'NOT_CONFIGURED'"
+    exit-status: 0
+    stdout:
+      - "!/NOT_CONFIGURED/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-200043
+      severity: CAT_II
+      title: "/etc/shadow changes must be audited"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_200060 }}
+command:
+  UBTU-26-200060_audit_log_size:
+    title: "UBTU-26-200060 | Audit log must have minimum size of 8MB"
+    exec: "grep '^max_log_file ' /etc/audit/auditd.conf | awk '{print $3}'"
+    exit-status: 0
+    stdout:
+      - "/^([8-9]|[1-9][0-9]+)$/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-200060
+      severity: CAT_II
+      title: "Audit log minimum size"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_200090 }}
+command:
+  UBTU-26-200090_audit_action_mail_acct:
+    title: "UBTU-26-200090 | Audit logs must notify when disk is running low"
+    exec: "grep '^action_mail_acct' /etc/audit/auditd.conf | awk '{print $3}'"
+    exit-status: 0
+    stdout:
+      - "/^(root|.+@.+)$/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-200090
+      severity: CAT_II
+      title: "Audit disk full notification"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_200250 }}
+command:
+  UBTU-26-200250_audit_chmod:
+    title: "UBTU-26-200250 | File permission changes (chmod/chown) must be audited"
+    exec: "auditctl -l 2>/dev/null | grep -E 'chmod|chown|fchmod|fchown|lchown' || grep -rE 'chmod|chown' /etc/audit/rules.d/ 2>/dev/null || echo 'NOT_CONFIGURED'"
+    exit-status: 0
+    stdout:
+      - "!/NOT_CONFIGURED/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-200250
+      severity: CAT_II
+      title: "File permission change auditing"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_200260 }}
+command:
+  UBTU-26-200260_audit_setuid_setgid:
+    title: "UBTU-26-200260 | setuid/setgid execution must be audited"
+    exec: "auditctl -l 2>/dev/null | grep -E 'execve|setuid|setgid' || grep -rE 'execve' /etc/audit/rules.d/ 2>/dev/null || echo 'NOT_CONFIGURED'"
+    exit-status: 0
+    stdout:
+      - "!/NOT_CONFIGURED/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-200260
+      severity: CAT_II
+      title: "setuid/setgid program execution auditing"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_200580 }}
+command:
+  UBTU-26-200580_audit_module_load:
+    title: "UBTU-26-200580 | Kernel module loading must be audited"
+    exec: "auditctl -l 2>/dev/null | grep -E 'init_module|finit_module|delete_module|insmod|rmmod|modprobe' || grep -rE 'init_module|finit_module' /etc/audit/rules.d/ 2>/dev/null || echo 'NOT_CONFIGURED'"
+    exit-status: 0
+    stdout:
+      - "!/NOT_CONFIGURED/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-200580
+      severity: CAT_II
+      title: "Kernel module loading auditing"
+{{ end }}

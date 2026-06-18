@@ -1,0 +1,256 @@
+---
+## metadata for Audit benchmark
+benchmark_version: 'v1.0.0'
+benchmark: UBUNTU26-STIG
+
+# turn the categories on/off
+ubtu26stig_cat1: true
+ubtu26stig_cat2: true
+ubtu26stig_cat3: true
+
+# Some tests may need to scan every filesystem or have an impact on a system
+# these may need be scheduled to minimise impact
+timeout_ms: 120000
+
+# If using the supplied graphical interface (GNOME)
+ubtu26stig_gui: false
+
+# system acts or requires router networking options
+ubtu26stig_system_is_router: false
+
+# Allow aide check to run - this can be very resource intensive - not good on shared storage multiple hosts
+ubtu26stig_allow_aide_check: false
+
+# Ubuntu 26 ships with sudo-rs (memory-safe Rust rewrite) as the default sudo
+# Set to true if the system is using sudo-rs (default on Ubuntu 26.04)
+# Set to false only if you have reverted to classic sudo via update-alternatives
+ubtu26stig_sudo_rs: true
+ubtu26stig_classic_sudo: false
+
+# FIPS mode enabled
+ubtu26stig_fips_enabled: false
+
+# Expected SSH banner file path
+ubtu26stig_ssh_banner_file: /etc/issue.net
+
+# Minimum password length required
+ubtu26stig_pwd_min_length: 15
+
+# Maximum password age in days
+ubtu26stig_pwd_max_age: 60
+
+# Minimum password age in days
+ubtu26stig_pwd_min_age: 1
+
+# Number of remembered passwords to prevent reuse
+ubtu26stig_pwd_remember: 5
+
+# Account lockout threshold (failed attempts before lockout)
+ubtu26stig_pwd_lockout_attempts: 3
+
+# Account lockout time in seconds
+ubtu26stig_pwd_lockout_time: 900
+
+# Idle session timeout in seconds
+ubtu26stig_session_timeout: 900
+
+# Audit log size in megabytes
+ubtu26stig_audit_log_size: 8
+
+# List of approved cryptographic ciphers for SSH
+ubtu26stig_ssh_ciphers:
+  - aes256-gcm@openssh.com
+  - aes128-gcm@openssh.com
+  - aes256-ctr
+  - aes192-ctr
+  - aes128-ctr
+
+# List of approved MACs for SSH
+ubtu26stig_ssh_macs:
+  - hmac-sha2-512-etm@openssh.com
+  - hmac-sha2-256-etm@openssh.com
+  - hmac-sha2-512
+  - hmac-sha2-256
+
+# List of approved KexAlgorithms for SSH
+ubtu26stig_ssh_kex:
+  - curve25519-sha256
+  - curve25519-sha256@libssh.org
+  - ecdh-sha2-nistp256
+  - ecdh-sha2-nistp384
+  - ecdh-sha2-nistp521
+  - diffie-hellman-group14-sha256
+  - diffie-hellman-group16-sha512
+  - diffie-hellman-group18-sha512
+
+#### CAT 1 - HIGH Severity Controls
+
+# UBTU-26-100030: Must not have accounts configured with blank/null passwords
+ubtu26stig_100030: true
+
+# UBTU-26-100040: Must not allow direct root logins except from the console
+ubtu26stig_100040: true
+
+# UBTU-26-100050: Must prevent the use of dictionary words for passwords
+ubtu26stig_100050: true
+
+# UBTU-26-100800: Must disable the x86 Ctrl-Alt-Delete key sequence
+ubtu26stig_100800: true
+
+# UBTU-26-100810: Must remove the Ctrl-Alt-Delete target
+ubtu26stig_100810: true
+
+# UBTU-26-102000: Must implement DoD-approved encryption to protect the confidentiality
+ubtu26stig_102000: true
+
+# UBTU-26-300022: SSH daemon must not permit root logons
+ubtu26stig_300022: true
+
+# UBTU-26-300025: SSH daemon must use FIPS-validated key exchange algorithms
+ubtu26stig_300025: true
+
+# UBTU-26-300026: SSH daemon must use approved MACs
+ubtu26stig_300026: true
+
+# UBTU-26-300027: SSH daemon must use approved ciphers
+ubtu26stig_300027: true
+
+# UBTU-26-300028: SSH daemon must not allow authentication with empty passwords
+ubtu26stig_300028: true
+
+# UBTU-26-300031: SSH daemon PermitUserEnvironment must be disabled
+ubtu26stig_300031: true
+
+# UBTU-26-400370: Must not have the rsh-server package installed
+ubtu26stig_400370: true
+
+# UBTU-26-600030: Must configure AIDE to verify integrity on a daily basis
+ubtu26stig_600030: true
+
+# UBTU-26-600130: Must use a virus scanner
+ubtu26stig_600130: true
+
+# UBTU-26-700400: Must implement address space layout randomization (ASLR)
+ubtu26stig_700400: true
+
+# UBTU-26-700410: Must configure kernel to prevent ptrace of other processes
+ubtu26stig_700410: true
+
+#### CAT 2 - MEDIUM Severity Controls
+
+## 10XXXX - Account/Authentication
+ubtu26stig_100100: true
+ubtu26stig_100110: true
+ubtu26stig_100120: true
+ubtu26stig_100130: true
+ubtu26stig_100200: true
+ubtu26stig_100300: true
+ubtu26stig_100310: true
+ubtu26stig_100400: true
+ubtu26stig_100410: true
+ubtu26stig_100500: true
+ubtu26stig_100510: true
+ubtu26stig_100600: true
+ubtu26stig_100650: true
+ubtu26stig_100660: true
+ubtu26stig_100820: true
+ubtu26stig_100830: true
+ubtu26stig_100840: true
+ubtu26stig_100850: true
+ubtu26stig_100860: true
+ubtu26stig_100900: true
+ubtu26stig_100910: true
+ubtu26stig_101000: true
+ubtu26stig_102010: true
+
+## 20XXXX - Auditing
+ubtu26stig_200020: true
+ubtu26stig_200040: true
+ubtu26stig_200041: true
+ubtu26stig_200042: true
+ubtu26stig_200043: true
+ubtu26stig_200060: true
+ubtu26stig_200090: true
+ubtu26stig_200250: true
+ubtu26stig_200260: true
+ubtu26stig_200270: true
+ubtu26stig_200280: true
+ubtu26stig_200290: true
+ubtu26stig_200300: true
+ubtu26stig_200310: true
+ubtu26stig_200320: true
+ubtu26stig_200580: true
+ubtu26stig_200640: true
+ubtu26stig_200650: true
+ubtu26stig_200660: true
+ubtu26stig_200680: true
+
+## 30XXXX - SSH / Remote Access
+ubtu26stig_300006: true
+ubtu26stig_300007: true
+ubtu26stig_300008: true
+ubtu26stig_300009: true
+ubtu26stig_300010: true
+ubtu26stig_300011: true
+ubtu26stig_300012: true
+ubtu26stig_300013: true
+ubtu26stig_300014: true
+ubtu26stig_300016: true
+ubtu26stig_300021: true
+ubtu26stig_300023: true
+ubtu26stig_300029: true
+ubtu26stig_300030: true
+ubtu26stig_300039: true
+ubtu26stig_300041: true
+
+## 40XXXX - File Permissions / Sudo
+ubtu26stig_400000: true
+ubtu26stig_400020: true
+ubtu26stig_400030: true
+ubtu26stig_400060: true
+ubtu26stig_400110: true
+ubtu26stig_400220: true
+ubtu26stig_400260: true
+ubtu26stig_400270: true
+ubtu26stig_400280: true
+ubtu26stig_400290: true
+ubtu26stig_400300: true
+ubtu26stig_400310: true
+ubtu26stig_400320: true
+ubtu26stig_400330: true
+ubtu26stig_400360: true
+ubtu26stig_400375: true
+ubtu26stig_400380: true
+ubtu26stig_400400: true
+
+## 50XXXX - Network / Firewall
+ubtu26stig_500010: true
+ubtu26stig_500020: true
+ubtu26stig_500030: true
+ubtu26stig_500040: true
+ubtu26stig_500050: true
+
+## 60XXXX - Packages / Services
+ubtu26stig_600010: true
+ubtu26stig_600020: true
+ubtu26stig_600040: true
+ubtu26stig_600050: true
+
+## 70XXXX - Kernel / Boot
+ubtu26stig_700010: true
+ubtu26stig_700020: true
+ubtu26stig_700030: true
+ubtu26stig_700040: true
+ubtu26stig_700050: true
+
+## 90XXXX - Miscellaneous
+ubtu26stig_900010: true
+ubtu26stig_900020: true
+ubtu26stig_900030: true
+
+#### CAT 3 - LOW Severity Controls
+ubtu26stig_cat3_100010: true
+ubtu26stig_cat3_100020: true
+ubtu26stig_cat3_200010: true
+ubtu26stig_cat3_300001: true
+ubtu26stig_cat3_400001: true

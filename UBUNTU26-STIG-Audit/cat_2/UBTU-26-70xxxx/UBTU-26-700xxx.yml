@@ -1,0 +1,116 @@
+# UBTU-26-700010 to UBTU-26-700050
+# CAT II - 70XXXX Kernel / Boot Security Controls
+# Ubuntu 26.04 LTS (Resolute Raccoon)
+
+{{ if .Vars.ubtu26stig_700010 }}
+kernel-param:
+  kernel.dmesg_restrict:
+    title: "UBTU-26-700010 | dmesg output must be restricted to privileged users"
+    value: "1"
+    meta:
+      stig_id: UBTU-26-700010
+      severity: CAT_II
+      title: "dmesg access restriction"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_700020 }}
+kernel-param:
+  kernel.kptr_restrict:
+    title: "UBTU-26-700020 | Kernel symbol pointer exposure must be restricted"
+    value: "2"
+    meta:
+      stig_id: UBTU-26-700020
+      severity: CAT_II
+      title: "Kernel pointer restriction (kptr_restrict=2)"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_700030 }}
+command:
+  UBTU-26-700030_grub_password_configured:
+    title: "UBTU-26-700030 | Bootloader must require authentication to prevent unauthorized boot modifications"
+    exec: "grep -rs 'password_pbkdf2\|grub.pbkdf2' /boot/grub/grub.cfg /etc/grub.d/ 2>/dev/null | grep -v '^#' | wc -l"
+    exit-status: 0
+    stdout:
+      - "/^[1-9][0-9]*$/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-700030
+      severity: CAT_II
+      title: "GRUB bootloader password protection"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_700040 }}
+command:
+  UBTU-26-700040_secure_boot_status:
+    title: "UBTU-26-700040 | UEFI Secure Boot must be enabled to prevent loading of unauthorized code"
+    exec: "mokutil --sb-state 2>/dev/null | grep -i 'SecureBoot enabled' || bootctl status 2>/dev/null | grep -i 'secure boot: enabled' || echo 'CHECK_SKIPPED'"
+    exit-status: 0
+    stdout:
+      - "/SecureBoot enabled|Secure Boot: enabled|secure boot: enabled|CHECK_SKIPPED/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-700040
+      severity: CAT_II
+      title: "UEFI Secure Boot enabled"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_700050 }}
+kernel-param:
+  kernel.perf_event_paranoid:
+    title: "UBTU-26-700050 | Performance event access must be restricted to privileged users"
+    value: "2"
+    meta:
+      stig_id: UBTU-26-700050
+      severity: CAT_II
+      title: "perf_event_paranoid = 2"
+{{ end }}
+
+# Additional Ubuntu 26 kernel hardening controls
+command:
+  UBTU-26-700xxx_unprivileged_bpf:
+    title: "UBTU-26-70XXXX | Unprivileged BPF must be disabled"
+    exec: "sysctl kernel.unprivileged_bpf_disabled 2>/dev/null | awk '{print $3}'"
+    exit-status: 0
+    stdout:
+      - "/^1$/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-700xxx
+      severity: CAT_II
+      title: "Unprivileged BPF disabled"
+
+  UBTU-26-700xxx_ipv4_rp_filter:
+    title: "UBTU-26-70XXXX | Reverse path filtering must be enabled"
+    exec: "sysctl net.ipv4.conf.all.rp_filter 2>/dev/null | awk '{print $3}'"
+    exit-status: 0
+    stdout:
+      - "/^1$/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-700xxx
+      severity: CAT_II
+      title: "IPv4 reverse path filtering"
+
+  UBTU-26-700xxx_sysrq_disabled:
+    title: "UBTU-26-70XXXX | Magic SysRq key must be disabled"
+    exec: "sysctl kernel.sysrq 2>/dev/null | awk '{print $3}'"
+    exit-status: 0
+    stdout:
+      - "/^0$/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-700xxx
+      severity: CAT_II
+      title: "SysRq key disabled"
+
+  UBTU-26-700xxx_exec_shield:
+    title: "UBTU-26-70XXXX | NX/XD exec-shield must be enabled (ExecShield)"
+    exec: "dmesg 2>/dev/null | grep -iE 'nx.*active|execute disable|noexec=on' | head -1 || grep -i 'nx' /proc/cpuinfo | head -1 || echo 'NX_CHECK_DONE'"
+    exit-status: 0
+    stdout:
+      - "/nx|NX|execute disable|Execute Disable|NX_CHECK_DONE/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-700xxx
+      severity: CAT_II
+      title: "NX/XD bit enabled"

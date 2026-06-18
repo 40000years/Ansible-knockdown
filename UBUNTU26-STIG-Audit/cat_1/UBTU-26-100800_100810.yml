@@ -1,0 +1,31 @@
+# UBTU-26-100800 + UBTU-26-100810
+# CAT I
+# Ubuntu 26 must disable the x86 Ctrl-Alt-Delete key sequence and remove the
+# ctrl-alt-del target to prevent accidental or malicious reboots.
+
+{{ if .Vars.ubtu26stig_100800 }}
+command:
+  UBTU-26-100800_ctrlaltdel_masked:
+    title: "UBTU-26-100800 | ctrl-alt-del.target must be masked"
+    exec: "systemctl status ctrl-alt-del.target 2>&1 | grep -i 'masked' || echo 'NOT_MASKED'"
+    exit-status: 0
+    stdout:
+      - "!/NOT_MASKED/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-100800
+      severity: CAT_I
+      title: "Ctrl-Alt-Delete key sequence disabled"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_100810 }}
+file:
+  /etc/systemd/system/ctrl-alt-del.target:
+    title: "UBTU-26-100810 | ctrl-alt-del.target override must exist (masked)"
+    exists: true
+    symlink: /dev/null
+    meta:
+      stig_id: UBTU-26-100810
+      severity: CAT_I
+      title: "ctrl-alt-del.target masked as /dev/null symlink"
+{{ end }}

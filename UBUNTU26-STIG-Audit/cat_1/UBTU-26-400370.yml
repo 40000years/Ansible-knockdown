@@ -1,0 +1,31 @@
+# UBTU-26-400370
+# CAT I
+# Ubuntu 26 must not have the rsh-server package installed.
+# rsh transmits data in plaintext and is prohibited.
+
+{{ if .Vars.ubtu26stig_400370 }}
+package:
+  rsh-server:
+    title: "UBTU-26-400370 | rsh-server package must not be installed"
+    installed: false
+    meta:
+      stig_id: UBTU-26-400370
+      severity: CAT_I
+      title: "rsh-server package removal"
+
+  rsh-client:
+    title: "UBTU-26-400370 | rsh-client package must not be installed"
+    installed: false
+    meta:
+      stig_id: UBTU-26-400370
+      severity: CAT_I
+      title: "rsh-client package removal"
+
+  telnetd:
+    title: "UBTU-26-400370 | telnetd package must not be installed"
+    installed: false
+    meta:
+      stig_id: UBTU-26-400370
+      severity: CAT_I
+      title: "telnetd package removal"
+{{ end }}

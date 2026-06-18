@@ -1,0 +1,247 @@
+# UBTU-26-300006 to UBTU-26-300041
+# CAT II - 30XXXX SSH and Remote Access Controls
+
+{{ if .Vars.ubtu26stig_300006 }}
+package:
+  openssh-server:
+    title: "UBTU-26-300006 | OpenSSH server must be installed"
+    installed: true
+    meta:
+      stig_id: UBTU-26-300006
+      severity: CAT_II
+      title: "OpenSSH server package"
+
+service:
+  sshd:
+    title: "UBTU-26-300006 | SSH daemon must be enabled and running"
+    enabled: true
+    running: true
+    meta:
+      stig_id: UBTU-26-300006
+      severity: CAT_II
+      title: "sshd service state"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_300007 }}
+command:
+  UBTU-26-300007_sshd_protocol:
+    title: "UBTU-26-300007 | SSH daemon must use SSH Protocol 2 only"
+    exec: "sshd -T 2>/dev/null | grep -i 'protocol'"
+    exit-status: 0
+    stdout:
+      - "/protocol 2/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-300007
+      severity: CAT_II
+      title: "SSH Protocol 2"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_300008 }}
+command:
+  UBTU-26-300008_sshd_loglevel:
+    title: "UBTU-26-300008 | SSH daemon must set LogLevel to VERBOSE or INFO"
+    exec: "sshd -T 2>/dev/null | grep -i 'loglevel'"
+    exit-status: 0
+    stdout:
+      - "/loglevel (VERBOSE|INFO|verbose|info)/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-300008
+      severity: CAT_II
+      title: "SSH LogLevel"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_300009 }}
+command:
+  UBTU-26-300009_sshd_x11_disabled:
+    title: "UBTU-26-300009 | SSH daemon X11Forwarding must be disabled"
+    exec: "sshd -T 2>/dev/null | grep -i 'x11forwarding'"
+    exit-status: 0
+    stdout:
+      - "/x11forwarding no/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-300009
+      severity: CAT_II
+      title: "SSH X11Forwarding disabled"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_300010 }}
+command:
+  UBTU-26-300010_sshd_maxauthtries:
+    title: "UBTU-26-300010 | SSH daemon MaxAuthTries must be 4 or fewer"
+    exec: "sshd -T 2>/dev/null | grep -i 'maxauthtries' | awk '{print $2}'"
+    exit-status: 0
+    stdout:
+      - "/^[1-4]$/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-300010
+      severity: CAT_II
+      title: "SSH MaxAuthTries <= 4"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_300011 }}
+command:
+  UBTU-26-300011_sshd_ignoreuserknownhosts:
+    title: "UBTU-26-300011 | SSH daemon IgnoreUserKnownHosts must be enabled"
+    exec: "sshd -T 2>/dev/null | grep -i 'ignoreuserknownhosts'"
+    exit-status: 0
+    stdout:
+      - "/ignoreuserknownhosts yes/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-300011
+      severity: CAT_II
+      title: "SSH IgnoreUserKnownHosts yes"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_300012 }}
+command:
+  UBTU-26-300012_sshd_hostsbasedauth:
+    title: "UBTU-26-300012 | SSH daemon HostbasedAuthentication must be disabled"
+    exec: "sshd -T 2>/dev/null | grep -i 'hostsbasedauthentication'"
+    exit-status: 0
+    stdout:
+      - "/hostsbasedauthentication no/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-300012
+      severity: CAT_II
+      title: "SSH HostbasedAuthentication disabled"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_300013 }}
+command:
+  UBTU-26-300013_sshd_ignorerhosts:
+    title: "UBTU-26-300013 | SSH daemon IgnoreRhosts must be enabled"
+    exec: "sshd -T 2>/dev/null | grep -i 'ignorerhosts'"
+    exit-status: 0
+    stdout:
+      - "/ignorerhosts yes/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-300013
+      severity: CAT_II
+      title: "SSH IgnoreRhosts yes"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_300014 }}
+command:
+  UBTU-26-300014_sshd_clientaliveinterval:
+    title: "UBTU-26-300014 | SSH daemon ClientAliveInterval must be 900 seconds or less"
+    exec: "sshd -T 2>/dev/null | grep -i 'clientaliveinterval' | awk '{print $2}'"
+    exit-status: 0
+    stdout:
+      - "/^([1-9]|[1-9][0-9]|[1-8][0-9]{2}|900)$/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-300014
+      severity: CAT_II
+      title: "SSH ClientAliveInterval <= 900"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_300016 }}
+command:
+  UBTU-26-300016_sshd_clientalivecountmax:
+    title: "UBTU-26-300016 | SSH daemon ClientAliveCountMax must be 1"
+    exec: "sshd -T 2>/dev/null | grep -i 'clientalivecountmax' | awk '{print $2}'"
+    exit-status: 0
+    stdout:
+      - "/^[01]$/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-300016
+      severity: CAT_II
+      title: "SSH ClientAliveCountMax = 0 or 1"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_300021 }}
+command:
+  UBTU-26-300021_sshd_pubkey_auth:
+    title: "UBTU-26-300021 | SSH daemon must use public-key authentication"
+    exec: "sshd -T 2>/dev/null | grep -i 'pubkeyauthentication'"
+    exit-status: 0
+    stdout:
+      - "/pubkeyauthentication yes/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-300021
+      severity: CAT_II
+      title: "SSH PubkeyAuthentication enabled"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_300023 }}
+command:
+  UBTU-26-300023_sshd_password_auth:
+    title: "UBTU-26-300023 | SSH daemon must not allow password authentication"
+    exec: "sshd -T 2>/dev/null | grep -i '^passwordauthentication'"
+    exit-status: 0
+    stdout:
+      - "/passwordauthentication no/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-300023
+      severity: CAT_II
+      title: "SSH PasswordAuthentication disabled"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_300029 }}
+command:
+  UBTU-26-300029_sshd_banner:
+    title: "UBTU-26-300029 | SSH daemon must display a DoD-approved banner before authentication"
+    exec: "sshd -T 2>/dev/null | grep -i '^banner' | awk '{print $2}'"
+    exit-status: 0
+    stdout:
+      - "/^\\/etc\\/issue\\.net$|^\\/etc\\/issue$/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-300029
+      severity: CAT_II
+      title: "SSH DoD banner required"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_300030 }}
+file:
+  /etc/ssh/sshd_config:
+    title: "UBTU-26-300030 | sshd_config must have correct permissions"
+    exists: true
+    mode: "0600"
+    owner: root
+    group: root
+    meta:
+      stig_id: UBTU-26-300030
+      severity: CAT_II
+      title: "sshd_config file permissions"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_300039 }}
+command:
+  UBTU-26-300039_sshd_allowtcpfwdg:
+    title: "UBTU-26-300039 | SSH daemon TCP forwarding must be disabled"
+    exec: "sshd -T 2>/dev/null | grep -i 'allowtcpforwarding'"
+    exit-status: 0
+    stdout:
+      - "/allowtcpforwarding no/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-300039
+      severity: CAT_II
+      title: "SSH AllowTcpForwarding disabled"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_300041 }}
+command:
+  UBTU-26-300041_sshd_printlastlog:
+    title: "UBTU-26-300041 | SSH daemon must display date and time of last logon"
+    exec: "sshd -T 2>/dev/null | grep -i 'printlastlog'"
+    exit-status: 0
+    stdout:
+      - "/printlastlog yes/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-300041
+      severity: CAT_II
+      title: "SSH PrintLastLog yes"
+{{ end }}

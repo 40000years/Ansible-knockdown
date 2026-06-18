@@ -1,0 +1,104 @@
+# UBTU-26-200xxx CAT II - Additional auditd controls for 20xxxx directory
+
+{{ if .Vars.ubtu26stig_200300 }}
+command:
+  UBTU-26-200300_audit_login_logout:
+    title: "UBTU-26-200300 | Login and logout events must be audited"
+    exec: "auditctl -l 2>/dev/null | grep -E 'session|login|logout' || grep -rE 'session|login' /etc/audit/rules.d/ 2>/dev/null || echo 'NOT_CONFIGURED'"
+    exit-status: 0
+    stdout:
+      - "!/NOT_CONFIGURED/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-200300
+      severity: CAT_II
+      title: "Login/logout event auditing"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_200310 }}
+command:
+  UBTU-26-200310_audit_user_acct_changes:
+    title: "UBTU-26-200310 | User account modifications must be audited (useradd, usermod, userdel)"
+    exec: "auditctl -l 2>/dev/null | grep -E 'useradd|usermod|userdel|groupadd|groupmod|groupdel' || grep -rE 'useradd|usermod|userdel' /etc/audit/rules.d/ 2>/dev/null || echo 'NOT_CONFIGURED'"
+    exit-status: 0
+    stdout:
+      - "!/NOT_CONFIGURED/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-200310
+      severity: CAT_II
+      title: "User account change auditing"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_200320 }}
+command:
+  UBTU-26-200320_audit_network_changes:
+    title: "UBTU-26-200320 | Network environment modifications must be audited"
+    exec: "auditctl -l 2>/dev/null | grep -E 'sethostname|setdomainname|/etc/hosts|/etc/network' || grep -rE 'sethostname|setdomainname' /etc/audit/rules.d/ 2>/dev/null || echo 'NOT_CONFIGURED'"
+    exit-status: 0
+    stdout:
+      - "!/NOT_CONFIGURED/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-200320
+      severity: CAT_II
+      title: "Network change auditing"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_200640 }}
+command:
+  UBTU-26-200640_audit_immutable_flag:
+    title: "UBTU-26-200640 | Audit rules must be made immutable (-e 2 flag)"
+    exec: "auditctl -l 2>/dev/null | grep -E '^-e 2' || grep -rE '^\-e 2' /etc/audit/rules.d/ 2>/dev/null || echo 'NOT_SET'"
+    exit-status: 0
+    stdout:
+      - "!/NOT_SET/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-200640
+      severity: CAT_II
+      title: "Audit rules immutable flag"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_200650 }}
+file:
+  /var/log/audit:
+    title: "UBTU-26-200650 | Audit log directory must have correct permissions"
+    exists: true
+    mode: "0750"
+    owner: root
+    group: adm
+    meta:
+      stig_id: UBTU-26-200650
+      severity: CAT_II
+      title: "Audit log directory permissions"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_200660 }}
+file:
+  /etc/audit/auditd.conf:
+    title: "UBTU-26-200660 | auditd.conf must have correct permissions"
+    exists: true
+    mode: "0640"
+    owner: root
+    group: root
+    meta:
+      stig_id: UBTU-26-200660
+      severity: CAT_II
+      title: "auditd.conf permissions"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_200680 }}
+command:
+  UBTU-26-200680_audit_disk_full_action:
+    title: "UBTU-26-200680 | Audit daemon must take action when disk is full"
+    exec: "grep '^disk_full_action' /etc/audit/auditd.conf | awk '{print $3}'"
+    exit-status: 0
+    stdout:
+      - "/SYSLOG|SUSPEND|ROTATE|HALT/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-200680
+      severity: CAT_II
+      title: "Audit disk full action"
+{{ end }}

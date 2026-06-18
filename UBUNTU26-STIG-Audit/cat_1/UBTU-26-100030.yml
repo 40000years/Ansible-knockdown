@@ -1,0 +1,19 @@
+# UBTU-26-100030
+# CAT I
+# Ubuntu 26 must not have accounts configured with blank or null passwords.
+# sudo-rs enforces env_reset and does NOT allow passwordless auth by default.
+
+{{ if .Vars.ubtu26stig_100030 }}
+command:
+  UBTU-26-100030_check_null_passwords:
+    title: "UBTU-26-100030 | Must not have accounts configured with null passwords"
+    exec: "awk -F: '($2 == \"\" || $2 == \"!\" ) && $1 != \"root\" {print $1}' /etc/shadow | grep -v '^$' || echo 'PASS'"
+    exit-status: 0
+    stdout:
+      - PASS
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-100030
+      severity: CAT_I
+      title: "Blank/null password accounts check"
+{{ end }}

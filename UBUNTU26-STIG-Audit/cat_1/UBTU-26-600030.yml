@@ -1,0 +1,42 @@
+# UBTU-26-600030
+# CAT I
+# Ubuntu 26 must configure AIDE to verify integrity of the system on a daily basis.
+# AIDE (Advanced Intrusion Detection Environment) is required for file integrity monitoring.
+
+{{ if .Vars.ubtu26stig_600030 }}
+package:
+  aide:
+    title: "UBTU-26-600030 | AIDE package must be installed"
+    installed: true
+    meta:
+      stig_id: UBTU-26-600030
+      severity: CAT_I
+      title: "AIDE installed"
+
+command:
+  UBTU-26-600030_aide_cron:
+    title: "UBTU-26-600030 | AIDE must run on a daily cron schedule"
+    exec: "grep -rE 'aide|aideinit' /etc/cron.daily/ /etc/cron.d/ /var/spool/cron/crontabs/ 2>/dev/null || echo 'NOT_CONFIGURED'"
+    exit-status: 0
+    stdout:
+      - "!/NOT_CONFIGURED/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-600030
+      severity: CAT_I
+      title: "AIDE daily cron check"
+
+  {{ if .Vars.ubtu26stig_allow_aide_check }}
+  UBTU-26-600030_aide_database:
+    title: "UBTU-26-600030 | AIDE database must exist"
+    exec: "ls -la /var/lib/aide/aide.db* 2>/dev/null | grep -c 'aide.db' || echo '0'"
+    exit-status: 0
+    stdout:
+      - "!/^0$/"
+    timeout: {{ .Vars.timeout_ms }}
+    meta:
+      stig_id: UBTU-26-600030
+      severity: CAT_I
+      title: "AIDE database existence check"
+  {{ end }}
+{{ end }}

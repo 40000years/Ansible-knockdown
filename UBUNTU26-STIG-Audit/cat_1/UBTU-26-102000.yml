@@ -1,0 +1,24 @@
+# UBTU-26-102000
+# CAT I
+# Ubuntu 26 must implement DoD-approved encryption (FIPS-validated algorithms)
+# to protect the confidentiality of remote access sessions.
+
+{{ if .Vars.ubtu26stig_102000 }}
+package:
+  libssl3t64:
+    title: "UBTU-26-102000 | OpenSSL library must be installed"
+    installed: true
+
+command:
+  UBTU-26-102000_openssl_version:
+    title: "UBTU-26-102000 | OpenSSL must support strong encryption"
+    exec: "openssl version"
+    exit-status: 0
+    stdout:
+      - "/OpenSSL 3\\./"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-102000
+      severity: CAT_I
+      title: "DoD-approved encryption implementation"
+{{ end }}

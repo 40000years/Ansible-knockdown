@@ -1,0 +1,26 @@
+# UBTU-26-700400 + UBTU-26-700410
+# CAT I
+# Ubuntu 26 must implement address space layout randomization (ASLR).
+# Ubuntu 26 must configure kernel to prevent ptrace of other processes.
+
+{{ if .Vars.ubtu26stig_700400 }}
+kernel-param:
+  kernel.randomize_va_space:
+    title: "UBTU-26-700400 | ASLR must be enabled (randomize_va_space = 2)"
+    value: "2"
+    meta:
+      stig_id: UBTU-26-700400
+      severity: CAT_I
+      title: "Address Space Layout Randomization (ASLR)"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_700410 }}
+kernel-param:
+  kernel.yama.ptrace_scope:
+    title: "UBTU-26-700410 | ptrace_scope must be restricted (value >= 1)"
+    value: "1"
+    meta:
+      stig_id: UBTU-26-700410
+      severity: CAT_I
+      title: "Kernel ptrace scope restriction"
+{{ end }}

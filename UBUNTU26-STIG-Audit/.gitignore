@@ -1,0 +1,41 @@
+# UBUNTU26-STIG-Audit .gitignore
+
+# OS-generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# goss output files
+*.json
+*.xml
+*.txt
+audit_output_*
+goss_output_*
+
+# Temporary vars files created by run_audit.sh
+/tmp/goss_vars_*.yml
+
+# Editor artifacts
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Test environment
+.vagrant/
+*.retry
+
+# Python virtual environments (if using for tooling)
+.venv/
+venv/
+
+# Molecule test outputs
+.molecule/
+
+# Ansible inventory secrets
+inventory/secrets*

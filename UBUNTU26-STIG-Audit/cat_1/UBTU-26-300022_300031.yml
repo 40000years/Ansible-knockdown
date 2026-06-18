@@ -1,0 +1,91 @@
+# UBTU-26-300022, UBTU-26-300025, UBTU-26-300026, UBTU-26-300027
+# UBTU-26-300028, UBTU-26-300031
+# CAT I - SSH Daemon Configuration
+
+{{ if .Vars.ubtu26stig_300022 }}
+command:
+  UBTU-26-300022_ssh_no_root_login:
+    title: "UBTU-26-300022 | SSH daemon must not permit root logons"
+    exec: "sshd -T 2>/dev/null | grep -i 'permitrootlogin' | grep -iv 'no'"
+    exit-status: 1
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-300022
+      severity: CAT_I
+      title: "SSH PermitRootLogin must be no"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_300025 }}
+command:
+  UBTU-26-300025_ssh_kex_algorithms:
+    title: "UBTU-26-300025 | SSH daemon must use FIPS-validated key exchange algorithms"
+    exec: "sshd -T 2>/dev/null | grep -i 'kexalgorithms'"
+    exit-status: 0
+    stdout:
+      - "/curve25519-sha256|ecdh-sha2-nistp|diffie-hellman-group1[4-8]-sha/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-300025
+      severity: CAT_I
+      title: "SSH KexAlgorithms approved list"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_300026 }}
+command:
+  UBTU-26-300026_ssh_macs:
+    title: "UBTU-26-300026 | SSH daemon must use approved MACs"
+    exec: "sshd -T 2>/dev/null | grep -i 'macs'"
+    exit-status: 0
+    stdout:
+      - "/hmac-sha2-/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-300026
+      severity: CAT_I
+      title: "SSH MACs approved list"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_300027 }}
+command:
+  UBTU-26-300027_ssh_ciphers:
+    title: "UBTU-26-300027 | SSH daemon must use approved ciphers"
+    exec: "sshd -T 2>/dev/null | grep -i '^ciphers'"
+    exit-status: 0
+    stdout:
+      - "/aes256-gcm@openssh\\.com|aes128-gcm@openssh\\.com|aes256-ctr|aes192-ctr|aes128-ctr/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-300027
+      severity: CAT_I
+      title: "SSH Ciphers approved list"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_300028 }}
+command:
+  UBTU-26-300028_ssh_no_empty_passwords:
+    title: "UBTU-26-300028 | SSH daemon must not allow authentication with empty passwords"
+    exec: "sshd -T 2>/dev/null | grep -i 'permitemptypasswords'"
+    exit-status: 0
+    stdout:
+      - "/permitemptypasswords no/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-300028
+      severity: CAT_I
+      title: "SSH PermitEmptyPasswords no"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_300031 }}
+command:
+  UBTU-26-300031_ssh_no_user_env:
+    title: "UBTU-26-300031 | SSH daemon PermitUserEnvironment must be disabled"
+    exec: "sshd -T 2>/dev/null | grep -i 'permituserenvironment'"
+    exit-status: 0
+    stdout:
+      - "/permituserenvironment no/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-300031
+      severity: CAT_I
+      title: "SSH PermitUserEnvironment must be no"
+{{ end }}

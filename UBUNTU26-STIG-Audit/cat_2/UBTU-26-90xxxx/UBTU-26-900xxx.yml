@@ -1,0 +1,68 @@
+# UBTU-26-900010 to UBTU-26-900030
+# CAT II - 90XXXX Miscellaneous Controls
+
+{{ if .Vars.ubtu26stig_900010 }}
+command:
+  UBTU-26-900010_motd_banner:
+    title: "UBTU-26-900010 | System must display a DoD-approved warning banner (/etc/motd)"
+    exec: "cat /etc/motd 2>/dev/null | grep -iE 'authorized|dod|government|unauthorized|consent' | wc -l"
+    exit-status: 0
+    stdout:
+      - "/^[1-9][0-9]*$/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-900010
+      severity: CAT_II
+      title: "MOTD DoD warning banner"
+
+  UBTU-26-900010_issue_net_banner:
+    title: "UBTU-26-900010 | /etc/issue.net must contain DoD-approved warning banner"
+    exec: "cat /etc/issue.net 2>/dev/null | grep -iE 'authorized|dod|government|unauthorized|consent' | wc -l"
+    exit-status: 0
+    stdout:
+      - "/^[1-9][0-9]*$/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-900010
+      severity: CAT_II
+      title: "/etc/issue.net DoD warning banner"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_900020 }}
+command:
+  UBTU-26-900020_coredump_disabled:
+    title: "UBTU-26-900020 | Core dumps must be restricted or disabled"
+    exec: "grep -rs 'hard core 0\|soft core 0' /etc/security/limits.conf /etc/security/limits.d/ 2>/dev/null | grep -v '^#' | wc -l"
+    exit-status: 0
+    stdout:
+      - "/^[1-9][0-9]*$/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-900020
+      severity: CAT_II
+      title: "Core dump restriction"
+
+kernel-param:
+  fs.suid_dumpable:
+    title: "UBTU-26-900020 | SUID core dumps must be disabled (suid_dumpable=0)"
+    value: "0"
+    meta:
+      stig_id: UBTU-26-900020
+      severity: CAT_II
+      title: "SUID core dump disabled"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_900030 }}
+command:
+  UBTU-26-900030_ntp_configured:
+    title: "UBTU-26-900030 | System clock must be synchronized with an authoritative time source"
+    exec: "systemctl is-active systemd-timesyncd 2>/dev/null || systemctl is-active chrony 2>/dev/null || systemctl is-active ntp 2>/dev/null || echo 'NTP_NOT_RUNNING'"
+    exit-status: 0
+    stdout:
+      - "/^active$/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-900030
+      severity: CAT_II
+      title: "NTP/time synchronization active"
+{{ end }}

@@ -1,0 +1,255 @@
+# UBTU-26-100100 to UBTU-26-102010
+# CAT II - 10XXXX Account Management / Password Controls
+# Ubuntu 26 with sudo-rs and libpam-pwquality
+
+{{ if .Vars.ubtu26stig_100100 }}
+package:
+  libpam-pwquality:
+    title: "UBTU-26-100100 | libpam-pwquality must be installed"
+    installed: true
+    meta:
+      stig_id: UBTU-26-100100
+      severity: CAT_II
+      title: "Password quality library installed"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_100110 }}
+command:
+  UBTU-26-100110_pwquality_minlen:
+    title: "UBTU-26-100110 | Password minimum length must be 15 or more"
+    exec: "grep -rs 'minlen' /etc/security/pwquality.conf /etc/security/pwquality.conf.d/ 2>/dev/null | grep -v '^#' | awk -F'=' '{print $2}' | tr -d ' '"
+    exit-status: 0
+    stdout:
+      - "/^(1[5-9]|[2-9][0-9]|[1-9][0-9]{2,})$/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-100110
+      severity: CAT_II
+      title: "Password minimum length >= 15"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_100120 }}
+command:
+  UBTU-26-100120_pwquality_ucredit:
+    title: "UBTU-26-100120 | Password must require at least 1 uppercase character"
+    exec: "grep -rs 'ucredit' /etc/security/pwquality.conf /etc/security/pwquality.conf.d/ 2>/dev/null | grep -v '^#' | awk -F'=' '{print $2}' | tr -d ' '"
+    exit-status: 0
+    stdout:
+      - "/^-[1-9]/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-100120
+      severity: CAT_II
+      title: "Password uppercase character requirement"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_100130 }}
+command:
+  UBTU-26-100130_pwquality_lcredit:
+    title: "UBTU-26-100130 | Password must require at least 1 lowercase character"
+    exec: "grep -rs 'lcredit' /etc/security/pwquality.conf /etc/security/pwquality.conf.d/ 2>/dev/null | grep -v '^#' | awk -F'=' '{print $2}' | tr -d ' '"
+    exit-status: 0
+    stdout:
+      - "/^-[1-9]/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-100130
+      severity: CAT_II
+      title: "Password lowercase character requirement"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_100200 }}
+command:
+  UBTU-26-100200_pwquality_dcredit:
+    title: "UBTU-26-100200 | Password must require at least 1 numeric character"
+    exec: "grep -rs 'dcredit' /etc/security/pwquality.conf /etc/security/pwquality.conf.d/ 2>/dev/null | grep -v '^#' | awk -F'=' '{print $2}' | tr -d ' '"
+    exit-status: 0
+    stdout:
+      - "/^-[1-9]/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-100200
+      severity: CAT_II
+      title: "Password numeric character requirement"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_100300 }}
+command:
+  UBTU-26-100300_pwquality_ocredit:
+    title: "UBTU-26-100300 | Password must require at least 1 special character"
+    exec: "grep -rs 'ocredit' /etc/security/pwquality.conf /etc/security/pwquality.conf.d/ 2>/dev/null | grep -v '^#' | awk -F'=' '{print $2}' | tr -d ' '"
+    exit-status: 0
+    stdout:
+      - "/^-[1-9]/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-100300
+      severity: CAT_II
+      title: "Password special character requirement"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_100310 }}
+command:
+  UBTU-26-100310_pwquality_difok:
+    title: "UBTU-26-100310 | New password must differ from old by at least 8 characters"
+    exec: "grep -rs 'difok' /etc/security/pwquality.conf /etc/security/pwquality.conf.d/ 2>/dev/null | grep -v '^#' | awk -F'=' '{print $2}' | tr -d ' '"
+    exit-status: 0
+    stdout:
+      - "/^([8-9]|[1-9][0-9]+)$/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-100310
+      severity: CAT_II
+      title: "Password character difference requirement"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_100400 }}
+command:
+  UBTU-26-100400_shadow_maxdays:
+    title: "UBTU-26-100400 | Password maximum age must be 60 days or less"
+    exec: "grep '^PASS_MAX_DAYS' /etc/login.defs | awk '{print $2}'"
+    exit-status: 0
+    stdout:
+      - "/^([1-9]|[1-5][0-9]|60)$/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-100400
+      severity: CAT_II
+      title: "Password maximum age <= 60 days"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_100410 }}
+command:
+  UBTU-26-100410_shadow_mindays:
+    title: "UBTU-26-100410 | Password minimum age must be 1 day or more"
+    exec: "grep '^PASS_MIN_DAYS' /etc/login.defs | awk '{print $2}'"
+    exit-status: 0
+    stdout:
+      - "/^([1-9][0-9]*)$/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-100410
+      severity: CAT_II
+      title: "Password minimum age >= 1 day"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_100500 }}
+command:
+  UBTU-26-100500_pam_history:
+    title: "UBTU-26-100500 | Must prevent password reuse for last 5 passwords"
+    exec: "grep -rE 'remember=([5-9]|[1-9][0-9]+)' /etc/pam.d/common-password || echo 'NOT_SET'"
+    exit-status: 0
+    stdout:
+      - "!/NOT_SET/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-100500
+      severity: CAT_II
+      title: "Password reuse restriction (remember=5+)"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_100600 }}
+command:
+  UBTU-26-100600_pam_lockout:
+    title: "UBTU-26-100600 | Account lockout after failed login attempts"
+    exec: "grep -rE 'pam_faillock|deny=[3-9]|deny=[1-9][0-9]' /etc/pam.d/common-auth /etc/pam.d/sshd 2>/dev/null || echo 'NOT_SET'"
+    exit-status: 0
+    stdout:
+      - "!/NOT_SET/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-100600
+      severity: CAT_II
+      title: "Account lockout after failed attempts"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_100820 }}
+command:
+  UBTU-26-100820_sudo_rs_installed:
+    title: "UBTU-26-100820 | sudo-rs must be installed (Ubuntu 26 default)"
+    exec: |
+      if sudo --version 2>&1 | grep -qi 'sudo-rs'; then
+        echo 'SUDO_RS_ACTIVE'
+      elif update-alternatives --display sudo 2>/dev/null | grep -q '/usr/bin/sudo'; then
+        echo 'SUDO_RS_CONFIGURED'
+      else
+        echo 'SUDO_RS_MISSING'
+      fi
+    exit-status: 0
+    stdout:
+      - "/SUDO_RS_ACTIVE|SUDO_RS_CONFIGURED/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-100820
+      severity: CAT_II
+      title: "sudo-rs installed and active (Ubuntu 26)"
+
+package:
+  sudo-rs:
+    title: "UBTU-26-100820 | sudo-rs package must be installed"
+    installed: true
+    meta:
+      stig_id: UBTU-26-100820
+      severity: CAT_II
+      title: "sudo-rs package"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_100830 }}
+command:
+  UBTU-26-100830_sudoers_nopasswd:
+    title: "UBTU-26-100830 | sudo must require re-authentication (no NOPASSWD)"
+    exec: "grep -rE '^[^#].*NOPASSWD' /etc/sudoers /etc/sudoers.d/ 2>/dev/null | grep -v '# ' || echo 'PASS'"
+    exit-status: 0
+    stdout:
+      - PASS
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-100830
+      severity: CAT_II
+      title: "NOPASSWD not in sudoers"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_100840 }}
+command:
+  UBTU-26-100840_sudo_logfile:
+    title: "UBTU-26-100840 | sudo must log all commands (logfile or syslog)"
+    exec: "grep -rE '^Defaults.*log_output|^Defaults.*logfile|^Defaults.*syslog' /etc/sudoers /etc/sudoers.d/ 2>/dev/null || echo 'NOT_SET'"
+    exit-status: 0
+    stdout:
+      - "!/NOT_SET/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-100840
+      severity: CAT_II
+      title: "sudo command logging"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_100850 }}
+command:
+  UBTU-26-100850_sudo_env_reset:
+    title: "UBTU-26-100850 | sudo must enforce env_reset (mandatory with sudo-rs)"
+    exec: "grep -rE '^Defaults.*env_reset|^Defaults.*!env_reset' /etc/sudoers /etc/sudoers.d/ 2>/dev/null; echo $?"
+    exit-status: 0
+    stdout:
+      - "!/!env_reset/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-100850
+      severity: CAT_II
+      title: "sudo env_reset enforced (sudo-rs always enforces this)"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_100860 }}
+command:
+  UBTU-26-100860_sudo_use_pty:
+    title: "UBTU-26-100860 | sudo must use a pseudo terminal (use_pty)"
+    exec: "grep -rE '^Defaults.*use_pty' /etc/sudoers /etc/sudoers.d/ 2>/dev/null || echo 'NOT_SET'"
+    exit-status: 0
+    stdout:
+      - "!/NOT_SET/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-100860
+      severity: CAT_II
+      title: "sudo use_pty required"
+{{ end }}

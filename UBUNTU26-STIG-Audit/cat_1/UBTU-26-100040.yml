@@ -1,0 +1,26 @@
+# UBTU-26-100040
+# CAT I
+# Ubuntu 26 must prevent direct root logins except at the physical console.
+
+{{ if .Vars.ubtu26stig_100040 }}
+file:
+  /etc/securetty:
+    title: "UBTU-26-100040 | /etc/securetty must exist and restrict root login"
+    exists: true
+    mode: "0600"
+    owner: root
+    group: root
+
+command:
+  UBTU-26-100040_check_pam_securetty:
+    title: "UBTU-26-100040 | PAM must include pam_securetty or deny direct root"
+    exec: "grep -rE 'pam_securetty|auth.*required.*pam_deny' /etc/pam.d/login || echo 'MISSING'"
+    exit-status: 0
+    stdout:
+      - "!/MISSING/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-100040
+      severity: CAT_I
+      title: "Direct root login prevention"
+{{ end }}

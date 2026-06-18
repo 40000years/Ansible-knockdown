@@ -1,0 +1,82 @@
+# CAT III - LOW Severity Controls
+# Ubuntu 26.04 LTS STIG Audit - Category 3
+
+{{ if .Vars.ubtu26stig_cat3_100010 }}
+command:
+  UBTU-26-CAT3-100010_legal_banner_issue:
+    title: "UBTU-26-CAT3-100010 | /etc/issue must display a DoD-approved warning banner"
+    exec: "cat /etc/issue 2>/dev/null | grep -iE 'authorized|government|consent|unauthorized' | wc -l"
+    exit-status: 0
+    stdout:
+      - "/^[1-9][0-9]*$/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-CAT3-100010
+      severity: CAT_III
+      title: "/etc/issue DoD warning banner"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_cat3_100020 }}
+command:
+  UBTU-26-CAT3-100020_gui_lock_screen:
+    title: "UBTU-26-CAT3-100020 | GUI lock screen must be configured if GUI is enabled"
+    exec: |
+      if [ "{{ .Vars.ubtu26stig_gui }}" = "true" ]; then
+        gsettings get org.gnome.desktop.screensaver lock-enabled 2>/dev/null || echo 'GUI_NOT_CONFIGURED'
+      else
+        echo 'GUI_DISABLED'
+      fi
+    exit-status: 0
+    stdout:
+      - "/true|GUI_DISABLED/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-CAT3-100020
+      severity: CAT_III
+      title: "GUI lock screen (if GUI enabled)"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_cat3_200010 }}
+command:
+  UBTU-26-CAT3-200010_rsyslog_remote:
+    title: "UBTU-26-CAT3-200010 | Audit records must be off-loaded to a centralized server"
+    exec: "grep -rE '^[^#].*(@@|@)[0-9a-zA-Z]|ForwardToSyslog=yes|remote_server' /etc/rsyslog.conf /etc/rsyslog.d/ /etc/audit/auditd.conf 2>/dev/null | grep -v '^#' | wc -l"
+    exit-status: 0
+    stdout:
+      - "/^[1-9][0-9]*$/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-CAT3-200010
+      severity: CAT_III
+      title: "Remote syslog/audit forwarding"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_cat3_300001 }}
+command:
+  UBTU-26-CAT3-300001_ssh_authorized_keys:
+    title: "UBTU-26-CAT3-300001 | SSH authorized_keys files must have correct permissions"
+    exec: "find /home /root -name 'authorized_keys' -not -perm 600 2>/dev/null | wc -l"
+    exit-status: 0
+    stdout:
+      - "/^0$/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-CAT3-300001
+      severity: CAT_III
+      title: "SSH authorized_keys permissions"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_cat3_400001 }}
+command:
+  UBTU-26-CAT3-400001_world_readable_files:
+    title: "UBTU-26-CAT3-400001 | World-readable files in home directories must be reviewed"
+    exec: "find /home -maxdepth 3 -perm -o+r -not -type d 2>/dev/null | wc -l"
+    exit-status: 0
+    stdout:
+      - "/^[0-9]+$/"
+    timeout: {{ .Vars.timeout_ms }}
+    meta:
+      stig_id: UBTU-26-CAT3-400001
+      severity: CAT_III
+      title: "World-readable files in home dirs"
+{{ end }}

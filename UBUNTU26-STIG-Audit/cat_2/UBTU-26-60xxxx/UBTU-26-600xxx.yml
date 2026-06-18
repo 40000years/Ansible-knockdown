@@ -1,0 +1,89 @@
+# UBTU-26-600010 to UBTU-26-600050
+# CAT II - 60XXXX Package and Service Controls
+
+{{ if .Vars.ubtu26stig_600010 }}
+package:
+  telnet:
+    title: "UBTU-26-600010 | telnet must not be installed"
+    installed: false
+    meta:
+      stig_id: UBTU-26-600010
+      severity: CAT_II
+      title: "telnet package removal"
+
+  nis:
+    title: "UBTU-26-600010 | NIS (ypserv/ypbind) must not be installed"
+    installed: false
+    meta:
+      stig_id: UBTU-26-600010
+      severity: CAT_II
+      title: "NIS package removal"
+
+  tftp:
+    title: "UBTU-26-600010 | TFTP must not be installed"
+    installed: false
+    meta:
+      stig_id: UBTU-26-600010
+      severity: CAT_II
+      title: "TFTP package removal"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_600020 }}
+service:
+  avahi-daemon:
+    title: "UBTU-26-600020 | Avahi daemon (mDNS/DNS-SD) must be disabled"
+    enabled: false
+    running: false
+    meta:
+      stig_id: UBTU-26-600020
+      severity: CAT_II
+      title: "Avahi daemon disabled"
+
+  cups:
+    title: "UBTU-26-600020 | CUPS printing service must be disabled (if not required)"
+    enabled: false
+    running: false
+    meta:
+      stig_id: UBTU-26-600020
+      severity: CAT_II
+      title: "CUPS service disabled"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_600040 }}
+package:
+  apparmor:
+    title: "UBTU-26-600040 | AppArmor must be installed"
+    installed: true
+    meta:
+      stig_id: UBTU-26-600040
+      severity: CAT_II
+      title: "AppArmor package"
+
+command:
+  UBTU-26-600040_apparmor_status:
+    title: "UBTU-26-600040 | AppArmor must be enabled and enforcing"
+    exec: "apparmor_status 2>/dev/null | grep -E 'profiles are in enforce mode|enforce mode.$'"
+    exit-status: 0
+    stdout:
+      - "/[0-9]+ profiles are in enforce mode|enforce/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-600040
+      severity: CAT_II
+      title: "AppArmor enforce mode"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_600050 }}
+command:
+  UBTU-26-600050_unattended_upgrades:
+    title: "UBTU-26-600050 | Automatic security updates must be configured"
+    exec: "systemctl is-enabled unattended-upgrades 2>/dev/null || echo 'NOT_ENABLED'"
+    exit-status: 0
+    stdout:
+      - "/^enabled$/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-600050
+      severity: CAT_II
+      title: "Automatic security updates"
+{{ end }}

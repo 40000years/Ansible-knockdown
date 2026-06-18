@@ -1,0 +1,86 @@
+# UBTU-26-500010 to UBTU-26-500050
+# CAT II - 50XXXX Network / Firewall Controls
+
+{{ if .Vars.ubtu26stig_500010 }}
+package:
+  ufw:
+    title: "UBTU-26-500010 | UFW (Uncomplicated Firewall) must be installed"
+    installed: true
+    meta:
+      stig_id: UBTU-26-500010
+      severity: CAT_II
+      title: "UFW package"
+
+command:
+  UBTU-26-500010_ufw_status:
+    title: "UBTU-26-500010 | UFW firewall must be active"
+    exec: "ufw status | head -1"
+    exit-status: 0
+    stdout:
+      - "/Status: active/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-500010
+      severity: CAT_II
+      title: "UFW must be active"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_500020 }}
+kernel-param:
+  net.ipv4.ip_forward:
+    title: "UBTU-26-500020 | IP forwarding must be disabled (unless router)"
+    value: "0"
+    meta:
+      stig_id: UBTU-26-500020
+      severity: CAT_II
+      title: "IPv4 forwarding disabled"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_500030 }}
+kernel-param:
+  net.ipv4.conf.all.send_redirects:
+    title: "UBTU-26-500030 | IPv4 ICMP redirects must be disabled"
+    value: "0"
+    meta:
+      stig_id: UBTU-26-500030
+      severity: CAT_II
+      title: "IPv4 send redirects disabled"
+
+  net.ipv4.conf.default.send_redirects:
+    title: "UBTU-26-500030 | IPv4 ICMP redirects (default) must be disabled"
+    value: "0"
+    meta:
+      stig_id: UBTU-26-500030
+      severity: CAT_II
+      title: "IPv4 default send redirects disabled"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_500040 }}
+kernel-param:
+  net.ipv4.conf.all.accept_redirects:
+    title: "UBTU-26-500040 | System must not accept IPv4 ICMP redirects"
+    value: "0"
+    meta:
+      stig_id: UBTU-26-500040
+      severity: CAT_II
+      title: "IPv4 accept redirects disabled"
+
+  net.ipv6.conf.all.accept_redirects:
+    title: "UBTU-26-500040 | System must not accept IPv6 ICMP redirects"
+    value: "0"
+    meta:
+      stig_id: UBTU-26-500040
+      severity: CAT_II
+      title: "IPv6 accept redirects disabled"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_500050 }}
+kernel-param:
+  net.ipv4.tcp_syncookies:
+    title: "UBTU-26-500050 | SYN cookies must be enabled to protect against SYN flood attacks"
+    value: "1"
+    meta:
+      stig_id: UBTU-26-500050
+      severity: CAT_II
+      title: "TCP SYN cookies enabled"
+{{ end }}

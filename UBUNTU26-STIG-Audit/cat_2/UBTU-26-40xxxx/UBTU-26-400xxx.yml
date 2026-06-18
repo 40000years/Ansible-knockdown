@@ -1,0 +1,167 @@
+# UBTU-26-400000 to UBTU-26-400400
+# CAT II - 40XXXX File Permissions, Ownership, and sudo Controls
+
+{{ if .Vars.ubtu26stig_400000 }}
+file:
+  /etc/passwd:
+    title: "UBTU-26-400000 | /etc/passwd must have correct permissions"
+    exists: true
+    mode: "0644"
+    owner: root
+    group: root
+    meta:
+      stig_id: UBTU-26-400000
+      severity: CAT_II
+      title: "/etc/passwd permissions"
+
+  /etc/shadow:
+    title: "UBTU-26-400000 | /etc/shadow must have restricted permissions"
+    exists: true
+    mode: "0640"
+    owner: root
+    group: shadow
+    meta:
+      stig_id: UBTU-26-400000
+      severity: CAT_II
+      title: "/etc/shadow permissions"
+
+  /etc/group:
+    title: "UBTU-26-400000 | /etc/group must have correct permissions"
+    exists: true
+    mode: "0644"
+    owner: root
+    group: root
+    meta:
+      stig_id: UBTU-26-400000
+      severity: CAT_II
+      title: "/etc/group permissions"
+
+  /etc/gshadow:
+    title: "UBTU-26-400000 | /etc/gshadow must have restricted permissions"
+    exists: true
+    mode: "0640"
+    owner: root
+    group: shadow
+    meta:
+      stig_id: UBTU-26-400000
+      severity: CAT_II
+      title: "/etc/gshadow permissions"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_400020 }}
+file:
+  /etc/sudoers:
+    title: "UBTU-26-400020 | /etc/sudoers must have correct permissions"
+    exists: true
+    mode: "0440"
+    owner: root
+    group: root
+    meta:
+      stig_id: UBTU-26-400020
+      severity: CAT_II
+      title: "/etc/sudoers file permissions"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_400030 }}
+command:
+  UBTU-26-400030_sudoers_d_permissions:
+    title: "UBTU-26-400030 | Files in /etc/sudoers.d/ must have correct permissions"
+    exec: "find /etc/sudoers.d/ -maxdepth 1 -type f ! -perm 0440 -printf '%p %m\n' 2>/dev/null | wc -l"
+    exit-status: 0
+    stdout:
+      - "/^0$/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-400030
+      severity: CAT_II
+      title: "/etc/sudoers.d/ file permissions"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_400060 }}
+command:
+  UBTU-26-400060_world_writable_dirs:
+    title: "UBTU-26-400060 | World-writable directories must be group-owned by root"
+    exec: "find / -xdev -type d -perm -0002 ! -perm -1000 -not -group root 2>/dev/null | grep -v '/proc' | wc -l"
+    exit-status: 0
+    stdout:
+      - "/^0$/"
+    timeout: {{ .Vars.timeout_ms }}
+    meta:
+      stig_id: UBTU-26-400060
+      severity: CAT_II
+      title: "World-writable directory ownership"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_400110 }}
+command:
+  UBTU-26-400110_unowned_files:
+    title: "UBTU-26-400110 | All local files and directories must be owned by a valid user"
+    exec: "find / -xdev -nouser 2>/dev/null | grep -v '/proc' | wc -l"
+    exit-status: 0
+    stdout:
+      - "/^0$/"
+    timeout: {{ .Vars.timeout_ms }}
+    meta:
+      stig_id: UBTU-26-400110
+      severity: CAT_II
+      title: "No unowned files"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_400220 }}
+command:
+  UBTU-26-400220_suid_executables:
+    title: "UBTU-26-400220 | All SUID/SGID files must be documented and reviewed"
+    exec: "find / -xdev \( -perm -4000 -o -perm -2000 \) -type f 2>/dev/null | grep -v '/proc' | grep -vE '^(/usr/bin/sudo|/usr/bin/su|/usr/bin/newgrp|/usr/bin/chsh|/usr/bin/passwd|/usr/bin/gpasswd|/usr/bin/chfn|/usr/bin/pkexec|/usr/lib)' | wc -l"
+    exit-status: 0
+    stdout:
+      - "/^[0-9]+$/"
+    timeout: {{ .Vars.timeout_ms }}
+    meta:
+      stig_id: UBTU-26-400220
+      severity: CAT_II
+      title: "SUID/SGID file review"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_400260 }}
+file:
+  /etc/cron.allow:
+    title: "UBTU-26-400260 | cron.allow must be owned by root"
+    exists: true
+    owner: root
+    group: crontab
+    mode: "0640"
+    meta:
+      stig_id: UBTU-26-400260
+      severity: CAT_II
+      title: "/etc/cron.allow permissions"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_400270 }}
+command:
+  UBTU-26-400270_umask_system:
+    title: "UBTU-26-400270 | Default system umask must be 077 in /etc/login.defs"
+    exec: "grep '^UMASK' /etc/login.defs | awk '{print $2}'"
+    exit-status: 0
+    stdout:
+      - "/^077$/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-400270
+      severity: CAT_II
+      title: "System default umask = 077"
+{{ end }}
+
+{{ if .Vars.ubtu26stig_400280 }}
+command:
+  UBTU-26-400280_umask_pam:
+    title: "UBTU-26-400280 | pam_umask must enforce umask of 077"
+    exec: "grep 'umask' /etc/pam.d/common-session 2>/dev/null | grep -v '^#' || grep 'USERGROUPS_ENAB' /etc/login.defs | awk '{print $2}'"
+    exit-status: 0
+    stdout:
+      - "/umask=077|yes/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-400280
+      severity: CAT_II
+      title: "PAM umask enforcement"
+{{ end }}

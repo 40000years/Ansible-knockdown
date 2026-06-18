@@ -1,0 +1,19 @@
+gossfile:
+  {{ if .Vars.ubtu26stig_cat1 }}
+  cat_1/*.yml: {}
+  {{ end }}
+
+  {{ if .Vars.ubtu26stig_cat2 }}
+  cat_2/UBTU-26-10xxxx/*.yml: {}
+  cat_2/UBTU-26-20xxxx/*.yml: {}
+  cat_2/UBTU-26-30xxxx/*.yml: {}
+  cat_2/UBTU-26-40xxxx/*.yml: {}
+  cat_2/UBTU-26-50xxxx/*.yml: {}
+  cat_2/UBTU-26-60xxxx/*.yml: {}
+  cat_2/UBTU-26-70xxxx/*.yml: {}
+  cat_2/UBTU-26-90xxxx/*.yml: {}
+  {{ end }}
+
+  {{ if .Vars.ubtu26stig_cat3 }}
+  cat_3/*.yml: {}
+  {{ end }}
