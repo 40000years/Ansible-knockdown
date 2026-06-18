@@ -43,8 +43,6 @@ ubtu26stig_required_packages:
   - ufw
   - apparmor
   - apparmor-utils
-  - libpam-faillock
-
 # sudo-rs package name
 ubtu26stig_sudo_rs_package: sudo-rs
 
