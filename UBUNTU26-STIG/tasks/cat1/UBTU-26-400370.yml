@@ -1,0 +1,43 @@
+---
+# UBUNTU26-STIG tasks/cat1/UBTU-26-400370.yml
+# CAT I — rsh-server Removal
+# UBTU-26-400370: Must not have rsh-server package installed
+
+- name: "UBTU-26-400370 | CAT I | PATCH | Remove rsh-server package"
+  ansible.builtin.apt:
+    name: rsh-server
+    state: absent
+    purge: true
+  when: ubtu26stig_400370 | bool
+  tags:
+    - UBTU-26-400370
+    - CAT1
+    - patch
+    - packages
+    - rsh
+
+- name: "UBTU-26-400370 | CAT I | PATCH | Remove rsh-client package"
+  ansible.builtin.apt:
+    name: rsh-client
+    state: absent
+    purge: true
+  when: ubtu26stig_400370 | bool
+  tags:
+    - UBTU-26-400370
+    - CAT1
+    - patch
+    - packages
+    - rsh
+
+- name: "UBTU-26-400370 | CAT I | PATCH | Remove telnet package"
+  ansible.builtin.apt:
+    name: telnet
+    state: absent
+    purge: true
+  when: ubtu26stig_400370 | bool
+  tags:
+    - UBTU-26-400370
+    - CAT1
+    - patch
+    - packages
+    - telnet

@@ -1,0 +1,52 @@
+---
+# UBUNTU26-STIG vars/main.yml
+# OS-specific internal variables — do not edit unless you know what you are doing
+# User-configurable settings belong in defaults/main.yml
+
+ubtu26stig_os_name: "Ubuntu"
+ubtu26stig_os_version: "26.04"
+ubtu26stig_benchmark: "STIG"
+ubtu26stig_benchmark_version: "1.0.0"
+
+# PAM configuration files
+ubtu26stig_pam_password_auth: /etc/pam.d/common-password
+ubtu26stig_pam_auth: /etc/pam.d/common-auth
+ubtu26stig_pam_account: /etc/pam.d/common-account
+ubtu26stig_pam_session: /etc/pam.d/common-session
+
+# Sysctl target file for STIG settings
+ubtu26stig_sysctl_file: /etc/sysctl.d/99-stig-ubuntu26.conf
+
+# Auditd rules file
+ubtu26stig_audit_rules_file: /etc/audit/rules.d/99-stig-ubuntu26.rules
+
+# Audit content target location on managed host
+ubtu26stig_audit_content_dir: "{{ audit_content_location }}"
+
+# Packages that must be removed (CAT I/II)
+ubtu26stig_remove_packages:
+  - rsh-server
+  - rsh-client
+  - telnet
+  - nis
+  - tftpd
+  - tftpd-hpa
+  - xinetd
+  - ftp
+
+# Packages that must be present
+ubtu26stig_required_packages:
+  - auditd
+  - audispd-plugins
+  - aide
+  - libpam-pwquality
+  - ufw
+  - apparmor
+  - apparmor-utils
+  - libpam-faillock
+
+# sudo-rs package name
+ubtu26stig_sudo_rs_package: sudo-rs
+
+# Goss binary destination on managed host
+ubtu26stig_goss_bin: /usr/local/bin/goss

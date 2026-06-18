@@ -1,0 +1,6 @@
+profile: production
+skip_list:
+  - 'yaml[line-length]'
+  - 'yaml[truthy]'
+  - 'name[casing]'
+  - 'fqcn-builtins'

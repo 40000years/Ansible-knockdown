@@ -1,0 +1,157 @@
+---
+# UBUNTU26-STIG tasks/cat2/UBTU-26-200xxx.yml
+# CAT II — Auditd Installation, Configuration, and Rules
+
+# ─── Install & Enable auditd ──────────────────────────────────────────────────
+- name: "UBTU-26-200020 | CAT II | PATCH | Ensure auditd is installed"
+  ansible.builtin.apt:
+    name:
+      - auditd
+      - audispd-plugins
+    state: present
+  when: ubtu26stig_200020 | bool
+  tags:
+    - UBTU-26-200020
+    - CAT2
+    - patch
+    - auditd
+
+- name: "UBTU-26-200040 | CAT II | PATCH | Ensure auditd service is running"
+  ansible.builtin.service:
+    name: auditd
+    state: started
+    enabled: true
+  when: ubtu26stig_200040 | bool
+  tags:
+    - UBTU-26-200040
+    - CAT2
+    - patch
+    - auditd
+
+- name: "UBTU-26-200041 | CAT II | PATCH | Ensure auditd is enabled at boot via GRUB"
+  ansible.builtin.lineinfile:
+    path: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX='
+    line: 'GRUB_CMDLINE_LINUX="audit=1 audit_backlog_limit=8192"'
+    state: present
+  when: ubtu26stig_200041 | bool
+  notify: update grub
+  tags:
+    - UBTU-26-200041
+    - CAT2
+    - patch
+    - auditd
+
+# ─── Auditd Configuration ─────────────────────────────────────────────────────
+- name: "UBTU-26-200042 | CAT II | PATCH | Set auditd max_log_file size"
+  ansible.builtin.lineinfile:
+    path: /etc/audit/auditd.conf
+    regexp: '^#?\s*max_log_file\s*='
+    line: "max_log_file = {{ ubtu26stig_audit_log_size }}"
+    state: present
+  when: ubtu26stig_200042 | bool
+  notify: restart auditd
+  tags:
+    - UBTU-26-200042
+    - CAT2
+    - patch
+    - auditd
+
+- name: "UBTU-26-200043 | CAT II | PATCH | Set auditd num_logs"
+  ansible.builtin.lineinfile:
+    path: /etc/audit/auditd.conf
+    regexp: '^#?\s*num_logs\s*='
+    line: "num_logs = {{ ubtu26stig_audit_num_logs }}"
+    state: present
+  when: ubtu26stig_200043 | bool
+  notify: restart auditd
+  tags:
+    - UBTU-26-200043
+    - CAT2
+    - patch
+    - auditd
+
+- name: "UBTU-26-200060 | CAT II | PATCH | Set auditd space_left"
+  ansible.builtin.lineinfile:
+    path: /etc/audit/auditd.conf
+    regexp: '^#?\s*space_left\s*='
+    line: "space_left = {{ ubtu26stig_audit_space_left }}"
+    state: present
+  when: ubtu26stig_200060 | bool
+  notify: restart auditd
+  tags:
+    - UBTU-26-200060
+    - CAT2
+    - patch
+    - auditd
+
+- name: "UBTU-26-200060 | CAT II | PATCH | Set auditd space_left_action"
+  ansible.builtin.lineinfile:
+    path: /etc/audit/auditd.conf
+    regexp: '^#?\s*space_left_action\s*='
+    line: "space_left_action = {{ ubtu26stig_audit_space_left_action }}"
+    state: present
+  when: ubtu26stig_200060 | bool
+  notify: restart auditd
+  tags:
+    - UBTU-26-200060
+    - CAT2
+    - patch
+    - auditd
+
+- name: "UBTU-26-200090 | CAT II | PATCH | Set auditd disk_full_action"
+  ansible.builtin.lineinfile:
+    path: /etc/audit/auditd.conf
+    regexp: '^#?\s*disk_full_action\s*='
+    line: "disk_full_action = {{ ubtu26stig_audit_disk_full_action }}"
+    state: present
+  when: ubtu26stig_200090 | bool
+  notify: restart auditd
+  tags:
+    - UBTU-26-200090
+    - CAT2
+    - patch
+    - auditd
+
+- name: "UBTU-26-200090 | CAT II | PATCH | Set auditd action_mail_acct"
+  ansible.builtin.lineinfile:
+    path: /etc/audit/auditd.conf
+    regexp: '^#?\s*action_mail_acct\s*='
+    line: "action_mail_acct = {{ ubtu26stig_audit_action_mail_acct }}"
+    state: present
+  when: ubtu26stig_200090 | bool
+  notify: restart auditd
+  tags:
+    - UBTU-26-200090
+    - CAT2
+    - patch
+    - auditd
+
+# ─── Deploy Audit Rules ───────────────────────────────────────────────────────
+- name: "UBTU-26-200250-680 | CAT II | PATCH | Deploy STIG auditd rules file"
+  ansible.builtin.template:
+    src: audit.rules.j2
+    dest: "{{ ubtu26stig_audit_rules_file }}"
+    owner: root
+    group: root
+    mode: '0640'
+  when:
+    - ubtu26stig_200250 | bool
+      or ubtu26stig_200260 | bool
+      or ubtu26stig_200270 | bool
+      or ubtu26stig_200280 | bool
+      or ubtu26stig_200290 | bool
+      or ubtu26stig_200300 | bool
+  notify: reload auditd rules
+  tags:
+    - UBTU-26-200250
+    - UBTU-26-200260
+    - UBTU-26-200270
+    - UBTU-26-200280
+    - UBTU-26-200290
+    - UBTU-26-200300
+    - UBTU-26-200310
+    - UBTU-26-200320
+    - CAT2
+    - patch
+    - auditd

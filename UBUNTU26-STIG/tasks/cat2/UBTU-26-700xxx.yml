@@ -1,0 +1,120 @@
+---
+# UBUNTU26-STIG tasks/cat2/UBTU-26-700xxx.yml
+# CAT II — Kernel and Boot Parameters
+
+# ─── UBTU-26-700020 | Boot Partition Permissions ─────────────────────────────
+- name: "UBTU-26-700020 | CAT II | AUDIT | Check /boot/grub/grub.cfg permissions"
+  ansible.builtin.stat:
+    path: /boot/grub/grub.cfg
+  register: ubtu26stig_grub_cfg_stat
+  when: ubtu26stig_700020 | bool
+  tags:
+    - UBTU-26-700020
+    - CAT2
+    - audit
+    - boot
+
+- name: "UBTU-26-700020 | CAT II | PATCH | Set /boot/grub/grub.cfg permissions"
+  ansible.builtin.file:
+    path: /boot/grub/grub.cfg
+    owner: root
+    group: root
+    mode: '0400'
+  when:
+    - ubtu26stig_700020 | bool
+    - ubtu26stig_grub_cfg_stat.stat.exists
+  tags:
+    - UBTU-26-700020
+    - CAT2
+    - patch
+    - boot
+
+# ─── UBTU-26-700030 | Core Dumps ─────────────────────────────────────────────
+- name: "UBTU-26-700030 | CAT II | PATCH | Restrict core dumps via sysctl"
+  ansible.posix.sysctl:
+    name: fs.suid_dumpable
+    value: '0'
+    state: present
+    sysctl_file: "{{ ubtu26stig_sysctl_file }}"
+    reload: true
+  when: ubtu26stig_700030 | bool
+  tags:
+    - UBTU-26-700030
+    - CAT2
+    - patch
+    - kernel
+
+- name: "UBTU-26-700030 | CAT II | PATCH | Restrict core dumps via limits.conf"
+  ansible.builtin.lineinfile:
+    path: /etc/security/limits.conf
+    line: "* hard core 0"
+    state: present
+  when: ubtu26stig_700030 | bool
+  tags:
+    - UBTU-26-700030
+    - CAT2
+    - patch
+    - kernel
+
+# ─── UBTU-26-700040 | Disable USB Storage ────────────────────────────────────
+- name: "UBTU-26-700040 | CAT II | PATCH | Disable usb-storage kernel module"
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/stig-usb-storage.conf
+    content: |
+      # UBTU-26-700040 — STIG: Disable USB storage
+      install usb-storage /bin/true
+      blacklist usb-storage
+    owner: root
+    group: root
+    mode: '0644'
+  when: ubtu26stig_700040 | bool
+  tags:
+    - UBTU-26-700040
+    - CAT2
+    - patch
+    - kernel
+
+# ─── UBTU-26-700050 | Disable FireWire Storage ───────────────────────────────
+- name: "UBTU-26-700050 | CAT II | PATCH | Disable firewire-core kernel module"
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/stig-firewire.conf
+    content: |
+      # UBTU-26-700050 — STIG: Disable FireWire storage
+      install firewire-core /bin/true
+      blacklist firewire-core
+      blacklist firewire-ohci
+      blacklist firewire-sbp2
+    owner: root
+    group: root
+    mode: '0644'
+  when: ubtu26stig_700050 | bool
+  tags:
+    - UBTU-26-700050
+    - CAT2
+    - patch
+    - kernel
+
+# ─── Additional sysctl hardening ─────────────────────────────────────────────
+- name: "UBTU-26-700xxx | CAT II | PATCH | Apply additional STIG sysctl parameters"
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+    sysctl_file: "{{ ubtu26stig_sysctl_file }}"
+    reload: true
+  loop:
+    - { name: net.ipv4.conf.all.send_redirects,    value: '0' }
+    - { name: net.ipv4.conf.default.send_redirects, value: '0' }
+    - { name: net.ipv4.ip_forward,                  value: '0' }
+    - { name: net.ipv4.conf.all.log_martians,       value: '1' }
+    - { name: net.ipv4.conf.default.log_martians,   value: '1' }
+    - { name: net.ipv4.icmp_echo_ignore_broadcasts,  value: '1' }
+    - { name: net.ipv4.icmp_ignore_bogus_error_responses, value: '1' }
+    - { name: kernel.dmesg_restrict,               value: '1' }
+    - { name: kernel.kptr_restrict,                value: '2' }
+  when: ubtu26stig_cat2 | bool
+  tags:
+    - CAT2
+    - patch
+    - kernel
+    - sysctl

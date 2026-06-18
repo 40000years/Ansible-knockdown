@@ -1,0 +1,119 @@
+---
+- name: STIG Hardening & Compliance Verification Playbook
+  hosts: all
+  become: true
+  vars:
+    # Where to store the audit tools on the target host
+    audit_dest_dir: "/opt/UBUNTU26-STIG"
+    
+    # Path to your local audit repository on the Ansible Control Node
+    # (Typically relative to the playbook directory, e.g. "./UBUNTU26-STIG-Audit" or "../UBUNTU26-STIG-Audit")
+    audit_src_dir: "{{ playbook_dir }}"
+
+    # Toggles to run the pre/post audit checks
+    run_pre_audit: true
+    run_post_audit: true
+
+    # Outputs
+    audit_format: "json" # options: json, documentation, junit, rspecish
+    pre_audit_report: "/tmp/pre_audit_results.json"
+    post_audit_report: "/tmp/post_audit_results.json"
+
+  tasks:
+    # ─────────────────────────────────────────────────────────────────────────
+    # 1. SETUP AUDIT ENV ON TARGET
+    # ─────────────────────────────────────────────────────────────────────────
+    - name: Ensure goss binary is installed on target
+      ansible.builtin.get_url:
+        url: https://github.com/goss-org/goss/releases/latest/download/goss-linux-amd64
+        dest: /usr/local/bin/goss
+        mode: '0755'
+
+    - name: Ensure audit target directory exists
+      ansible.builtin.file:
+        path: "{{ audit_dest_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Copy audit configuration & checks to target
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ audit_dest_dir }}/"
+        mode: '0644'
+      loop:
+        - "{{ audit_src_dir }}/goss.yml"
+        - "{{ audit_src_dir }}/run_audit.sh"
+        - "{{ audit_src_dir }}/vars"
+        - "{{ audit_src_dir }}/cat_1"
+        - "{{ audit_src_dir }}/cat_2"
+        - "{{ audit_src_dir }}/cat_3"
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 2. RUN PRE-AUDIT (Check current compliance baseline before remediation)
+    # ─────────────────────────────────────────────────────────────────────────
+    - name: Run Pre-Audit compliance scan
+      ansible.builtin.shell:
+        cmd: "bash {{ audit_dest_dir }}/run_audit.sh -f {{ audit_format }} -o {{ pre_audit_report }}"
+      register: pre_audit_run
+      failed_when: false # Do not stop playbook if audit fails (we expect failures before remediating)
+      when: run_pre_audit
+
+    - name: Display Pre-Audit Status
+      ansible.builtin.debug:
+        msg: "Pre-Audit completed. Results saved to {{ pre_audit_report }} on target. Exit code: {{ pre_audit_run.rc }}"
+      when: run_pre_audit and pre_audit_run.rc is defined
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 3. APPLY REMEDIATION (Ansible STIG Hardening Role)
+    # ─────────────────────────────────────────────────────────────────────────
+    # In Semaphore or standard CLI, you'd call your remediation role here
+    # - name: Run Remediation Role
+    #   ansible.builtin.include_role:
+    #     name: UBUNTU26-STIG
+    #
+    # For testing, we can simulate or run a specific task:
+    - name: (Example Remediation) Enforce secure permissions on SSH daemon config
+      ansible.builtin.file:
+        path: /etc/ssh/sshd_config
+        owner: root
+        group: root
+        mode: '0600'
+      failed_when: false # Ignore if sshd_config is not found during initial tests
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 4. RUN POST-AUDIT (Verify system compliance after remediation)
+    # ─────────────────────────────────────────────────────────────────────────
+    - name: Run Post-Audit compliance scan
+      ansible.builtin.shell:
+        cmd: "bash {{ audit_dest_dir }}/run_audit.sh -f {{ audit_format }} -o {{ post_audit_report }}"
+      register: post_audit_run
+      failed_when: false # Register output so we can pull it even if it fails
+      when: run_post_audit
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 5. FETCH REPORTS & VERIFY
+    # ─────────────────────────────────────────────────────────────────────────
+    - name: Create local reports directory on Control Node
+      ansible.builtin.file:
+        path: "{{ playbook_dir }}/audit_reports"
+        state: directory
+        mode: '0755'
+      delegate_to: localhost
+      become: false
+
+    - name: Fetch audit reports to Ansible Control Node
+      ansible.builtin.fetch:
+        src: "{{ item.src }}"
+        dest: "{{ playbook_dir }}/audit_reports/{{ inventory_hostname }}_{{ item.name }}_results.json"
+        flat: true
+      loop:
+        - { src: "{{ pre_audit_report }}", name: "pre" }
+        - { src: "{{ post_audit_report }}", name: "post" }
+      failed_when: false
+
+    - name: Report Post-Audit compliance success/failure
+      ansible.builtin.fail:
+        msg: >
+          STIG Post-Audit check failed. The target host is not fully compliant.
+          Check report: {{ playbook_dir }}/audit_reports/{{ inventory_hostname }}_post_results.json
+      when: run_post_audit and post_audit_run.rc != 0

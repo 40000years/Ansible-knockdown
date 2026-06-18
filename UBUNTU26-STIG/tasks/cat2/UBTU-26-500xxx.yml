@@ -1,0 +1,104 @@
+---
+# UBUNTU26-STIG tasks/cat2/UBTU-26-500xxx.yml
+# CAT II — Network / Firewall Controls
+
+# ─── UBTU-26-500010 | UFW Enable ─────────────────────────────────────────────
+- name: "UBTU-26-500010 | CAT II | PATCH | Ensure UFW is installed"
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+  when: ubtu26stig_500010 | bool
+  tags:
+    - UBTU-26-500010
+    - CAT2
+    - patch
+    - firewall
+
+- name: "UBTU-26-500010 | CAT II | PATCH | Enable UFW firewall"
+  community.general.ufw:
+    state: enabled
+  when:
+    - ubtu26stig_500010 | bool
+    - ubtu26stig_ufw_enabled | bool
+  tags:
+    - UBTU-26-500010
+    - CAT2
+    - patch
+    - firewall
+
+# ─── UBTU-26-500020 | UFW Default Policy ─────────────────────────────────────
+- name: "UBTU-26-500020 | CAT II | PATCH | Set UFW default incoming policy to deny"
+  community.general.ufw:
+    direction: incoming
+    policy: "{{ ubtu26stig_ufw_default_incoming }}"
+  when: ubtu26stig_500020 | bool
+  tags:
+    - UBTU-26-500020
+    - CAT2
+    - patch
+    - firewall
+
+- name: "UBTU-26-500020 | CAT II | PATCH | Set UFW default outgoing policy to allow"
+  community.general.ufw:
+    direction: outgoing
+    policy: "{{ ubtu26stig_ufw_default_outgoing }}"
+  when: ubtu26stig_500020 | bool
+  tags:
+    - UBTU-26-500020
+    - CAT2
+    - patch
+    - firewall
+
+# ─── UBTU-26-500030 | IPv6 Forwarding ───────────────────────────────────────
+- name: "UBTU-26-500030 | CAT II | PATCH | Disable IPv6 forwarding"
+  ansible.posix.sysctl:
+    name: net.ipv6.conf.all.forwarding
+    value: '0'
+    state: present
+    sysctl_file: "{{ ubtu26stig_sysctl_file }}"
+    reload: true
+  when:
+    - ubtu26stig_500030 | bool
+    - not ubtu26stig_system_is_router | bool
+  tags:
+    - UBTU-26-500030
+    - CAT2
+    - patch
+    - network
+
+# ─── UBTU-26-500040 | TCP SYN Cookies ───────────────────────────────────────
+- name: "UBTU-26-500040 | CAT II | PATCH | Enable TCP SYN cookies"
+  ansible.posix.sysctl:
+    name: net.ipv4.tcp_syncookies
+    value: '1'
+    state: present
+    sysctl_file: "{{ ubtu26stig_sysctl_file }}"
+    reload: true
+  when: ubtu26stig_500040 | bool
+  tags:
+    - UBTU-26-500040
+    - CAT2
+    - patch
+    - network
+
+# ─── UBTU-26-500050 | ICMP Redirects ────────────────────────────────────────
+- name: "UBTU-26-500050 | CAT II | PATCH | Disable IPv4 ICMP redirect acceptance"
+  ansible.posix.sysctl:
+    name: "{{ item }}"
+    value: '0'
+    state: present
+    sysctl_file: "{{ ubtu26stig_sysctl_file }}"
+    reload: true
+  loop:
+    - net.ipv4.conf.all.accept_redirects
+    - net.ipv4.conf.default.accept_redirects
+    - net.ipv4.conf.all.secure_redirects
+    - net.ipv4.conf.default.secure_redirects
+  when:
+    - ubtu26stig_500050 | bool
+    - not ubtu26stig_system_is_router | bool
+  tags:
+    - UBTU-26-500050
+    - CAT2
+    - patch
+    - network

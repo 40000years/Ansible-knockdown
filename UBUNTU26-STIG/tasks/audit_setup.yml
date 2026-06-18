@@ -1,0 +1,132 @@
+---
+# UBUNTU26-STIG tasks/audit_setup.yml
+# Install goss binary and deploy UBUNTU26-STIG-Audit content to target host
+
+- name: "[AUDIT SETUP] Check if goss binary is already installed"
+  ansible.builtin.stat:
+    path: "{{ ubtu26stig_goss_bin }}"
+  register: ubtu26stig_goss_stat
+  tags:
+    - always
+    - audit
+
+- name: "[AUDIT SETUP] Download and install goss binary"
+  ansible.builtin.get_url:
+    url: "{{ goss_download_url }}"
+    dest: "{{ ubtu26stig_goss_bin }}"
+    mode: '0755'
+    timeout: 60
+  when: not ubtu26stig_goss_stat.stat.exists
+  tags:
+    - always
+    - audit
+
+- name: "[AUDIT SETUP] Verify goss version"
+  ansible.builtin.command:
+    cmd: "{{ ubtu26stig_goss_bin }} --version"
+  register: ubtu26stig_goss_version
+  changed_when: false
+  failed_when: false
+  tags:
+    - always
+    - audit
+
+- name: "[AUDIT SETUP] Display goss version"
+  ansible.builtin.debug:
+    msg: "goss version: {{ ubtu26stig_goss_version.stdout | default('unknown') }}"
+  tags:
+    - always
+    - audit
+
+- name: "[AUDIT SETUP] Create audit content directory on target"
+  ansible.builtin.file:
+    path: "{{ ubtu26stig_audit_content_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - always
+    - audit
+
+- name: "[AUDIT SETUP] Copy audit entry point (goss.yml)"
+  ansible.builtin.copy:
+    src: "{{ audit_src_dir }}/goss.yml"
+    dest: "{{ ubtu26stig_audit_content_dir }}/goss.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - always
+    - audit
+
+- name: "[AUDIT SETUP] Copy run_audit.sh"
+  ansible.builtin.copy:
+    src: "{{ audit_src_dir }}/run_audit.sh"
+    dest: "{{ ubtu26stig_audit_content_dir }}/run_audit.sh"
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - always
+    - audit
+
+- name: "[AUDIT SETUP] Copy vars directory"
+  ansible.builtin.copy:
+    src: "{{ audit_src_dir }}/vars/"
+    dest: "{{ ubtu26stig_audit_content_dir }}/vars/"
+    owner: root
+    group: root
+    mode: '0644'
+    directory_mode: '0755'
+  tags:
+    - always
+    - audit
+
+- name: "[AUDIT SETUP] Copy cat_1 audit checks"
+  ansible.builtin.copy:
+    src: "{{ audit_src_dir }}/cat_1/"
+    dest: "{{ ubtu26stig_audit_content_dir }}/cat_1/"
+    owner: root
+    group: root
+    mode: '0644'
+    directory_mode: '0755'
+  tags:
+    - always
+    - audit
+
+- name: "[AUDIT SETUP] Copy cat_2 audit checks"
+  ansible.builtin.copy:
+    src: "{{ audit_src_dir }}/cat_2/"
+    dest: "{{ ubtu26stig_audit_content_dir }}/cat_2/"
+    owner: root
+    group: root
+    mode: '0644'
+    directory_mode: '0755'
+  tags:
+    - always
+    - audit
+
+- name: "[AUDIT SETUP] Copy cat_3 audit checks"
+  ansible.builtin.copy:
+    src: "{{ audit_src_dir }}/cat_3/"
+    dest: "{{ ubtu26stig_audit_content_dir }}/cat_3/"
+    owner: root
+    group: root
+    mode: '0644'
+    directory_mode: '0755'
+  tags:
+    - always
+    - audit
+
+- name: "[AUDIT SETUP] Create local reports directory on control node"
+  ansible.builtin.file:
+    path: "{{ audit_reports_dir }}"
+    state: directory
+    mode: '0755'
+  delegate_to: localhost
+  become: false
+  when: audit_fetch_reports | bool
+  tags:
+    - always
+    - audit

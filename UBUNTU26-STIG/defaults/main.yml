@@ -1,0 +1,384 @@
+---
+# UBUNTU26-STIG defaults/main.yml
+# All user-configurable variables for the UBUNTU26-STIG role
+# Adapted from ansible-lockdown/UBUNTU24-STIG for Ubuntu 26.04 LTS (Resolute Raccoon)
+# Updated for sudo-rs support and Ubuntu 26 STIG controls
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Audit Integration
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Set to true to run goss audit before and after remediation
+run_audit: false
+
+# Set to true to ONLY run audit without applying any remediation
+audit_only: false
+
+# Location where audit content is deployed on target host
+# Must match AUDIT_CONTENT_LOCATION in run_audit.sh
+audit_content_location: /opt/UBUNTU26-STIG
+
+# Path to the UBUNTU26-STIG-Audit source on the Ansible Control Node
+# Default: sibling directory next to this role
+audit_src_dir: "{{ role_path }}/../UBUNTU26-STIG-Audit"
+
+# Goss binary download URL (override to use a local mirror)
+goss_download_url: "https://github.com/goss-org/goss/releases/latest/download/goss-linux-amd64"
+
+# Audit output format: json | documentation | rspecish | junit
+audit_format: json
+
+# Output file paths on target host
+pre_audit_report: "/tmp/pre_audit_{{ ansible_hostname }}.json"
+post_audit_report: "/tmp/post_audit_{{ ansible_hostname }}.json"
+
+# Fetch audit reports to control node after run
+audit_fetch_reports: true
+audit_reports_dir: "{{ playbook_dir }}/audit_reports"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Category Enable/Disable
+# ─────────────────────────────────────────────────────────────────────────────
+
+ubtu26stig_cat1: true   # HIGH severity controls
+ubtu26stig_cat2: true   # MEDIUM severity controls
+ubtu26stig_cat3: true   # LOW severity controls
+
+# ─────────────────────────────────────────────────────────────────────────────
+# System Type
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Set to true if target system has a graphical desktop (GNOME)
+ubtu26stig_gui: false
+
+# Set to true if system acts as a router
+ubtu26stig_system_is_router: false
+
+# ─────────────────────────────────────────────────────────────────────────────
+# sudo-rs Detection
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Ubuntu 26.04 ships sudo-rs (Rust rewrite) as the default sudo implementation.
+# This is auto-detected during pre_tasks.yml but can be overridden here.
+# Set to false ONLY if you have reverted to classic sudo via update-alternatives.
+ubtu26stig_sudo_rs: true
+ubtu26stig_classic_sudo: false
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FIPS
+# ─────────────────────────────────────────────────────────────────────────────
+
+ubtu26stig_fips_enabled: false
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Password Policy
+# ─────────────────────────────────────────────────────────────────────────────
+
+ubtu26stig_pwd_min_length: 15
+ubtu26stig_pwd_max_age: 60
+ubtu26stig_pwd_min_age: 1
+ubtu26stig_pwd_warn_age: 7
+ubtu26stig_pwd_remember: 5
+ubtu26stig_pwd_lockout_attempts: 3
+ubtu26stig_pwd_lockout_time: 900    # seconds (15 minutes)
+
+# pwquality complexity requirements
+ubtu26stig_pwd_dcredit: -1    # at least 1 digit
+ubtu26stig_pwd_ucredit: -1    # at least 1 uppercase
+ubtu26stig_pwd_lcredit: -1    # at least 1 lowercase
+ubtu26stig_pwd_ocredit: -1    # at least 1 special character
+ubtu26stig_pwd_maxrepeat: 3   # max consecutive repeating characters
+ubtu26stig_pwd_difok: 8       # min chars different from old password
+
+# Encryption method for new passwords
+ubtu26stig_pwd_encrypt_method: SHA512
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Session / Login
+# ─────────────────────────────────────────────────────────────────────────────
+
+ubtu26stig_session_timeout: 900    # seconds (15 minutes)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SSH Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+
+ubtu26stig_ssh_config_file: /etc/ssh/sshd_config
+
+# SSH idle timeout
+ubtu26stig_ssh_client_alive_interval: 60
+ubtu26stig_ssh_client_alive_count_max: 0
+
+# SSH login grace time (seconds)
+ubtu26stig_ssh_login_grace_time: 60
+
+# SSH max auth tries
+ubtu26stig_ssh_max_auth_tries: 4
+
+# SSH log level
+ubtu26stig_ssh_log_level: VERBOSE
+
+# SSH subsystems
+ubtu26stig_ssh_allow_agent_forwarding: "no"
+ubtu26stig_ssh_x11_forwarding: "no"
+ubtu26stig_ssh_permit_root_login: "no"
+ubtu26stig_ssh_permit_empty_passwords: "no"
+ubtu26stig_ssh_permit_user_environment: "no"
+ubtu26stig_ssh_hostbased_authentication: "no"
+ubtu26stig_ssh_ignore_rhosts: "yes"
+ubtu26stig_ssh_print_last_log: "yes"
+ubtu26stig_ssh_use_pam: "yes"
+
+# Approved ciphers (FIPS-validated)
+ubtu26stig_ssh_ciphers:
+  - aes256-gcm@openssh.com
+  - aes128-gcm@openssh.com
+  - aes256-ctr
+  - aes192-ctr
+  - aes128-ctr
+
+# Approved MACs
+ubtu26stig_ssh_macs:
+  - hmac-sha2-512-etm@openssh.com
+  - hmac-sha2-256-etm@openssh.com
+  - hmac-sha2-512
+  - hmac-sha2-256
+
+# Approved KexAlgorithms
+ubtu26stig_ssh_kex:
+  - curve25519-sha256
+  - curve25519-sha256@libssh.org
+  - ecdh-sha2-nistp256
+  - ecdh-sha2-nistp384
+  - ecdh-sha2-nistp521
+  - diffie-hellman-group14-sha256
+  - diffie-hellman-group16-sha512
+  - diffie-hellman-group18-sha512
+
+# SSH Banner
+ubtu26stig_ssh_banner: "yes"
+ubtu26stig_ssh_banner_path: /etc/issue.net
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Auditd Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+
+ubtu26stig_audit_log_size: 8         # MB per log file
+ubtu26stig_audit_num_logs: 5         # number of log files to rotate
+ubtu26stig_audit_space_left: 75      # percent free space before alert
+ubtu26stig_audit_space_left_action: email
+ubtu26stig_audit_action_mail_acct: root
+ubtu26stig_audit_disk_full_action: halt
+ubtu26stig_audit_max_log_file_action: keep_logs
+ubtu26stig_audit_log_group: root
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AIDE Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+
+ubtu26stig_aide_cron_hour: "5"
+ubtu26stig_aide_cron_minute: "0"
+ubtu26stig_aide_mail_report: root
+
+# ─────────────────────────────────────────────────────────────────────────────
+# UFW / Firewall
+# ─────────────────────────────────────────────────────────────────────────────
+
+ubtu26stig_ufw_enabled: true
+ubtu26stig_ufw_default_incoming: deny
+ubtu26stig_ufw_default_outgoing: allow
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Kernel / sysctl Parameters
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ASLR - Address Space Layout Randomization
+ubtu26stig_aslr_value: 2
+
+# Ptrace scope - restrict ptrace to parent process only
+ubtu26stig_ptrace_scope: 1
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Warning Banner
+# ─────────────────────────────────────────────────────────────────────────────
+
+ubtu26stig_banner_text: |
+  You are accessing a U.S. Government (USG) Information System (IS) that is
+  provided for USG-authorized use only.
+
+  By using this IS (which includes any device attached to this IS), you consent
+  to the following conditions:
+
+  -The USG routinely intercepts and monitors communications on this IS for
+  purposes including, but not limited to, penetration testing, COMSEC monitoring,
+  network operations and defense, personnel misconduct (PM), law enforcement
+  (LE), and counterintelligence (CI) investigations.
+
+  -At any time, the USG may inspect and seize data stored on this IS.
+
+  -Communications using, or data stored on, this IS are not private, are subject
+  to routine monitoring, interception, and search, and may be disclosed or used
+  for any USG-authorized purpose.
+
+  -This IS includes security measures (e.g., authentication and access controls)
+  to protect USG interests--not for your personal benefit or privacy.
+
+  -Notwithstanding the above, using this IS does not constitute consent to PM, LE
+  or CI investigative searching or monitoring of the content of privileged
+  communications, or work product, related to personal representation or services
+  by attorneys, psychotherapists, or clergy, and their assistants. Such
+  communications and work product are private and confidential. See User Agreement
+  for details.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Reboot Behavior
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Allow role to reboot the system when kernel parameters require it
+ubtu26stig_allow_reboot: false
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Individual Control Toggles — CAT 1 (HIGH)
+# ─────────────────────────────────────────────────────────────────────────────
+
+ubtu26stig_100030: true    # No blank/null passwords
+ubtu26stig_100040: true    # Prevent direct root login
+ubtu26stig_100050: true    # Prevent dictionary word passwords
+ubtu26stig_100800: true    # Disable Ctrl-Alt-Delete key sequence
+ubtu26stig_100810: true    # Remove Ctrl-Alt-Delete target
+ubtu26stig_102000: true    # DoD-approved encryption (OpenSSL)
+ubtu26stig_300022: true    # SSH PermitRootLogin no
+ubtu26stig_300025: true    # SSH FIPS-validated KexAlgorithms
+ubtu26stig_300026: true    # SSH approved MACs
+ubtu26stig_300027: true    # SSH approved ciphers
+ubtu26stig_300028: true    # SSH no empty passwords
+ubtu26stig_300031: true    # SSH PermitUserEnvironment no
+ubtu26stig_400370: true    # Remove rsh-server
+ubtu26stig_600030: true    # AIDE integrity check daily
+ubtu26stig_600130: true    # Virus scanner
+ubtu26stig_700400: true    # ASLR enabled
+ubtu26stig_700410: true    # Restrict ptrace
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Individual Control Toggles — CAT 2 (MEDIUM)
+# ─────────────────────────────────────────────────────────────────────────────
+
+## 10XXXX — Account/Authentication
+ubtu26stig_100100: true    # Password min length
+ubtu26stig_100110: true    # Password complexity (uppercase)
+ubtu26stig_100120: true    # Password complexity (lowercase)
+ubtu26stig_100130: true    # Password complexity (digits)
+ubtu26stig_100200: true    # Password max age
+ubtu26stig_100300: true    # Password min age
+ubtu26stig_100310: true    # Password warn age
+ubtu26stig_100400: true    # Account lockout threshold
+ubtu26stig_100410: true    # Account lockout duration
+ubtu26stig_100500: true    # Password history
+ubtu26stig_100510: true    # Password special characters
+ubtu26stig_100600: true    # Minimum password different chars
+ubtu26stig_100650: true    # No shared accounts
+ubtu26stig_100660: true    # Unique UIDs
+ubtu26stig_100820: true    # sudo-rs installed and active
+ubtu26stig_100830: true    # No NOPASSWD in sudoers
+ubtu26stig_100840: true    # sudo logging enabled
+ubtu26stig_100850: true    # sudo env_reset
+ubtu26stig_100860: true    # sudo use_pty
+ubtu26stig_100900: true    # Session timeout
+ubtu26stig_100910: true    # tmout configured
+ubtu26stig_101000: true    # Disable inactive accounts
+ubtu26stig_102010: true    # pam_faillock configured
+
+## 20XXXX — Auditd
+ubtu26stig_200020: true    # auditd installed
+ubtu26stig_200040: true    # auditd running
+ubtu26stig_200041: true    # auditd enabled at boot
+ubtu26stig_200042: true    # auditd log size
+ubtu26stig_200043: true    # auditd num logs
+ubtu26stig_200060: true    # auditd space_left
+ubtu26stig_200090: true    # auditd disk_full_action
+ubtu26stig_200250: true    # Audit login events
+ubtu26stig_200260: true    # Audit logout events
+ubtu26stig_200270: true    # Audit account modifications
+ubtu26stig_200280: true    # Audit sudo usage
+ubtu26stig_200290: true    # Audit file deletions
+ubtu26stig_200300: true    # Audit permission changes
+ubtu26stig_200310: true    # Audit privileged commands
+ubtu26stig_200320: true    # Audit network config changes
+ubtu26stig_200580: true    # Audit mount operations
+ubtu26stig_200640: true    # Audit passwd changes
+ubtu26stig_200650: true    # Audit group changes
+ubtu26stig_200660: true    # Audit shadow changes
+ubtu26stig_200680: true    # Audit user/group admin tools
+
+## 30XXXX — SSH
+ubtu26stig_300006: true    # SSH protocol 2 only
+ubtu26stig_300007: true    # SSH log level VERBOSE
+ubtu26stig_300008: true    # SSH X11 forwarding disabled
+ubtu26stig_300009: true    # SSH max auth tries
+ubtu26stig_300010: true    # SSH IgnoreRhosts
+ubtu26stig_300011: true    # SSH hostbased auth disabled
+ubtu26stig_300012: true    # SSH PrintLastLog
+ubtu26stig_300013: true    # SSH ClientAliveInterval
+ubtu26stig_300014: true    # SSH ClientAliveCountMax
+ubtu26stig_300016: true    # SSH LoginGraceTime
+ubtu26stig_300021: true    # SSH AllowUsers/AllowGroups
+ubtu26stig_300023: true    # SSH UsePAM
+ubtu26stig_300029: true    # SSH AllowAgentForwarding disabled
+ubtu26stig_300030: true    # SSH GSSAPIAuthentication
+ubtu26stig_300039: true    # SSH StrictModes
+ubtu26stig_300041: true    # SSH Banner
+
+## 40XXXX — File Permissions
+ubtu26stig_400000: true    # /etc/passwd permissions
+ubtu26stig_400020: true    # /etc/shadow permissions
+ubtu26stig_400030: true    # /etc/gshadow permissions
+ubtu26stig_400060: true    # /etc/group permissions
+ubtu26stig_400110: true    # World-writable files
+ubtu26stig_400220: true    # Unowned files
+ubtu26stig_400260: true    # Sticky bit on world-writable dirs
+ubtu26stig_400270: true    # /var/log permissions
+ubtu26stig_400280: true    # /var/log/syslog permissions
+ubtu26stig_400290: true    # /etc/cron.d permissions
+ubtu26stig_400300: true    # /etc/crontab permissions
+ubtu26stig_400310: true    # /etc/cron.daily permissions
+ubtu26stig_400320: true    # /etc/cron.weekly permissions
+ubtu26stig_400330: true    # /etc/cron.monthly permissions
+ubtu26stig_400360: true    # /etc/sudoers permissions
+ubtu26stig_400375: true    # Home directory permissions
+ubtu26stig_400380: true    # SSH public key permissions
+ubtu26stig_400400: true    # SSH private key permissions
+
+## 50XXXX — Network / Firewall
+ubtu26stig_500010: true    # UFW enabled
+ubtu26stig_500020: true    # UFW default deny incoming
+ubtu26stig_500030: true    # Disable IPv6 forwarding
+ubtu26stig_500040: true    # TCP SYN cookies
+ubtu26stig_500050: true    # Disable ICMP redirects
+
+## 60XXXX — Packages / Services
+ubtu26stig_600010: true    # Remove telnet
+ubtu26stig_600020: true    # Remove ftp server
+ubtu26stig_600040: true    # AppArmor enabled
+ubtu26stig_600050: true    # AppArmor profiles enforcing
+
+## 70XXXX — Kernel / Boot
+ubtu26stig_700010: true    # GRUB password
+ubtu26stig_700020: true    # Boot partition permissions
+ubtu26stig_700030: true    # core dumps restricted
+ubtu26stig_700040: true    # Disable USB storage
+ubtu26stig_700050: true    # Disable firewire storage
+
+## 90XXXX — Miscellaneous
+ubtu26stig_900010: true    # NTP/timesyncd configured
+ubtu26stig_900020: true    # Chrony/NTP server
+ubtu26stig_900030: true    # System time source authenticated
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Individual Control Toggles — CAT 3 (LOW)
+# ─────────────────────────────────────────────────────────────────────────────
+
+ubtu26stig_cat3_100010: true    # /etc/issue warning banner
+ubtu26stig_cat3_100020: true    # /etc/issue.net warning banner
+ubtu26stig_cat3_200010: true    # auditd mail on low space
+ubtu26stig_cat3_300001: true    # SSH banner
+ubtu26stig_cat3_400001: true    # GNOME banner (if GUI)

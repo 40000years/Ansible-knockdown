@@ -1,0 +1,63 @@
+---
+# UBUNTU26-STIG handlers/main.yml
+
+- name: Restart sshd
+  ansible.builtin.service:
+    name: sshd
+    state: restarted
+  listen: restart sshd
+
+- name: Restart auditd
+  ansible.builtin.service:
+    name: auditd
+    state: restarted
+  listen: restart auditd
+
+- name: Reload auditd rules
+  ansible.builtin.command:
+    cmd: augenrules --load
+  listen: reload auditd rules
+  changed_when: true
+
+- name: Reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: true
+  listen: reload systemd
+
+- name: Update GRUB
+  ansible.builtin.command:
+    cmd: update-grub
+  listen: update grub
+  changed_when: true
+
+- name: Restart UFW
+  ansible.builtin.service:
+    name: ufw
+    state: restarted
+  listen: restart ufw
+
+- name: Reload UFW rules
+  ansible.builtin.command:
+    cmd: ufw reload
+  listen: reload ufw
+  changed_when: true
+
+- name: Restart rsyslog
+  ansible.builtin.service:
+    name: rsyslog
+    state: restarted
+  listen: restart rsyslog
+
+- name: Reload AppArmor profiles
+  ansible.builtin.command:
+    cmd: apparmor_parser -r /etc/apparmor.d
+  listen: reload apparmor
+  changed_when: true
+  failed_when: false
+
+- name: Reboot system
+  ansible.builtin.reboot:
+    msg: "Reboot initiated by UBUNTU26-STIG role for kernel parameter changes"
+    reboot_timeout: 600
+  listen: reboot system
+  when: ubtu26stig_allow_reboot | bool

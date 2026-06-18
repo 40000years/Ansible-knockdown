@@ -1,0 +1,35 @@
+---
+# UBUNTU26-STIG tasks/cat1/UBTU-26-7004xx.yml
+# CAT I — Kernel Security Parameters
+# UBTU-26-700400: Implement ASLR
+# UBTU-26-700410: Restrict ptrace to parent processes
+
+# ─── UBTU-26-700400 ───────────────────────────────────────────────────────────
+- name: "UBTU-26-700400 | CAT I | PATCH | Enable Address Space Layout Randomization (ASLR)"
+  ansible.posix.sysctl:
+    name: kernel.randomize_va_space
+    value: "{{ ubtu26stig_aslr_value }}"
+    state: present
+    sysctl_file: "{{ ubtu26stig_sysctl_file }}"
+    reload: true
+  when: ubtu26stig_700400 | bool
+  tags:
+    - UBTU-26-700400
+    - CAT1
+    - patch
+    - kernel
+
+# ─── UBTU-26-700410 ───────────────────────────────────────────────────────────
+- name: "UBTU-26-700410 | CAT I | PATCH | Restrict ptrace to parent process (yama)"
+  ansible.posix.sysctl:
+    name: kernel.yama.ptrace_scope
+    value: "{{ ubtu26stig_ptrace_scope }}"
+    state: present
+    sysctl_file: "{{ ubtu26stig_sysctl_file }}"
+    reload: true
+  when: ubtu26stig_700410 | bool
+  tags:
+    - UBTU-26-700410
+    - CAT1
+    - patch
+    - kernel

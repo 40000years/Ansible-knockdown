@@ -1,0 +1,198 @@
+---
+# UBUNTU26-STIG tasks/cat2/UBTU-26-300xxx.yml
+# CAT II — SSH Configuration Controls
+
+- name: "UBTU-26-300006 | CAT II | PATCH | SSH must use Protocol 2"
+  ansible.builtin.lineinfile:
+    path: "{{ ubtu26stig_ssh_config_file }}"
+    regexp: '^#?Protocol'
+    line: 'Protocol 2'
+    state: present
+    validate: 'sshd -t -f %s'
+  when: ubtu26stig_300006 | bool
+  notify: restart sshd
+  tags:
+    - UBTU-26-300006
+    - CAT2
+    - patch
+    - ssh
+
+- name: "UBTU-26-300007 | CAT II | PATCH | Set SSH LogLevel to VERBOSE"
+  ansible.builtin.lineinfile:
+    path: "{{ ubtu26stig_ssh_config_file }}"
+    regexp: '^#?LogLevel'
+    line: "LogLevel {{ ubtu26stig_ssh_log_level }}"
+    state: present
+    validate: 'sshd -t -f %s'
+  when: ubtu26stig_300007 | bool
+  notify: restart sshd
+  tags:
+    - UBTU-26-300007
+    - CAT2
+    - patch
+    - ssh
+
+- name: "UBTU-26-300008 | CAT II | PATCH | Disable SSH X11 forwarding"
+  ansible.builtin.lineinfile:
+    path: "{{ ubtu26stig_ssh_config_file }}"
+    regexp: '^#?X11Forwarding'
+    line: "X11Forwarding {{ ubtu26stig_ssh_x11_forwarding }}"
+    state: present
+    validate: 'sshd -t -f %s'
+  when: ubtu26stig_300008 | bool
+  notify: restart sshd
+  tags:
+    - UBTU-26-300008
+    - CAT2
+    - patch
+    - ssh
+
+- name: "UBTU-26-300009 | CAT II | PATCH | Set SSH MaxAuthTries"
+  ansible.builtin.lineinfile:
+    path: "{{ ubtu26stig_ssh_config_file }}"
+    regexp: '^#?MaxAuthTries'
+    line: "MaxAuthTries {{ ubtu26stig_ssh_max_auth_tries }}"
+    state: present
+    validate: 'sshd -t -f %s'
+  when: ubtu26stig_300009 | bool
+  notify: restart sshd
+  tags:
+    - UBTU-26-300009
+    - CAT2
+    - patch
+    - ssh
+
+- name: "UBTU-26-300010 | CAT II | PATCH | Disable SSH IgnoreRhosts = yes"
+  ansible.builtin.lineinfile:
+    path: "{{ ubtu26stig_ssh_config_file }}"
+    regexp: '^#?IgnoreRhosts'
+    line: "IgnoreRhosts {{ ubtu26stig_ssh_ignore_rhosts }}"
+    state: present
+    validate: 'sshd -t -f %s'
+  when: ubtu26stig_300010 | bool
+  notify: restart sshd
+  tags:
+    - UBTU-26-300010
+    - CAT2
+    - patch
+    - ssh
+
+- name: "UBTU-26-300011 | CAT II | PATCH | Disable HostbasedAuthentication"
+  ansible.builtin.lineinfile:
+    path: "{{ ubtu26stig_ssh_config_file }}"
+    regexp: '^#?HostbasedAuthentication'
+    line: "HostbasedAuthentication {{ ubtu26stig_ssh_hostbased_authentication }}"
+    state: present
+    validate: 'sshd -t -f %s'
+  when: ubtu26stig_300011 | bool
+  notify: restart sshd
+  tags:
+    - UBTU-26-300011
+    - CAT2
+    - patch
+    - ssh
+
+- name: "UBTU-26-300012 | CAT II | PATCH | Enable SSH PrintLastLog"
+  ansible.builtin.lineinfile:
+    path: "{{ ubtu26stig_ssh_config_file }}"
+    regexp: '^#?PrintLastLog'
+    line: "PrintLastLog {{ ubtu26stig_ssh_print_last_log }}"
+    state: present
+    validate: 'sshd -t -f %s'
+  when: ubtu26stig_300012 | bool
+  notify: restart sshd
+  tags:
+    - UBTU-26-300012
+    - CAT2
+    - patch
+    - ssh
+
+- name: "UBTU-26-300013 | CAT II | PATCH | Set SSH ClientAliveInterval"
+  ansible.builtin.lineinfile:
+    path: "{{ ubtu26stig_ssh_config_file }}"
+    regexp: '^#?ClientAliveInterval'
+    line: "ClientAliveInterval {{ ubtu26stig_ssh_client_alive_interval }}"
+    state: present
+    validate: 'sshd -t -f %s'
+  when: ubtu26stig_300013 | bool
+  notify: restart sshd
+  tags:
+    - UBTU-26-300013
+    - CAT2
+    - patch
+    - ssh
+
+- name: "UBTU-26-300014 | CAT II | PATCH | Set SSH ClientAliveCountMax"
+  ansible.builtin.lineinfile:
+    path: "{{ ubtu26stig_ssh_config_file }}"
+    regexp: '^#?ClientAliveCountMax'
+    line: "ClientAliveCountMax {{ ubtu26stig_ssh_client_alive_count_max }}"
+    state: present
+    validate: 'sshd -t -f %s'
+  when: ubtu26stig_300014 | bool
+  notify: restart sshd
+  tags:
+    - UBTU-26-300014
+    - CAT2
+    - patch
+    - ssh
+
+- name: "UBTU-26-300016 | CAT II | PATCH | Set SSH LoginGraceTime"
+  ansible.builtin.lineinfile:
+    path: "{{ ubtu26stig_ssh_config_file }}"
+    regexp: '^#?LoginGraceTime'
+    line: "LoginGraceTime {{ ubtu26stig_ssh_login_grace_time }}"
+    state: present
+    validate: 'sshd -t -f %s'
+  when: ubtu26stig_300016 | bool
+  notify: restart sshd
+  tags:
+    - UBTU-26-300016
+    - CAT2
+    - patch
+    - ssh
+
+- name: "UBTU-26-300023 | CAT II | PATCH | Enable SSH UsePAM"
+  ansible.builtin.lineinfile:
+    path: "{{ ubtu26stig_ssh_config_file }}"
+    regexp: '^#?UsePAM'
+    line: "UsePAM {{ ubtu26stig_ssh_use_pam }}"
+    state: present
+    validate: 'sshd -t -f %s'
+  when: ubtu26stig_300023 | bool
+  notify: restart sshd
+  tags:
+    - UBTU-26-300023
+    - CAT2
+    - patch
+    - ssh
+
+- name: "UBTU-26-300029 | CAT II | PATCH | Disable SSH AllowAgentForwarding"
+  ansible.builtin.lineinfile:
+    path: "{{ ubtu26stig_ssh_config_file }}"
+    regexp: '^#?AllowAgentForwarding'
+    line: "AllowAgentForwarding {{ ubtu26stig_ssh_allow_agent_forwarding }}"
+    state: present
+    validate: 'sshd -t -f %s'
+  when: ubtu26stig_300029 | bool
+  notify: restart sshd
+  tags:
+    - UBTU-26-300029
+    - CAT2
+    - patch
+    - ssh
+
+- name: "UBTU-26-300041 | CAT II | PATCH | Set SSH Banner"
+  ansible.builtin.lineinfile:
+    path: "{{ ubtu26stig_ssh_config_file }}"
+    regexp: '^#?Banner'
+    line: "Banner {{ ubtu26stig_ssh_banner_path }}"
+    state: present
+    validate: 'sshd -t -f %s'
+  when: ubtu26stig_300041 | bool
+  notify: restart sshd
+  tags:
+    - UBTU-26-300041
+    - CAT2
+    - patch
+    - ssh

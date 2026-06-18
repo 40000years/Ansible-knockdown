@@ -1,0 +1,31 @@
+---
+# UBUNTU26-STIG tasks/cat1/main.yml
+# Include all CAT 1 (HIGH severity) task files
+
+- name: Import CAT1 - Account/Password Controls (100030, 100040, 100050)
+  ansible.builtin.import_tasks: UBTU-26-1000xx.yml
+  tags: CAT1
+
+- name: Import CAT1 - Ctrl-Alt-Delete (100800, 100810)
+  ansible.builtin.import_tasks: UBTU-26-1008xx.yml
+  tags: CAT1
+
+- name: Import CAT1 - Encryption / FIPS (102000)
+  ansible.builtin.import_tasks: UBTU-26-102000.yml
+  tags: CAT1
+
+- name: Import CAT1 - SSH Critical Controls (300022, 300025-28, 300031)
+  ansible.builtin.import_tasks: UBTU-26-3000xx.yml
+  tags: CAT1
+
+- name: Import CAT1 - rsh-server Removal (400370)
+  ansible.builtin.import_tasks: UBTU-26-400370.yml
+  tags: CAT1
+
+- name: Import CAT1 - AIDE Integrity (600030, 600130)
+  ansible.builtin.import_tasks: UBTU-26-600030.yml
+  tags: CAT1
+
+- name: Import CAT1 - Kernel Security (700400, 700410)
+  ansible.builtin.import_tasks: UBTU-26-7004xx.yml
+  tags: CAT1

@@ -1,0 +1,86 @@
+---
+# UBUNTU26-STIG tasks/cat3/UBTU-26-cat3.yml
+# CAT III — LOW Severity Controls
+
+# ─── UBTU-26-100010 | /etc/issue Banner ──────────────────────────────────────
+- name: "UBTU-26-100010 | CAT III | PATCH | Set Standard DoD Warning Banner in /etc/issue"
+  ansible.builtin.copy:
+    dest: /etc/issue
+    content: "{{ ubtu26stig_banner_text }}"
+    owner: root
+    group: root
+    mode: '0644'
+  when: ubtu26stig_cat3_100010 | bool
+  tags:
+    - UBTU-26-100010
+    - CAT3
+    - patch
+    - banner
+
+# ─── UBTU-26-100020 | /etc/issue.net Banner ──────────────────────────────────
+- name: "UBTU-26-100020 | CAT III | PATCH | Set Standard DoD Warning Banner in /etc/issue.net"
+  ansible.builtin.template:
+    src: issue.net.j2
+    dest: /etc/issue.net
+    owner: root
+    group: root
+    mode: '0644'
+  when: ubtu26stig_cat3_100020 | bool
+  tags:
+    - UBTU-26-100020
+    - CAT3
+    - patch
+    - banner
+
+# ─── UBTU-26-200010 | Auditd low space action email ──────────────────────────
+- name: "UBTU-26-200010 | CAT III | PATCH | Configure auditd to email on low space"
+  ansible.builtin.lineinfile:
+    path: /etc/audit/auditd.conf
+    regexp: '^#?\s*action_mail_acct\s*='
+    line: "action_mail_acct = {{ ubtu26stig_audit_action_mail_acct }}"
+    state: present
+  when: ubtu26stig_cat3_200010 | bool
+  notify: restart auditd
+  tags:
+    - UBTU-26-200010
+    - CAT3
+    - patch
+    - auditd
+
+# ─── UBTU-26-300001 | SSH Banner ─────────────────────────────────────────────
+- name: "UBTU-26-300001 | CAT III | PATCH | Enable SSH Warning Banner"
+  ansible.builtin.lineinfile:
+    path: "{{ ubtu26stig_ssh_config_file }}"
+    regexp: '^#?Banner'
+    line: "Banner {{ ubtu26stig_ssh_banner_path }}"
+    state: present
+    validate: 'sshd -t -f %s'
+  when: ubtu26stig_cat3_300001 | bool
+  notify: restart sshd
+  tags:
+    - UBTU-26-300001
+    - CAT3
+    - patch
+    - ssh
+
+# ─── UBTU-26-400001 | GNOME Banner ───────────────────────────────────────────
+- name: "UBTU-26-400001 | CAT III | PATCH | Set GNOME Warning Banner"
+  ansible.builtin.copy:
+    dest: /etc/dconf/db/local.d/01-banner-message
+    content: |
+      [org/gnome/login-screen]
+      banner-message-enable=true
+      banner-message-text='{{ ubtu26stig_banner_text }}'
+    owner: root
+    group: root
+    mode: '0644'
+  when:
+    - ubtu26stig_cat3_400001 | bool
+    - ubtu26stig_gui | bool
+  notify: update dconf
+  tags:
+    - UBTU-26-400001
+    - CAT3
+    - patch
+    - banner
+    - gui

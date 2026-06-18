@@ -1,0 +1,73 @@
+---
+# UBUNTU26-STIG tasks/pre_tasks.yml
+# Pre-flight checks: OS verification, sudo-rs detection, required packages
+
+- name: "[PRE] Check target OS is Ubuntu"
+  ansible.builtin.assert:
+    that:
+      - ansible_distribution == "Ubuntu"
+    msg: >
+      This role is designed for Ubuntu only.
+      Detected distribution: {{ ansible_distribution }}
+  tags: always
+
+- name: "[PRE] Check Ubuntu version is 26.04"
+  ansible.builtin.assert:
+    that:
+      - ansible_distribution_version == "26.04"
+    msg: >
+      This role is designed for Ubuntu 26.04 LTS.
+      Detected version: {{ ansible_distribution_version }}.
+      Results may be inaccurate on other versions.
+    quiet: false
+  ignore_errors: true  # Warn but don't stop — useful for testing on 24.04
+  tags: always
+
+- name: "[PRE] Gather package facts"
+  ansible.builtin.package_facts:
+    manager: apt
+  tags: always
+
+- name: "[PRE] Detect sudo-rs vs classic sudo"
+  ansible.builtin.command:
+    cmd: sudo --version
+  register: ubtu26stig_sudo_ver_output
+  changed_when: false
+  failed_when: false
+  tags: always
+
+- name: "[PRE] Set sudo-rs fact based on version output"
+  ansible.builtin.set_fact:
+    ubtu26stig_sudo_rs: "{{ 'sudo-rs' in ubtu26stig_sudo_ver_output.stdout | lower
+                            or 'sudo-rs' in ubtu26stig_sudo_ver_output.stderr | lower }}"
+    ubtu26stig_classic_sudo: "{{ 'sudo-rs' not in ubtu26stig_sudo_ver_output.stdout | lower
+                                  and 'sudo-rs' not in ubtu26stig_sudo_ver_output.stderr | lower }}"
+  tags: always
+
+- name: "[PRE] Display sudo implementation"
+  ansible.builtin.debug:
+    msg: >
+      sudo implementation: {{ 'sudo-rs (Rust)' if ubtu26stig_sudo_rs else 'classic sudo (C)' }}
+      Version output: {{ ubtu26stig_sudo_ver_output.stdout | default('N/A') }}
+  tags: always
+
+- name: "[PRE] Check python3-apt is available"
+  ansible.builtin.assert:
+    that:
+      - "'python3-apt' in ansible_facts.packages or ansible_python_version is version('3.0', '>=')"
+    msg: "python3-apt or Python 3 is required for apt module functionality"
+    quiet: true
+  ignore_errors: true
+  tags: always
+
+- name: "[PRE] Ensure apt cache is updated"
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  tags: always
+
+- name: "[PRE] Install required base packages"
+  ansible.builtin.apt:
+    name: "{{ ubtu26stig_required_packages }}"
+    state: present
+  tags: always

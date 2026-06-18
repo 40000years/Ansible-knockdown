@@ -1,0 +1,48 @@
+## This file is managed by Ansible.
+## UBUNTU26-STIG: sshd_config.j2
+
+# STIG Compliant SSH Configuration
+
+Port 22
+Protocol 2
+LogLevel {{ ubtu26stig_ssh_log_level }}
+
+# FIPS approved Ciphers, MACs, and KexAlgorithms
+Ciphers {{ ubtu26stig_ssh_ciphers | join(',') }}
+MACs {{ ubtu26stig_ssh_macs | join(',') }}
+KexAlgorithms {{ ubtu26stig_ssh_kex | join(',') }}
+
+# Authentication
+LoginGraceTime {{ ubtu26stig_ssh_login_grace_time }}
+PermitRootLogin {{ ubtu26stig_ssh_permit_root_login }}
+StrictModes yes
+MaxAuthTries {{ ubtu26stig_ssh_max_auth_tries }}
+MaxSessions 10
+
+PubkeyAuthentication yes
+IgnoreRhosts yes
+HostbasedAuthentication {{ ubtu26stig_ssh_hostbased_authentication }}
+PermitEmptyPasswords {{ ubtu26stig_ssh_permit_empty_passwords }}
+PermitUserEnvironment {{ ubtu26stig_ssh_permit_user_environment }}
+ChallengeResponseAuthentication no
+PasswordAuthentication yes
+UsePAM {{ ubtu26stig_ssh_use_pam }}
+
+# Forwarding
+AllowAgentForwarding {{ ubtu26stig_ssh_allow_agent_forwarding }}
+AllowTcpForwarding no
+GatewayPorts no
+X11Forwarding {{ ubtu26stig_ssh_x11_forwarding }}
+
+# Display & Timers
+PrintMotd no
+PrintLastLog {{ ubtu26stig_ssh_print_last_log }}
+TCPKeepAlive yes
+ClientAliveInterval {{ ubtu26stig_ssh_client_alive_interval }}
+ClientAliveCountMax {{ ubtu26stig_ssh_client_alive_count_max }}
+
+# Banner
+Banner {{ ubtu26stig_ssh_banner_path }}
+
+# Subsystem
+Subsystem sftp /usr/lib/openssh/sftp-server

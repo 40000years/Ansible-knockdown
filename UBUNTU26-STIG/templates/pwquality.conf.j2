@@ -1,0 +1,11 @@
+# This file is managed by Ansible.
+# UBUNTU26-STIG: pwquality.conf.j2
+
+difok = {{ ubtu26stig_pwd_difok }}
+minlen = {{ ubtu26stig_pwd_min_length }}
+dcredit = {{ ubtu26stig_pwd_dcredit }}
+ucredit = {{ ubtu26stig_pwd_ucredit }}
+lcredit = {{ ubtu26stig_pwd_lcredit }}
+ocredit = {{ ubtu26stig_pwd_ocredit }}
+maxrepeat = {{ ubtu26stig_pwd_maxrepeat }}
+dictcheck = 1

@@ -1,0 +1,31 @@
+---
+# UBUNTU26-STIG tasks/cat2/main.yml
+# Include all CAT 2 (MEDIUM severity) task files
+
+- name: Import CAT2 - Account/Authentication + sudo-rs (100xxx)
+  ansible.builtin.import_tasks: UBTU-26-100xxx.yml
+  tags: CAT2
+
+- name: Import CAT2 - Auditd Rules (200xxx)
+  ansible.builtin.import_tasks: UBTU-26-200xxx.yml
+  tags: CAT2
+
+- name: Import CAT2 - SSH Controls (300xxx)
+  ansible.builtin.import_tasks: UBTU-26-300xxx.yml
+  tags: CAT2
+
+- name: Import CAT2 - File Permissions (400xxx)
+  ansible.builtin.import_tasks: UBTU-26-400xxx.yml
+  tags: CAT2
+
+- name: Import CAT2 - Network / Firewall (500xxx)
+  ansible.builtin.import_tasks: UBTU-26-500xxx.yml
+  tags: CAT2
+
+- name: Import CAT2 - Packages / Services (600xxx)
+  ansible.builtin.import_tasks: UBTU-26-600xxx.yml
+  tags: CAT2
+
+- name: Import CAT2 - Kernel / Boot (700xxx)
+  ansible.builtin.import_tasks: UBTU-26-700xxx.yml
+  tags: CAT2

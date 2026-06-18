@@ -1,0 +1,7 @@
+---
+# UBUNTU26-STIG tasks/cat3/main.yml
+# Include all CAT 3 (LOW severity) task files
+
+- name: Import CAT3 Controls
+  ansible.builtin.import_tasks: UBTU-26-cat3.yml
+  tags: CAT3

@@ -1,0 +1,99 @@
+---
+# UBUNTU26-STIG tasks/cat1/UBTU-26-3000xx.yml
+# CAT I — SSH Critical Controls
+# UBTU-26-300022: SSH PermitRootLogin no
+# UBTU-26-300025: SSH FIPS-validated KexAlgorithms
+# UBTU-26-300026: SSH approved MACs
+# UBTU-26-300027: SSH approved ciphers
+# UBTU-26-300028: SSH PermitEmptyPasswords no
+# UBTU-26-300031: SSH PermitUserEnvironment no
+
+- name: "UBTU-26-300022 | CAT I | PATCH | SSH daemon must not permit root logons"
+  ansible.builtin.lineinfile:
+    path: "{{ ubtu26stig_ssh_config_file }}"
+    regexp: '^#?PermitRootLogin'
+    line: 'PermitRootLogin no'
+    state: present
+    validate: 'sshd -t -f %s'
+  when: ubtu26stig_300022 | bool
+  notify: restart sshd
+  tags:
+    - UBTU-26-300022
+    - CAT1
+    - patch
+    - ssh
+
+- name: "UBTU-26-300025 | CAT I | PATCH | SSH daemon must use FIPS-validated KexAlgorithms"
+  ansible.builtin.lineinfile:
+    path: "{{ ubtu26stig_ssh_config_file }}"
+    regexp: '^#?KexAlgorithms'
+    line: "KexAlgorithms {{ ubtu26stig_ssh_kex | join(',') }}"
+    state: present
+    validate: 'sshd -t -f %s'
+  when: ubtu26stig_300025 | bool
+  notify: restart sshd
+  tags:
+    - UBTU-26-300025
+    - CAT1
+    - patch
+    - ssh
+
+- name: "UBTU-26-300026 | CAT I | PATCH | SSH daemon must use approved MACs"
+  ansible.builtin.lineinfile:
+    path: "{{ ubtu26stig_ssh_config_file }}"
+    regexp: '^#?MACs'
+    line: "MACs {{ ubtu26stig_ssh_macs | join(',') }}"
+    state: present
+    validate: 'sshd -t -f %s'
+  when: ubtu26stig_300026 | bool
+  notify: restart sshd
+  tags:
+    - UBTU-26-300026
+    - CAT1
+    - patch
+    - ssh
+
+- name: "UBTU-26-300027 | CAT I | PATCH | SSH daemon must use approved ciphers"
+  ansible.builtin.lineinfile:
+    path: "{{ ubtu26stig_ssh_config_file }}"
+    regexp: '^#?Ciphers'
+    line: "Ciphers {{ ubtu26stig_ssh_ciphers | join(',') }}"
+    state: present
+    validate: 'sshd -t -f %s'
+  when: ubtu26stig_300027 | bool
+  notify: restart sshd
+  tags:
+    - UBTU-26-300027
+    - CAT1
+    - patch
+    - ssh
+
+- name: "UBTU-26-300028 | CAT I | PATCH | SSH must not allow authentication with empty passwords"
+  ansible.builtin.lineinfile:
+    path: "{{ ubtu26stig_ssh_config_file }}"
+    regexp: '^#?PermitEmptyPasswords'
+    line: 'PermitEmptyPasswords no'
+    state: present
+    validate: 'sshd -t -f %s'
+  when: ubtu26stig_300028 | bool
+  notify: restart sshd
+  tags:
+    - UBTU-26-300028
+    - CAT1
+    - patch
+    - ssh
+
+- name: "UBTU-26-300031 | CAT I | PATCH | SSH PermitUserEnvironment must be disabled"
+  ansible.builtin.lineinfile:
+    path: "{{ ubtu26stig_ssh_config_file }}"
+    regexp: '^#?PermitUserEnvironment'
+    line: 'PermitUserEnvironment no'
+    state: present
+    validate: 'sshd -t -f %s'
+  when: ubtu26stig_300031 | bool
+  notify: restart sshd
+  tags:
+    - UBTU-26-300031
+    - CAT1
+    - patch
+    - ssh

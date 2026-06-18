@@ -1,0 +1,28 @@
+---
+# Example playbook for the UBUNTU26-STIG Remediation Role
+# This playbook demonstrates how to run the role with auditing enabled.
+
+- name: Apply UBUNTU26-STIG Hardening and Run Audit
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    # Set to true to automatically run goss audit before and after remediation
+    run_audit: true
+
+    # Output format for the goss audit (json, documentation, rspecish)
+    audit_format: json
+
+    # If your UBUNTU26-STIG-Audit folder is NOT a sibling to UBUNTU26-STIG, update this path
+    # audit_src_dir: "{{ playbook_dir }}/UBUNTU26-STIG-Audit"
+
+    # Allow role to reboot the system if kernel parameters require it
+    ubtu26stig_allow_reboot: false
+
+    # You can disable specific controls by setting them to false here
+    # ubtu26stig_cat3: false
+    # ubtu26stig_400370: false
+
+  roles:
+    - role: UBUNTU26-STIG

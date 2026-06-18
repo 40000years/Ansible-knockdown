@@ -1,0 +1,84 @@
+---
+# UBUNTU26-STIG tasks/cat1/UBTU-26-600030.yml
+# CAT I — AIDE File Integrity
+# UBTU-26-600030: Configure AIDE to verify integrity on a daily basis
+# UBTU-26-600130: Must use a virus scanner
+
+# ─── UBTU-26-600030 ───────────────────────────────────────────────────────────
+- name: "UBTU-26-600030 | CAT I | PATCH | Ensure AIDE is installed"
+  ansible.builtin.apt:
+    name: aide
+    state: present
+  when: ubtu26stig_600030 | bool
+  tags:
+    - UBTU-26-600030
+    - CAT1
+    - patch
+    - aide
+
+- name: "UBTU-26-600030 | CAT I | AUDIT | Check if AIDE database exists"
+  ansible.builtin.stat:
+    path: /var/lib/aide/aide.db
+  register: ubtu26stig_aide_db
+  when: ubtu26stig_600030 | bool
+  tags:
+    - UBTU-26-600030
+    - CAT1
+    - audit
+    - aide
+
+- name: "UBTU-26-600030 | CAT I | PATCH | Initialize AIDE database (if not present)"
+  ansible.builtin.command:
+    cmd: aideinit --yes --force
+  when:
+    - ubtu26stig_600030 | bool
+    - not ubtu26stig_aide_db.stat.exists
+  changed_when: true
+  tags:
+    - UBTU-26-600030
+    - CAT1
+    - patch
+    - aide
+
+- name: "UBTU-26-600030 | CAT I | PATCH | Configure AIDE daily cron job"
+  ansible.builtin.cron:
+    name: "STIG AIDE daily integrity check"
+    minute: "{{ ubtu26stig_aide_cron_minute }}"
+    hour: "{{ ubtu26stig_aide_cron_hour }}"
+    job: "/usr/bin/aide --check | mail -s 'AIDE Integrity Report - $(hostname)' {{ ubtu26stig_aide_mail_report }}"
+    user: root
+    state: present
+  when: ubtu26stig_600030 | bool
+  tags:
+    - UBTU-26-600030
+    - CAT1
+    - patch
+    - aide
+
+# ─── UBTU-26-600130 ───────────────────────────────────────────────────────────
+- name: "UBTU-26-600130 | CAT I | PATCH | Ensure clamav (virus scanner) is installed"
+  ansible.builtin.apt:
+    name:
+      - clamav
+      - clamav-daemon
+    state: present
+  when: ubtu26stig_600130 | bool
+  failed_when: false  # clamav may not be in all repos; warn but continue
+  tags:
+    - UBTU-26-600130
+    - CAT1
+    - patch
+    - antivirus
+
+- name: "UBTU-26-600130 | CAT I | PATCH | Enable and start clamav-daemon"
+  ansible.builtin.service:
+    name: clamav-daemon
+    state: started
+    enabled: true
+  when: ubtu26stig_600130 | bool
+  failed_when: false
+  tags:
+    - UBTU-26-600130
+    - CAT1
+    - patch
+    - antivirus

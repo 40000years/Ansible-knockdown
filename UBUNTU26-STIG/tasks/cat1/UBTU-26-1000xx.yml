@@ -1,0 +1,104 @@
+---
+# UBUNTU26-STIG tasks/cat1/UBTU-26-1000xx.yml
+# CAT I — Account/Password Controls
+# UBTU-26-100030: No blank/null passwords
+# UBTU-26-100040: Prevent direct root login
+# UBTU-26-100050: Prevent dictionary word passwords
+
+# ─── UBTU-26-100030 ───────────────────────────────────────────────────────────
+- name: "UBTU-26-100030 | CAT I | PATCH | Accounts with blank passwords must be locked"
+  ansible.builtin.shell: |
+    awk -F: '($2 == "" || $2 == "!!" ) { print $1 }' /etc/shadow
+  register: ubtu26stig_blank_passwd_accounts
+  changed_when: false
+  check_mode: false
+  tags:
+    - UBTU-26-100030
+    - CAT1
+    - patch
+    - accounts
+
+- name: "UBTU-26-100030 | CAT I | PATCH | Lock accounts with blank passwords"
+  ansible.builtin.command:
+    cmd: "passwd -l {{ item }}"
+  loop: "{{ ubtu26stig_blank_passwd_accounts.stdout_lines }}"
+  when:
+    - ubtu26stig_100030 | bool
+    - ubtu26stig_blank_passwd_accounts.stdout_lines | length > 0
+    - item not in ['root']
+  tags:
+    - UBTU-26-100030
+    - CAT1
+    - patch
+    - accounts
+
+- name: "UBTU-26-100030 | CAT I | PATCH | Ensure pam_unix nullok is disabled"
+  ansible.builtin.lineinfile:
+    path: "{{ ubtu26stig_pam_auth }}"
+    regexp: '(\s+pam_unix\.so.*)\bnullok\b(.*)'
+    line: '\1\2'
+    backrefs: true
+    state: present
+  when: ubtu26stig_100030 | bool
+  tags:
+    - UBTU-26-100030
+    - CAT1
+    - patch
+    - pam
+
+# ─── UBTU-26-100040 ───────────────────────────────────────────────────────────
+- name: "UBTU-26-100040 | CAT I | PATCH | Prevent direct root logins via PAM securetty"
+  ansible.builtin.lineinfile:
+    path: /etc/pam.d/login
+    line: "auth requisite pam_securetty.so"
+    insertbefore: '^auth'
+    state: present
+  when: ubtu26stig_100040 | bool
+  tags:
+    - UBTU-26-100040
+    - CAT1
+    - patch
+    - accounts
+
+- name: "UBTU-26-100040 | CAT I | PATCH | Ensure root account is locked from direct login"
+  ansible.builtin.lineinfile:
+    path: /etc/securetty
+    create: true
+    line: ""
+    owner: root
+    group: root
+    mode: '0600'
+    state: present
+  when: ubtu26stig_100040 | bool
+  tags:
+    - UBTU-26-100040
+    - CAT1
+    - patch
+    - accounts
+
+- name: "UBTU-26-100040 | CAT I | PATCH | Set root shell to nologin to prevent direct login"
+  ansible.builtin.user:
+    name: root
+    shell: /sbin/nologin
+  when:
+    - ubtu26stig_100040 | bool
+  failed_when: false
+  tags:
+    - UBTU-26-100040
+    - CAT1
+    - patch
+    - accounts
+
+# ─── UBTU-26-100050 ───────────────────────────────────────────────────────────
+- name: "UBTU-26-100050 | CAT I | PATCH | Ensure libcrack2 (cracklib) is installed for dictionary checks"
+  ansible.builtin.apt:
+    name:
+      - libpam-pwquality
+      - cracklib-runtime
+    state: present
+  when: ubtu26stig_100050 | bool
+  tags:
+    - UBTU-26-100050
+    - CAT1
+    - patch
+    - password

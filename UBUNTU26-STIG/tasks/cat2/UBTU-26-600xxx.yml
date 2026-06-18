@@ -1,0 +1,71 @@
+---
+# UBUNTU26-STIG tasks/cat2/UBTU-26-600xxx.yml
+# CAT II — Packages and Services
+
+# ─── UBTU-26-600010 | Remove Insecure Packages ───────────────────────────────
+- name: "UBTU-26-600010 | CAT II | PATCH | Remove telnet package"
+  ansible.builtin.apt:
+    name: telnet
+    state: absent
+    purge: true
+  when: ubtu26stig_600010 | bool
+  tags:
+    - UBTU-26-600010
+    - CAT2
+    - patch
+    - packages
+
+- name: "UBTU-26-600020 | CAT II | PATCH | Remove ftp server packages"
+  ansible.builtin.apt:
+    name:
+      - vsftpd
+      - ftpd
+      - pure-ftpd
+    state: absent
+    purge: true
+  when: ubtu26stig_600020 | bool
+  failed_when: false
+  tags:
+    - UBTU-26-600020
+    - CAT2
+    - patch
+    - packages
+
+# ─── UBTU-26-600040–600050 | AppArmor ────────────────────────────────────────
+- name: "UBTU-26-600040 | CAT II | PATCH | Ensure AppArmor is installed and enabled"
+  ansible.builtin.apt:
+    name:
+      - apparmor
+      - apparmor-utils
+    state: present
+  when: ubtu26stig_600040 | bool
+  tags:
+    - UBTU-26-600040
+    - CAT2
+    - patch
+    - apparmor
+
+- name: "UBTU-26-600040 | CAT II | PATCH | Enable AppArmor service"
+  ansible.builtin.service:
+    name: apparmor
+    state: started
+    enabled: true
+  when: ubtu26stig_600040 | bool
+  tags:
+    - UBTU-26-600040
+    - CAT2
+    - patch
+    - apparmor
+
+- name: "UBTU-26-600050 | CAT II | PATCH | Set all AppArmor profiles to enforce mode"
+  ansible.builtin.command:
+    cmd: aa-enforce /etc/apparmor.d/*
+  changed_when: true
+  failed_when: false
+  when: ubtu26stig_600050 | bool
+  notify: reload apparmor
+  tags:
+    - UBTU-26-600050
+    - CAT2
+    - patch
+    - apparmor

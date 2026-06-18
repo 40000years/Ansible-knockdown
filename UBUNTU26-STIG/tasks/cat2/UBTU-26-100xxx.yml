@@ -1,0 +1,340 @@
+---
+# UBUNTU26-STIG tasks/cat2/UBTU-26-100xxx.yml
+# CAT II — Account/Authentication + sudo-rs Controls
+
+# ─── UBTU-26-100100–100130 | Password Complexity ──────────────────────────────
+- name: "UBTU-26-100100 | CAT II | PATCH | Set minimum password length in pwquality"
+  ansible.builtin.lineinfile:
+    path: /etc/security/pwquality.conf
+    regexp: '^#?\s*minlen\s*='
+    line: "minlen = {{ ubtu26stig_pwd_min_length }}"
+    state: present
+  when: ubtu26stig_100100 | bool
+  tags:
+    - UBTU-26-100100
+    - CAT2
+    - patch
+    - password
+
+- name: "UBTU-26-100110 | CAT II | PATCH | Require uppercase characters in passwords"
+  ansible.builtin.lineinfile:
+    path: /etc/security/pwquality.conf
+    regexp: '^#?\s*ucredit\s*='
+    line: "ucredit = {{ ubtu26stig_pwd_ucredit }}"
+    state: present
+  when: ubtu26stig_100110 | bool
+  tags:
+    - UBTU-26-100110
+    - CAT2
+    - patch
+    - password
+
+- name: "UBTU-26-100120 | CAT II | PATCH | Require lowercase characters in passwords"
+  ansible.builtin.lineinfile:
+    path: /etc/security/pwquality.conf
+    regexp: '^#?\s*lcredit\s*='
+    line: "lcredit = {{ ubtu26stig_pwd_lcredit }}"
+    state: present
+  when: ubtu26stig_100120 | bool
+  tags:
+    - UBTU-26-100120
+    - CAT2
+    - patch
+    - password
+
+- name: "UBTU-26-100130 | CAT II | PATCH | Require digit characters in passwords"
+  ansible.builtin.lineinfile:
+    path: /etc/security/pwquality.conf
+    regexp: '^#?\s*dcredit\s*='
+    line: "dcredit = {{ ubtu26stig_pwd_dcredit }}"
+    state: present
+  when: ubtu26stig_100130 | bool
+  tags:
+    - UBTU-26-100130
+    - CAT2
+    - patch
+    - password
+
+- name: "UBTU-26-100510 | CAT II | PATCH | Require special characters in passwords"
+  ansible.builtin.lineinfile:
+    path: /etc/security/pwquality.conf
+    regexp: '^#?\s*ocredit\s*='
+    line: "ocredit = {{ ubtu26stig_pwd_ocredit }}"
+    state: present
+  when: ubtu26stig_100510 | bool
+  tags:
+    - UBTU-26-100510
+    - CAT2
+    - patch
+    - password
+
+- name: "UBTU-26-100600 | CAT II | PATCH | Set minimum different chars from old password"
+  ansible.builtin.lineinfile:
+    path: /etc/security/pwquality.conf
+    regexp: '^#?\s*difok\s*='
+    line: "difok = {{ ubtu26stig_pwd_difok }}"
+    state: present
+  when: ubtu26stig_100600 | bool
+  tags:
+    - UBTU-26-100600
+    - CAT2
+    - patch
+    - password
+
+# ─── UBTU-26-100200–100310 | Password Age ─────────────────────────────────────
+- name: "UBTU-26-100200 | CAT II | PATCH | Set PASS_MAX_DAYS in /etc/login.defs"
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: '^PASS_MAX_DAYS'
+    line: "PASS_MAX_DAYS   {{ ubtu26stig_pwd_max_age }}"
+    state: present
+  when: ubtu26stig_100200 | bool
+  tags:
+    - UBTU-26-100200
+    - CAT2
+    - patch
+    - password
+
+- name: "UBTU-26-100300 | CAT II | PATCH | Set PASS_MIN_DAYS in /etc/login.defs"
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: '^PASS_MIN_DAYS'
+    line: "PASS_MIN_DAYS   {{ ubtu26stig_pwd_min_age }}"
+    state: present
+  when: ubtu26stig_100300 | bool
+  tags:
+    - UBTU-26-100300
+    - CAT2
+    - patch
+    - password
+
+- name: "UBTU-26-100310 | CAT II | PATCH | Set PASS_WARN_AGE in /etc/login.defs"
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: '^PASS_WARN_AGE'
+    line: "PASS_WARN_AGE   {{ ubtu26stig_pwd_warn_age }}"
+    state: present
+  when: ubtu26stig_100310 | bool
+  tags:
+    - UBTU-26-100310
+    - CAT2
+    - patch
+    - password
+
+# ─── UBTU-26-100400–100410 | Account Lockout (pam_faillock) ──────────────────
+- name: "UBTU-26-100400 | CAT II | PATCH | Configure pam_faillock deny threshold"
+  ansible.builtin.lineinfile:
+    path: /etc/security/faillock.conf
+    regexp: '^#?\s*deny\s*='
+    line: "deny = {{ ubtu26stig_pwd_lockout_attempts }}"
+    create: true
+    mode: '0644'
+    state: present
+  when: ubtu26stig_100400 | bool
+  tags:
+    - UBTU-26-100400
+    - CAT2
+    - patch
+    - pam
+
+- name: "UBTU-26-100410 | CAT II | PATCH | Configure pam_faillock unlock time"
+  ansible.builtin.lineinfile:
+    path: /etc/security/faillock.conf
+    regexp: '^#?\s*unlock_time\s*='
+    line: "unlock_time = {{ ubtu26stig_pwd_lockout_time }}"
+    create: true
+    mode: '0644'
+    state: present
+  when: ubtu26stig_100410 | bool
+  tags:
+    - UBTU-26-100410
+    - CAT2
+    - patch
+    - pam
+
+# ─── UBTU-26-100500 | Password History ───────────────────────────────────────
+- name: "UBTU-26-100500 | CAT II | PATCH | Configure password history (pam_pwhistory)"
+  ansible.builtin.lineinfile:
+    path: "{{ ubtu26stig_pam_password_auth }}"
+    regexp: 'pam_pwhistory\.so'
+    line: "password required pam_pwhistory.so remember={{ ubtu26stig_pwd_remember }} use_authtok"
+    insertbefore: 'pam_unix\.so'
+    state: present
+  when: ubtu26stig_100500 | bool
+  tags:
+    - UBTU-26-100500
+    - CAT2
+    - patch
+    - pam
+    - password
+
+# ─── UBTU-26-100900 | Session Timeout ────────────────────────────────────────
+- name: "UBTU-26-100900 | CAT II | PATCH | Set TMOUT for interactive shell sessions"
+  ansible.builtin.lineinfile:
+    path: /etc/profile.d/99-stig-tmout.sh
+    create: true
+    line: "TMOUT={{ ubtu26stig_session_timeout }}"
+    mode: '0644'
+    owner: root
+    group: root
+    state: present
+  when: ubtu26stig_100900 | bool
+  tags:
+    - UBTU-26-100900
+    - CAT2
+    - patch
+    - session
+
+- name: "UBTU-26-100910 | CAT II | PATCH | Export and readonly TMOUT"
+  ansible.builtin.lineinfile:
+    path: /etc/profile.d/99-stig-tmout.sh
+    line: "readonly TMOUT"
+    insertafter: "^TMOUT="
+    state: present
+  when: ubtu26stig_100910 | bool
+  tags:
+    - UBTU-26-100910
+    - CAT2
+    - patch
+    - session
+
+# ─── UBTU-26-100820–100860 | sudo-rs Controls ────────────────────────────────
+- name: "UBTU-26-100820 | CAT II | AUDIT | Verify sudo-rs is the active sudo implementation"
+  ansible.builtin.command:
+    cmd: sudo --version
+  register: ubtu26stig_sudo_ver_check
+  changed_when: false
+  failed_when: false
+  when: ubtu26stig_100820 | bool
+  tags:
+    - UBTU-26-100820
+    - CAT2
+    - audit
+    - sudo
+
+- name: "UBTU-26-100820 | CAT II | AUDIT | Assert sudo-rs is active (Ubuntu 26 default)"
+  ansible.builtin.assert:
+    that:
+      - "'sudo-rs' in ubtu26stig_sudo_ver_check.stdout | lower
+        or 'sudo-rs' in ubtu26stig_sudo_ver_check.stderr | lower
+        or not (ubtu26stig_sudo_rs | bool)"
+    msg: >
+      WARNING: ubtu26stig_sudo_rs is true but the active sudo implementation
+      does not appear to be sudo-rs. Check update-alternatives --display sudo.
+    quiet: true
+  when: ubtu26stig_100820 | bool
+  ignore_errors: true
+  tags:
+    - UBTU-26-100820
+    - CAT2
+    - audit
+    - sudo
+
+- name: "UBTU-26-100830 | CAT II | AUDIT | Check for NOPASSWD in sudoers"
+  ansible.builtin.shell: |
+    grep -rn 'NOPASSWD' /etc/sudoers /etc/sudoers.d/ 2>/dev/null | grep -v '^#' || true
+  register: ubtu26stig_sudoers_nopasswd
+  changed_when: false
+  failed_when: false
+  when: ubtu26stig_100830 | bool
+  tags:
+    - UBTU-26-100830
+    - CAT2
+    - audit
+    - sudo
+
+- name: "UBTU-26-100830 | CAT II | PATCH | Warn if NOPASSWD found in sudoers"
+  ansible.builtin.debug:
+    msg: >
+      WARNING: NOPASSWD found in sudoers — manual review required:
+      {{ ubtu26stig_sudoers_nopasswd.stdout_lines }}
+  when:
+    - ubtu26stig_100830 | bool
+    - ubtu26stig_sudoers_nopasswd.stdout_lines | length > 0
+  tags:
+    - UBTU-26-100830
+    - CAT2
+    - patch
+    - sudo
+
+- name: "UBTU-26-100840 | CAT II | PATCH | Ensure sudo log_input is configured (classic sudo only)"
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers.d/99-stig-logging
+    create: true
+    line: "Defaults log_input, log_output"
+    mode: '0440'
+    owner: root
+    group: root
+    validate: 'visudo -cf %s'
+    state: present
+  when:
+    - ubtu26stig_100840 | bool
+    - ubtu26stig_classic_sudo | bool
+  tags:
+    - UBTU-26-100840
+    - CAT2
+    - patch
+    - sudo
+
+- name: "UBTU-26-100850 | CAT II | PATCH | Ensure env_reset in sudoers (classic sudo only, sudo-rs enforces by design)"
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers.d/99-stig-env
+    create: true
+    line: "Defaults env_reset"
+    mode: '0440'
+    owner: root
+    group: root
+    validate: 'visudo -cf %s'
+    state: present
+  when:
+    - ubtu26stig_100850 | bool
+    - ubtu26stig_classic_sudo | bool
+  tags:
+    - UBTU-26-100850
+    - CAT2
+    - patch
+    - sudo
+
+- name: "UBTU-26-100860 | CAT II | PATCH | Ensure use_pty in sudoers (classic sudo only)"
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers.d/99-stig-pty
+    create: true
+    line: "Defaults use_pty"
+    mode: '0440'
+    owner: root
+    group: root
+    validate: 'visudo -cf %s'
+    state: present
+  when:
+    - ubtu26stig_100860 | bool
+    - ubtu26stig_classic_sudo | bool
+  tags:
+    - UBTU-26-100860
+    - CAT2
+    - patch
+    - sudo
+
+- name: "UBTU-26-100860 | CAT II | NOTE | sudo-rs enforces use_pty by design — no sudoers config needed"
+  ansible.builtin.debug:
+    msg: >
+      sudo-rs is active. use_pty is enforced by design in sudo-rs;
+      no additional sudoers configuration is required for UBTU-26-100860.
+  when:
+    - ubtu26stig_100860 | bool
+    - ubtu26stig_sudo_rs | bool
+  tags:
+    - UBTU-26-100860
+    - CAT2
+    - sudo
+
+# ─── UBTU-26-101000 | Inactive Account Lockout ───────────────────────────────
+- name: "UBTU-26-101000 | CAT II | PATCH | Set inactive account lockout after 35 days"
+  ansible.builtin.command:
+    cmd: useradd -D -f 35
+  changed_when: true
+  when: ubtu26stig_101000 | bool
+  tags:
+    - UBTU-26-101000
+    - CAT2
+    - patch
+    - accounts

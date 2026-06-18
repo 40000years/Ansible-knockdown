@@ -1,0 +1,44 @@
+---
+# UBUNTU26-STIG tasks/cat1/UBTU-26-1008xx.yml
+# CAT I — Ctrl-Alt-Delete Disable
+# UBTU-26-100800: Disable Ctrl-Alt-Delete key sequence
+# UBTU-26-100810: Remove/mask Ctrl-Alt-Delete target unit
+
+# ─── UBTU-26-100800 ───────────────────────────────────────────────────────────
+- name: "UBTU-26-100800 | CAT I | PATCH | Mask ctrl-alt-del.target"
+  ansible.builtin.systemd:
+    name: ctrl-alt-del.target
+    masked: true
+    daemon_reload: true
+  when: ubtu26stig_100800 | bool
+  notify: reload systemd
+  tags:
+    - UBTU-26-100800
+    - CAT1
+    - patch
+    - system
+
+# ─── UBTU-26-100810 ───────────────────────────────────────────────────────────
+- name: "UBTU-26-100810 | CAT I | PATCH | Disable ctrl-alt-del.burst-action in systemd"
+  ansible.builtin.lineinfile:
+    path: /etc/systemd/system.conf
+    regexp: '^#?CtrlAltDelBurstAction='
+    line: 'CtrlAltDelBurstAction=none'
+    state: present
+  when: ubtu26stig_100810 | bool
+  notify: reload systemd
+  tags:
+    - UBTU-26-100810
+    - CAT1
+    - patch
+    - system
+
+- name: "UBTU-26-100810 | CAT I | PATCH | Reload systemd daemon after Ctrl-Alt-Del masking"
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: ubtu26stig_100810 | bool
+  tags:
+    - UBTU-26-100810
+    - CAT1
+    - patch
+    - system

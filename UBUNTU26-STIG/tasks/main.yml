@@ -1,0 +1,128 @@
+---
+# UBUNTU26-STIG tasks/main.yml
+# Main entry point: orchestrates pre_tasks, category tasks, audit, and post_tasks
+
+- name: Check Ansible version
+  ansible.builtin.assert:
+    that: ansible_version.full is version('2.16', '>=')
+    msg: "This role requires Ansible 2.16 or higher. Detected: {{ ansible_version.full }}"
+  tags: always
+
+- name: Import pre_tasks
+  ansible.builtin.import_tasks: pre_tasks.yml
+  tags: always
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Pre-Audit
+# ─────────────────────────────────────────────────────────────────────────────
+
+- name: Import audit_setup tasks
+  ansible.builtin.import_tasks: audit_setup.yml
+  when: run_audit | bool
+  tags:
+    - always
+    - audit
+
+- name: Run pre-remediation audit (baseline)
+  ansible.builtin.shell:
+    cmd: >
+      bash {{ ubtu26stig_audit_content_dir }}/run_audit.sh
+      -f {{ audit_format }}
+      -o {{ pre_audit_report }}
+  register: ubtu26stig_pre_audit
+  changed_when: false
+  failed_when: false
+  when: run_audit | bool
+  tags:
+    - always
+    - audit
+    - pre_audit
+
+- name: Display pre-audit status
+  ansible.builtin.debug:
+    msg: "Pre-audit complete. Report: {{ pre_audit_report }}. Exit code: {{ ubtu26stig_pre_audit.rc }}"
+  when: run_audit | bool and ubtu26stig_pre_audit.rc is defined
+  tags:
+    - always
+    - audit
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CAT 1 — HIGH Severity
+# ─────────────────────────────────────────────────────────────────────────────
+
+- name: Import CAT 1 tasks
+  ansible.builtin.import_tasks: cat1/main.yml
+  when:
+    - ubtu26stig_cat1 | bool
+    - not audit_only | bool
+  tags:
+    - CAT1
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CAT 2 — MEDIUM Severity
+# ─────────────────────────────────────────────────────────────────────────────
+
+- name: Import CAT 2 tasks
+  ansible.builtin.import_tasks: cat2/main.yml
+  when:
+    - ubtu26stig_cat2 | bool
+    - not audit_only | bool
+  tags:
+    - CAT2
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CAT 3 — LOW Severity
+# ─────────────────────────────────────────────────────────────────────────────
+
+- name: Import CAT 3 tasks
+  ansible.builtin.import_tasks: cat3/main.yml
+  when:
+    - ubtu26stig_cat3 | bool
+    - not audit_only | bool
+  tags:
+    - CAT3
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Post-Audit
+# ─────────────────────────────────────────────────────────────────────────────
+
+- name: Run post-remediation audit (verify compliance)
+  ansible.builtin.shell:
+    cmd: >
+      bash {{ ubtu26stig_audit_content_dir }}/run_audit.sh
+      -f {{ audit_format }}
+      -o {{ post_audit_report }}
+  register: ubtu26stig_post_audit
+  changed_when: false
+  failed_when: false
+  when: run_audit | bool
+  tags:
+    - always
+    - audit
+    - post_audit
+
+- name: Fetch pre-audit report to control node
+  ansible.builtin.fetch:
+    src: "{{ pre_audit_report }}"
+    dest: "{{ audit_reports_dir }}/{{ inventory_hostname }}_pre_audit.json"
+    flat: true
+  when: run_audit | bool and audit_fetch_reports | bool
+  failed_when: false
+  tags:
+    - always
+    - audit
+
+- name: Fetch post-audit report to control node
+  ansible.builtin.fetch:
+    src: "{{ post_audit_report }}"
+    dest: "{{ audit_reports_dir }}/{{ inventory_hostname }}_post_audit.json"
+    flat: true
+  when: run_audit | bool and audit_fetch_reports | bool
+  failed_when: false
+  tags:
+    - always
+    - audit
+
+- name: Import post_tasks
+  ansible.builtin.import_tasks: post_tasks.yml
+  tags: always

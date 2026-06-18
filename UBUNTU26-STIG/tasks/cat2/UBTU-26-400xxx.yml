@@ -1,0 +1,176 @@
+---
+# UBUNTU26-STIG tasks/cat2/UBTU-26-400xxx.yml
+# CAT II — File Permissions and Ownership
+
+- name: "UBTU-26-400000 | CAT II | PATCH | Set /etc/passwd permissions"
+  ansible.builtin.file:
+    path: /etc/passwd
+    owner: root
+    group: root
+    mode: '0644'
+  when: ubtu26stig_400000 | bool
+  tags:
+    - UBTU-26-400000
+    - CAT2
+    - patch
+    - permissions
+
+- name: "UBTU-26-400020 | CAT II | PATCH | Set /etc/shadow permissions"
+  ansible.builtin.file:
+    path: /etc/shadow
+    owner: root
+    group: shadow
+    mode: '0640'
+  when: ubtu26stig_400020 | bool
+  tags:
+    - UBTU-26-400020
+    - CAT2
+    - patch
+    - permissions
+
+- name: "UBTU-26-400030 | CAT II | PATCH | Set /etc/gshadow permissions"
+  ansible.builtin.file:
+    path: /etc/gshadow
+    owner: root
+    group: shadow
+    mode: '0640'
+  when: ubtu26stig_400030 | bool
+  tags:
+    - UBTU-26-400030
+    - CAT2
+    - patch
+    - permissions
+
+- name: "UBTU-26-400060 | CAT II | PATCH | Set /etc/group permissions"
+  ansible.builtin.file:
+    path: /etc/group
+    owner: root
+    group: root
+    mode: '0644'
+  when: ubtu26stig_400060 | bool
+  tags:
+    - UBTU-26-400060
+    - CAT2
+    - patch
+    - permissions
+
+- name: "UBTU-26-400260 | CAT II | PATCH | Ensure sticky bit set on world-writable directories"
+  ansible.builtin.shell: |
+    df --local -P | awk 'NR!=1 {print $6}' | xargs -I '{}' find '{}' -xdev -type d -perm -0002 -not -perm -1000 -print 2>/dev/null | xargs -I '{}' chmod o+t '{}' || true
+  changed_when: true
+  when: ubtu26stig_400260 | bool
+  tags:
+    - UBTU-26-400260
+    - CAT2
+    - patch
+    - permissions
+
+- name: "UBTU-26-400270 | CAT II | PATCH | Set /var/log permissions"
+  ansible.builtin.file:
+    path: /var/log
+    owner: root
+    group: syslog
+    mode: '0775'
+  when: ubtu26stig_400270 | bool
+  tags:
+    - UBTU-26-400270
+    - CAT2
+    - patch
+    - permissions
+
+- name: "UBTU-26-400290 | CAT II | PATCH | Set /etc/cron.d permissions"
+  ansible.builtin.file:
+    path: /etc/cron.d
+    owner: root
+    group: root
+    mode: '0700'
+  when: ubtu26stig_400290 | bool
+  tags:
+    - UBTU-26-400290
+    - CAT2
+    - patch
+    - permissions
+
+- name: "UBTU-26-400300 | CAT II | PATCH | Set /etc/crontab permissions"
+  ansible.builtin.file:
+    path: /etc/crontab
+    owner: root
+    group: root
+    mode: '0600'
+  when: ubtu26stig_400300 | bool
+  tags:
+    - UBTU-26-400300
+    - CAT2
+    - patch
+    - permissions
+
+- name: "UBTU-26-400310 | CAT II | PATCH | Set /etc/cron.daily permissions"
+  ansible.builtin.file:
+    path: /etc/cron.daily
+    owner: root
+    group: root
+    mode: '0700'
+  when: ubtu26stig_400310 | bool
+  tags:
+    - UBTU-26-400310
+    - CAT2
+    - patch
+    - permissions
+
+- name: "UBTU-26-400320 | CAT II | PATCH | Set /etc/cron.weekly permissions"
+  ansible.builtin.file:
+    path: /etc/cron.weekly
+    owner: root
+    group: root
+    mode: '0700'
+  when: ubtu26stig_400320 | bool
+  tags:
+    - UBTU-26-400320
+    - CAT2
+    - patch
+    - permissions
+
+- name: "UBTU-26-400330 | CAT II | PATCH | Set /etc/cron.monthly permissions"
+  ansible.builtin.file:
+    path: /etc/cron.monthly
+    owner: root
+    group: root
+    mode: '0700'
+  when: ubtu26stig_400330 | bool
+  tags:
+    - UBTU-26-400330
+    - CAT2
+    - patch
+    - permissions
+
+- name: "UBTU-26-400360 | CAT II | PATCH | Set /etc/sudoers permissions"
+  ansible.builtin.file:
+    path: /etc/sudoers
+    owner: root
+    group: root
+    mode: '0440'
+  when: ubtu26stig_400360 | bool
+  tags:
+    - UBTU-26-400360
+    - CAT2
+    - patch
+    - permissions
+
+- name: "UBTU-26-400375 | CAT II | PATCH | Set home directory permissions to 750 or less"
+  ansible.builtin.shell: |
+    awk -F: '($3 >= 1000 && $7 != "/sbin/nologin" && $7 != "/bin/false") {print $6}' /etc/passwd |
+    while read homedir; do
+      if [ -d "$homedir" ]; then
+        perms=$(stat -c '%a' "$homedir")
+        if [ "${perms}" -gt 750 ]; then
+          chmod 750 "$homedir"
+        fi
+      fi
+    done
+  changed_when: true
+  when: ubtu26stig_400375 | bool
+  tags:
+    - UBTU-26-400375
+    - CAT2
+    - patch
+    - permissions

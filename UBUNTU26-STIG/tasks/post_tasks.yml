@@ -1,0 +1,40 @@
+---
+# UBUNTU26-STIG tasks/post_tasks.yml
+# Post-remediation tasks: display audit summary, conditional reboot
+
+- name: "[POST] Display audit comparison summary"
+  ansible.builtin.debug:
+    msg:
+      - "============================================================"
+      - " UBUNTU26 STIG Remediation Complete"
+      - "============================================================"
+      - "Pre-audit report  : {{ pre_audit_report }}"
+      - "Post-audit report : {{ post_audit_report }}"
+      - "Reports fetched to: {{ audit_reports_dir }}"
+      - "============================================================"
+      - "Pre-audit exit code : {{ ubtu26stig_pre_audit.rc | default('N/A (audit not run)') }}"
+      - "Post-audit exit code: {{ ubtu26stig_post_audit.rc | default('N/A (audit not run)') }}"
+      - "Exit code 0 = all enabled controls passed."
+      - "============================================================"
+  when: run_audit | bool
+  tags: always
+
+- name: "[POST] Warning — reboot required for kernel changes"
+  ansible.builtin.debug:
+    msg: >
+      WARNING: Some kernel parameter changes (ASLR, sysctl) may require a
+      reboot to take effect. Set 'ubtu26stig_allow_reboot: true' to allow
+      automatic reboot, or reboot the system manually.
+  when:
+    - not ubtu26stig_allow_reboot | bool
+    - ubtu26stig_cat2 | bool
+  tags: always
+
+- name: "[POST] Reboot system if required and allowed"
+  ansible.builtin.reboot:
+    msg: "Reboot initiated by UBUNTU26-STIG role for kernel parameter changes"
+    reboot_timeout: 600
+  when:
+    - ubtu26stig_allow_reboot | bool
+    - ubtu26stig_reboot_required | default(false) | bool
+  tags: always

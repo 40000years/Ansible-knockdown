@@ -1,0 +1,29 @@
+---
+# UBUNTU26-STIG meta/main.yml
+
+galaxy_info:
+  role_name: UBUNTU26-STIG
+  author: ansible-lockdown
+  description: >
+    Automated STIG Benchmark Compliance Remediation for Ubuntu 26.04 LTS
+    with sudo-rs support. Based on DISA STIG for Ubuntu 26.
+
+  license: MIT
+
+  min_ansible_version: "2.16"
+
+  platforms:
+    - name: Ubuntu
+      versions:
+        - "26.04"
+
+  galaxy_tags:
+    - security
+    - stig
+    - hardening
+    - ubuntu
+    - compliance
+    - disa
+    - sudo-rs
+
+dependencies: []

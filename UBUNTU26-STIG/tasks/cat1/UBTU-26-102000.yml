@@ -1,0 +1,58 @@
+---
+# UBUNTU26-STIG tasks/cat1/UBTU-26-102000.yml
+# CAT I — Encryption / OpenSSL
+# UBTU-26-102000: Implement DoD-approved encryption
+
+- name: "UBTU-26-102000 | CAT I | PATCH | Ensure openssl and ca-certificates are installed"
+  ansible.builtin.apt:
+    name:
+      - openssl
+      - ca-certificates
+    state: present
+  when: ubtu26stig_102000 | bool
+  tags:
+    - UBTU-26-102000
+    - CAT1
+    - patch
+    - encryption
+
+- name: "UBTU-26-102000 | CAT I | AUDIT | Check OpenSSL default config"
+  ansible.builtin.command:
+    cmd: openssl version -a
+  register: ubtu26stig_openssl_version
+  changed_when: false
+  failed_when: false
+  when: ubtu26stig_102000 | bool
+  tags:
+    - UBTU-26-102000
+    - CAT1
+    - audit
+    - encryption
+
+- name: "UBTU-26-102000 | CAT I | PATCH | Set minimum TLS version in OpenSSL config (Ubuntu 26 default)"
+  ansible.builtin.lineinfile:
+    path: /etc/ssl/openssl.cnf
+    regexp: '^#?MinProtocol\s*='
+    line: 'MinProtocol = TLSv1.2'
+    insertafter: '^\[system_default_sect\]'
+    state: present
+  when: ubtu26stig_102000 | bool
+  tags:
+    - UBTU-26-102000
+    - CAT1
+    - patch
+    - encryption
+
+- name: "UBTU-26-102000 | CAT I | PATCH | Set approved cipher list in OpenSSL"
+  ansible.builtin.lineinfile:
+    path: /etc/ssl/openssl.cnf
+    regexp: '^#?CipherString\s*='
+    line: 'CipherString = DEFAULT:@SECLEVEL=2'
+    insertafter: '^\[system_default_sect\]'
+    state: present
+  when: ubtu26stig_102000 | bool
+  tags:
+    - UBTU-26-102000
+    - CAT1
+    - patch
+    - encryption
