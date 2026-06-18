@@ -29,3 +29,7 @@
 - name: Import CAT2 - Kernel / Boot (700xxx)
   ansible.builtin.import_tasks: UBTU-26-700xxx.yml
   tags: CAT2
+
+- name: Import CAT2 - Time Synchronization (900xxx)
+  ansible.builtin.import_tasks: UBTU-26-900xxx.yml
+  tags: CAT2

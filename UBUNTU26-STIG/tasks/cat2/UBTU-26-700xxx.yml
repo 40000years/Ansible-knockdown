@@ -118,3 +118,14 @@
     - patch
     - kernel
     - sysctl
+
+# ─── UBTU-26-700010 | GRUB Password ──────────────────────────────────────────
+- name: "UBTU-26-700010 | CAT II | AUDIT | Check GRUB password"
+  ansible.builtin.debug:
+    msg: "WARNING: GRUB password must be set manually. Review /etc/grub.d/"
+  when: ubtu26stig_700010 | bool
+  tags:
+    - UBTU-26-700010
+    - CAT2
+    - audit
+    - boot

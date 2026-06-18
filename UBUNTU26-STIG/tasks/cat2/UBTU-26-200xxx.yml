@@ -142,6 +142,11 @@
       or ubtu26stig_200280 | bool
       or ubtu26stig_200290 | bool
       or ubtu26stig_200300 | bool
+      or ubtu26stig_200580 | bool
+      or ubtu26stig_200640 | bool
+      or ubtu26stig_200650 | bool
+      or ubtu26stig_200660 | bool
+      or ubtu26stig_200680 | bool
   notify: reload auditd rules
   tags:
     - UBTU-26-200250
@@ -152,6 +157,11 @@
     - UBTU-26-200300
     - UBTU-26-200310
     - UBTU-26-200320
+    - UBTU-26-200580
+    - UBTU-26-200640
+    - UBTU-26-200650
+    - UBTU-26-200660
+    - UBTU-26-200680
     - CAT2
     - patch
     - auditd

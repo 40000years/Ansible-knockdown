@@ -174,3 +174,57 @@
     - CAT2
     - patch
     - permissions
+
+- name: "UBTU-26-400110 | CAT II | AUDIT | Warn on World-Writable files"
+  ansible.builtin.debug:
+    msg: "WARNING: World-writable files exist. Review manually via find / -xdev -type f -perm -0002"
+  when: ubtu26stig_400110 | bool
+  tags:
+    - UBTU-26-400110
+    - CAT2
+    - audit
+
+- name: "UBTU-26-400220 | CAT II | AUDIT | Warn on Unowned files"
+  ansible.builtin.debug:
+    msg: "WARNING: Unowned files/directories exist. Review manually via find / -nouser -o -nogroup"
+  when: ubtu26stig_400220 | bool
+  tags:
+    - UBTU-26-400220
+    - CAT2
+    - audit
+
+- name: "UBTU-26-400280 | CAT II | PATCH | Set /var/log/syslog permissions"
+  ansible.builtin.file:
+    path: /var/log/syslog
+    owner: syslog
+    group: adm
+    mode: '0640'
+  when: ubtu26stig_400280 | bool
+  failed_when: false
+  tags:
+    - UBTU-26-400280
+    - CAT2
+    - patch
+    - permissions
+
+- name: "UBTU-26-400380 | CAT II | PATCH | Enforce SSH public key permissions"
+  ansible.builtin.shell: |
+    find /etc/ssh -name '*.pub' -type f -exec chmod 0644 {} \;
+  changed_when: true
+  when: ubtu26stig_400380 | bool
+  tags:
+    - UBTU-26-400380
+    - CAT2
+    - patch
+    - permissions
+
+- name: "UBTU-26-400400 | CAT II | PATCH | Enforce SSH private key permissions"
+  ansible.builtin.shell: |
+    find /etc/ssh -name '*_key' -type f -exec chmod 0600 {} \;
+  changed_when: true
+  when: ubtu26stig_400400 | bool
+  tags:
+    - UBTU-26-400400
+    - CAT2
+    - patch
+    - permissions

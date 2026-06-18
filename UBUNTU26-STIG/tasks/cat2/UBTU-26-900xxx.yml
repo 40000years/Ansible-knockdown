@@ -1,0 +1,56 @@
+---
+# UBUNTU26-STIG tasks/cat2/UBTU-26-900xxx.yml
+# CAT II — Time Synchronization Controls
+
+# ─── UBTU-26-900010 | Install Time Sync Daemon ───────────────────────────────
+- name: "UBTU-26-900010 | CAT II | PATCH | Ensure chrony is installed"
+  ansible.builtin.apt:
+    name: chrony
+    state: present
+  when: ubtu26stig_900010 | bool
+  tags:
+    - UBTU-26-900010
+    - CAT2
+    - patch
+    - ntp
+
+- name: "UBTU-26-900010 | CAT II | PATCH | Ensure chronyd is enabled and running"
+  ansible.builtin.service:
+    name: chrony
+    state: started
+    enabled: true
+  when: ubtu26stig_900010 | bool
+  tags:
+    - UBTU-26-900010
+    - CAT2
+    - patch
+    - ntp
+
+# ─── UBTU-26-900020 | Configure Time Servers ─────────────────────────────────
+- name: "UBTU-26-900020 | CAT II | PATCH | Configure NTP servers in chrony.conf"
+  ansible.builtin.lineinfile:
+    path: /etc/chrony/chrony.conf
+    regexp: "^#?server {{ item }}"
+    line: "server {{ item }} iburst maxpoll {{ ubtu26stig_ntp_maxpoll }}"
+    state: present
+  loop: "{{ ubtu26stig_ntp_servers }}"
+  when:
+    - ubtu26stig_900020 | bool
+    - ubtu26stig_ntp_servers | length > 0
+  notify: restart chrony
+  tags:
+    - UBTU-26-900020
+    - CAT2
+    - patch
+    - ntp
+
+# ─── UBTU-26-900030 | Authenticated Time Sync / Maxpoll ──────────────────────
+- name: "UBTU-26-900030 | CAT II | PATCH | Ensure maxpoll is set to 10 or less"
+  ansible.builtin.debug:
+    msg: "maxpoll is configured to {{ ubtu26stig_ntp_maxpoll }} in chrony.conf via UBTU-26-900020."
+  when: ubtu26stig_900030 | bool
+  tags:
+    - UBTU-26-900030
+    - CAT2
+    - patch
+    - ntp

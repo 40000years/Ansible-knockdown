@@ -338,3 +338,40 @@
     - CAT2
     - patch
     - accounts
+
+# ─── UBTU-26-100650 | Duplicate UIDs / Shared Accounts ───────────────────────
+- name: "UBTU-26-100650 | CAT II | AUDIT | Check for shared accounts"
+  ansible.builtin.debug:
+    msg: "WARNING: Ensure no shared accounts exist."
+  when: ubtu26stig_100650 | bool
+  tags:
+    - UBTU-26-100650
+    - CAT2
+    - audit
+    - accounts
+
+# ─── UBTU-26-100660 | Unique UIDs ────────────────────────────────────────────
+- name: "UBTU-26-100660 | CAT II | AUDIT | Check for duplicate UIDs"
+  ansible.builtin.debug:
+    msg: "WARNING: Ensure all interactive users have unique UIDs."
+  when: ubtu26stig_100660 | bool
+  tags:
+    - UBTU-26-100660
+    - CAT2
+    - audit
+    - accounts
+
+# ─── UBTU-26-102010 | pam_faillock ───────────────────────────────────────────
+- name: "UBTU-26-102010 | CAT II | PATCH | Ensure pam_faillock is configured in PAM"
+  ansible.builtin.lineinfile:
+    path: "{{ ubtu26stig_pam_auth }}"
+    regexp: 'pam_faillock\.so preauth'
+    line: "auth required pam_faillock.so preauth"
+    insertbefore: '^auth\s+\[success=1 default=ignore\]\s+pam_unix\.so'
+    state: present
+  when: ubtu26stig_102010 | bool
+  tags:
+    - UBTU-26-102010
+    - CAT2
+    - patch
+    - pam
