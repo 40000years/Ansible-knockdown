@@ -21,6 +21,8 @@
     path: /etc/security/pwquality.conf
     regexp: '^#?\s*minlen\s*='
     line: "minlen = {{ ubtu26stig_pwd_min_length }}"
+    create: true
+    mode: '0644'
     state: present
   when: ubtu26stig_100100 | bool
   tags:
@@ -34,6 +36,8 @@
     path: /etc/security/pwquality.conf
     regexp: '^#?\s*ucredit\s*='
     line: "ucredit = {{ ubtu26stig_pwd_ucredit }}"
+    create: true
+    mode: '0644'
     state: present
   when: ubtu26stig_100110 | bool
   tags:
@@ -47,6 +51,8 @@
     path: /etc/security/pwquality.conf
     regexp: '^#?\s*lcredit\s*='
     line: "lcredit = {{ ubtu26stig_pwd_lcredit }}"
+    create: true
+    mode: '0644'
     state: present
   when: ubtu26stig_100120 | bool
   tags:
@@ -60,6 +66,8 @@
     path: /etc/security/pwquality.conf
     regexp: '^#?\s*dcredit\s*='
     line: "dcredit = {{ ubtu26stig_pwd_dcredit }}"
+    create: true
+    mode: '0644'
     state: present
   when: ubtu26stig_100130 | bool
   tags:
@@ -73,6 +81,8 @@
     path: /etc/security/pwquality.conf
     regexp: '^#?\s*ocredit\s*='
     line: "ocredit = {{ ubtu26stig_pwd_ocredit }}"
+    create: true
+    mode: '0644'
     state: present
   when: ubtu26stig_100510 | bool
   tags:
@@ -86,6 +96,8 @@
     path: /etc/security/pwquality.conf
     regexp: '^#?\s*difok\s*='
     line: "difok = {{ ubtu26stig_pwd_difok }}"
+    create: true
+    mode: '0644'
     state: present
   when: ubtu26stig_100600 | bool
   tags:
