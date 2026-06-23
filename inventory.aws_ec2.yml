@@ -1,0 +1,21 @@
+plugin: amazon.aws.aws_ec2
+regions:
+  - ap-southeast-1
+filters:
+  instance-state-name: running
+keyed_groups:
+  - prefix: tag_Name
+    key: tags.Name
+  - prefix: tag_Environment
+    key: tags.Environment
+hostnames:
+  - instance-id
+
+compose:
+  # ใช้ SSH + EC2 Key Pair (เพิ่ม key ใน Semaphore แล้ว)
+  ansible_connection: "'ssh'"
+  ansible_user: "'ubuntu'"
+  ansible_python_interpreter: "'usr/bin/python3'"
+  ansible_become_exe: "'sudo'"
+  # ดึง Public IP หรือ Private IP ของ Instance โดยอัตโนมัติ
+  ansible_host: public_ip_address
