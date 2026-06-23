@@ -12,10 +12,11 @@ hostnames:
   - instance-id
 
 compose:
-  # ใช้ SSH + EC2 Key Pair — EC2 อยู่ใน Private Subnet
-  # Semaphore ต้องอยู่ใน VPC เดียวกันจึงจะ SSH ผ่าน Private IP ได้
+  # SSH over SSM: ใช้ SSH เป็น protocol แต่วิ่งผ่าน SSM tunnel — ไม่ต้องเปิด Port 22 สู่ Internet
+  # %h ใน ProxyCommand จะใช้ instance_id (เช่น i-0abc123) เป็น target
   ansible_connection: "'ssh'"
   ansible_user: "'ubuntu'"
   ansible_python_interpreter: "'/usr/bin/python3'"
   ansible_become_exe: "'sudo'"
-  ansible_host: private_ip_address
+  # ต้องใช้ instance_id (i-xxx) เป็น host เพื่อให้ SSM ProxyCommand รู้ว่าจะต่อไป EC2 ตัวไหน
+  ansible_host: instance_id
