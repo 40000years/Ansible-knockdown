@@ -12,7 +12,7 @@
     run_audit: true
 
     # Output format for the goss audit (json, documentation, rspecish)
-    audit_format: json
+    audit_format: documentation
 
     # If your UBUNTU26-STIG-Audit folder is NOT a sibling to UBUNTU26-STIG, update this path
     # audit_src_dir: "{{ playbook_dir }}/UBUNTU26-STIG-Audit"

@@ -101,6 +101,26 @@
     - audit
     - post_audit
 
+- name: Read post-audit report for display
+  ansible.builtin.command: "cat {{ post_audit_report }}"
+  register: post_audit_cat
+  changed_when: false
+  failed_when: false
+  when: run_audit | bool
+  tags:
+    - always
+    - audit
+    - post_audit
+
+- name: "[AUDIT RESULT] Display Compliance Report"
+  ansible.builtin.debug:
+    msg: "{{ post_audit_cat.stdout.split('\n') }}"
+  when: run_audit | bool and post_audit_cat.rc == 0
+  tags:
+    - always
+    - audit
+    - post_audit
+
 - name: Fetch pre-audit report to control node
   ansible.builtin.fetch:
     src: "{{ pre_audit_report }}"
