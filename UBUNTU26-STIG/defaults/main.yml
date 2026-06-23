@@ -34,7 +34,8 @@ post_audit_report: "/tmp/post_audit_{{ ansible_hostname }}.json"
 
 # Fetch audit reports to control node after run
 audit_fetch_reports: true
-audit_reports_dir: "{{ playbook_dir }}/audit_reports"
+# ใช้ /tmp/audit_reports เพราะ playbook_dir ถูก mount เป็น read-only ใน Docker/Semaphore
+audit_reports_dir: "/tmp/audit_reports"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Category Enable/Disable
