@@ -12,10 +12,10 @@ hostnames:
   - instance-id
 
 compose:
-  # ใช้ SSH + EC2 Key Pair (เพิ่ม key ใน Semaphore แล้ว)
+  # ใช้ SSH + EC2 Key Pair — EC2 อยู่ใน Private Subnet
+  # Semaphore ต้องอยู่ใน VPC เดียวกันจึงจะ SSH ผ่าน Private IP ได้
   ansible_connection: "'ssh'"
   ansible_user: "'ubuntu'"
-  ansible_python_interpreter: "'usr/bin/python3'"
+  ansible_python_interpreter: "'/usr/bin/python3'"
   ansible_become_exe: "'sudo'"
-  # ดึง Public IP หรือ Private IP ของ Instance โดยอัตโนมัติ
-  ansible_host: public_ip_address
+  ansible_host: private_ip_address
