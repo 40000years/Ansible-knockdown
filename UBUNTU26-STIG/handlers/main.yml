@@ -55,6 +55,12 @@
   changed_when: true
   failed_when: false
 
+- name: Restart chrony
+  ansible.builtin.service:
+    name: chrony
+    state: restarted
+  listen: restart chrony
+
 - name: Reboot system
   ansible.builtin.reboot:
     msg: "Reboot initiated by UBUNTU26-STIG role for kernel parameter changes"
