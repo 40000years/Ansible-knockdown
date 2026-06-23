@@ -9,7 +9,7 @@
 
   vars:
     # Set to true to automatically run goss audit before and after remediation
-    run_audit: false
+    run_audit: true
 
     # Output format for the goss audit (json, documentation, rspecish)
     audit_format: json
