@@ -156,3 +156,42 @@ command:
       severity: CAT_II
       title: "Kernel module loading auditing"
 {{ end }}
+
+{{ if .Vars.ubtu26stig_200250 }}
+file:
+  /etc/audit/rules.d/99-stig-ubuntu26.rules:
+    title: "UBTU-26-200250 | STIG auditd rules file must be deployed"
+    exists: true
+    owner: root
+    group: root
+    mode: "0640"
+    meta:
+      stig_id: UBTU-26-200250
+      severity: CAT_II
+      title: "STIG auditd rules file deployed"
+
+command:
+  UBTU-26-200250_audit_rules_not_empty:
+    title: "UBTU-26-200250 | STIG auditd rules file must not be empty"
+    exec: "wc -l < /etc/audit/rules.d/99-stig-ubuntu26.rules 2>/dev/null || echo 0"
+    exit-status: 0
+    stdout:
+      - "/^[1-9][0-9]*$/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-200250
+      severity: CAT_II
+      title: "STIG rules file non-empty"
+
+  UBTU-26-200250_audit_rules_loaded:
+    title: "UBTU-26-200250 | STIG auditd rules must be active in running kernel"
+    exec: "auditctl -l 2>/dev/null | wc -l || echo 0"
+    exit-status: 0
+    stdout:
+      - "/^[1-9][0-9]*$/"
+    timeout: 10000
+    meta:
+      stig_id: UBTU-26-200250
+      severity: CAT_II
+      title: "Auditd rules loaded into kernel"
+{{ end }}

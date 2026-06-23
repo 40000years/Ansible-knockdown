@@ -197,14 +197,21 @@
     - patch
     - ssh
 
-- name: "UBTU-26-300021 | CAT II | PATCH | Ensure SSH AllowUsers or AllowGroups is configured"
-  ansible.builtin.debug:
-    msg: "WARNING: UBTU-26-300021 requires manual configuration of AllowUsers/AllowGroups in sshd_config."
-  when: ubtu26stig_300021 | bool
+- name: "UBTU-26-300021 | CAT II | PATCH | Restrict SSH access with AllowGroups"
+  ansible.builtin.lineinfile:
+    path: "{{ ubtu26stig_ssh_config_file }}"
+    regexp: '^#?AllowGroups'
+    line: "AllowGroups {{ ubtu26stig_ssh_allow_groups }}"
+    state: present
+    validate: 'sshd -t -f %s'
+  when:
+    - ubtu26stig_300021 | bool
+    - ubtu26stig_ssh_allow_groups | length > 0
+  notify: restart sshd
   tags:
     - UBTU-26-300021
     - CAT2
-    - audit
+    - patch
     - ssh
 
 - name: "UBTU-26-300030 | CAT II | PATCH | Disable SSH GSSAPIAuthentication"

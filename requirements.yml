@@ -1,0 +1,17 @@
+---
+# requirements.yml
+# Ansible Collection dependencies for UBUNTU26-STIG role
+# Install with: ansible-galaxy collection install -r requirements.yml
+
+collections:
+  # AWS dynamic inventory and EC2 management
+  - name: amazon.aws
+    version: ">=8.0.0"
+
+  # Additional AWS modules (SSM, etc.)
+  - name: community.aws
+    version: ">=8.0.0"
+
+  # POSIX-specific modules: ansible.posix.sysctl, ansible.posix.mount
+  - name: ansible.posix
+    version: ">=1.5.0"

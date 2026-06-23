@@ -11,8 +11,8 @@
     # Set to true to automatically run goss audit before and after remediation
     run_audit: true
 
-    # Output format for the goss audit (json, documentation, rspecish)
-    audit_format: documentation
+    # Output format: json (production - ส่งเข้า SIEM/Dashboard ได้) | documentation (อ่านง่าย ใช้ตอน debug)
+    audit_format: json
 
     # If your UBUNTU26-STIG-Audit folder is NOT a sibling to UBUNTU26-STIG, update this path
     # audit_src_dir: "{{ playbook_dir }}/UBUNTU26-STIG-Audit"

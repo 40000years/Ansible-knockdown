@@ -120,10 +120,47 @@
     - sysctl
 
 # ─── UBTU-26-700010 | GRUB Password ──────────────────────────────────────────
-- name: "UBTU-26-700010 | CAT II | AUDIT | Check GRUB password"
-  ansible.builtin.debug:
-    msg: "WARNING: GRUB password must be set manually. Review /etc/grub.d/"
+- name: "UBTU-26-700010 | CAT II | AUDIT | Check if GRUB password is configured"
+  ansible.builtin.stat:
+    path: /etc/grub.d/01_password
+  register: ubtu26stig_grub_pw_stat
   when: ubtu26stig_700010 | bool
+  tags:
+    - UBTU-26-700010
+    - CAT2
+    - audit
+    - boot
+
+- name: "UBTU-26-700010 | CAT II | PATCH | Deploy GRUB superuser password script"
+  ansible.builtin.copy:
+    dest: /etc/grub.d/01_password
+    owner: root
+    group: root
+    mode: '0700'
+    content: |
+      #!/bin/sh
+      # UBTU-26-700010 — STIG: GRUB superuser password (auto-deployed by UBUNTU26-STIG role)
+      set superusers="{{ ubtu26stig_grub_superuser }}"
+      password_pbkdf2 {{ ubtu26stig_grub_superuser }} {{ ubtu26stig_grub_password_hash }}
+  when:
+    - ubtu26stig_700010 | bool
+    - ubtu26stig_grub_password_hash | length > 0
+  notify: update grub
+  tags:
+    - UBTU-26-700010
+    - CAT2
+    - patch
+    - boot
+
+- name: "UBTU-26-700010 | CAT II | WARN | GRUB password hash not set — skipping"
+  ansible.builtin.debug:
+    msg: >
+      UBTU-26-700010: ubtu26stig_grub_password_hash is not set.
+      Generate hash with: grub-mkpasswd-pbkdf2
+      Then set ubtu26stig_grub_password_hash in your vars/group_vars.
+  when:
+    - ubtu26stig_700010 | bool
+    - ubtu26stig_grub_password_hash | length == 0
   tags:
     - UBTU-26-700010
     - CAT2

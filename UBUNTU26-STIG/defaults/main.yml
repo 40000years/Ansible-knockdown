@@ -35,7 +35,11 @@ post_audit_report: "/tmp/post_audit_{{ ansible_hostname }}.json"
 # Fetch audit reports to control node after run
 audit_fetch_reports: true
 # ใช้ /tmp/audit_reports เพราะ playbook_dir ถูก mount เป็น read-only ใน Docker/Semaphore
+# ใน docker-compose.yml mount ./audit_reports:/tmp/audit_reports เพื่อให้ persistent บน Host
 audit_reports_dir: "/tmp/audit_reports"
+
+# Output format for production: json (ส่งเข้า SIEM/Dashboard ได้) | documentation (อ่านง่าย)
+audit_format: json
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Category Enable/Disable
@@ -138,6 +142,10 @@ ubtu26stig_ssh_hostbased_authentication: "no"
 ubtu26stig_ssh_ignore_rhosts: "yes"
 ubtu26stig_ssh_print_last_log: "yes"
 ubtu26stig_ssh_use_pam: "yes"
+
+# UBTU-26-300021: AllowGroups restricts SSH access to specific groups only
+# แก้ให้ตรงกับ group ที่ใช้จริงในองค์กร เช่น "sudo sshusers"
+ubtu26stig_ssh_allow_groups: "sudo ubuntu"
 
 # Approved ciphers (FIPS-validated)
 ubtu26stig_ssh_ciphers:
@@ -246,6 +254,18 @@ ubtu26stig_banner_text: |
 
 # Allow role to reboot the system when kernel parameters require it
 ubtu26stig_allow_reboot: false
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GRUB Password (UBTU-26-700010)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# GRUB superuser account name
+ubtu26stig_grub_superuser: "root"
+
+# GRUB password hash (PBKDF2) — สร้างด้วย: grub-mkpasswd-pbkdf2
+# ถ้าปล่อยว่าง ('') จะข้าม task นี้ไป (ไม่แก้ไข GRUB password)
+# ตัวอย่าง: "grub.pbkdf2.sha512.10000.XXXXX..."
+ubtu26stig_grub_password_hash: ""
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Individual Control Toggles — CAT 1 (HIGH)
