@@ -7,7 +7,6 @@
       community.general.terraform:
         project_path: "{{ playbook_dir }}/terraform"
         state: present
-        force_init: true
       register: tf_result
 
     - name: Display AWS Inventory Dashboard
