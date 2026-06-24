@@ -1,8 +1,7 @@
 # ============================================================================
-# 1. ดึง EC2 Instances แบ่งตาม State ต่าง ๆ
+# 1. EC2 Instances (สิทธิ์เดิมที่มีอยู่ - ใช้งานได้แน่นอน)
 # ============================================================================
 
-# ทุก Instance ที่กำลังทำงาน (Running)
 data "aws_instances" "running" {
   filter {
     name   = "instance-state-name"
@@ -10,7 +9,6 @@ data "aws_instances" "running" {
   }
 }
 
-# ทุก Instance ที่หยุดอยู่ (Stopped)
 data "aws_instances" "stopped" {
   filter {
     name   = "instance-state-name"
@@ -19,68 +17,95 @@ data "aws_instances" "stopped" {
 }
 
 # ============================================================================
-# 2. ดึงข้อมูลโครงสร้างเครือข่าย (Network Infrastructure)
+# 2. VPC & Networking (ต้องการสิทธิ์จาก iam.tf ก่อน)
 # ============================================================================
 
-# ดึง VPC ทั้งหมดที่มีอยู่ในบัญชี AWS นี้
-data "aws_vpcs" "all" {}
+data "aws_vpcs" "all" {
+  depends_on = [aws_iam_user_policy_attachment.ansible_readonly]
+}
 
-# ดึงรายละเอียดของแต่ละ VPC ที่ค้นพบ
 data "aws_vpc" "detail" {
-  for_each = toset(data.aws_vpcs.all.ids)
-  id       = each.value
+  for_each   = toset(data.aws_vpcs.all.ids)
+  id         = each.value
+  depends_on = [aws_iam_user_policy_attachment.ansible_readonly]
 }
 
-# ดึงรายชื่อ Subnets ทั้งหมดในทุก VPC
-data "aws_subnets" "all" {}
+data "aws_subnets" "all" {
+  depends_on = [aws_iam_user_policy_attachment.ansible_readonly]
+}
 
-# ดึงรายละเอียดของแต่ละ Subnet ที่ค้นพบ
 data "aws_subnet" "detail" {
-  for_each = toset(data.aws_subnets.all.ids)
-  id       = each.value
+  for_each   = toset(data.aws_subnets.all.ids)
+  id         = each.value
+  depends_on = [aws_iam_user_policy_attachment.ansible_readonly]
 }
 
 # ============================================================================
-# 3. ดึงข้อมูลความปลอดภัย (Security)
+# 3. Route Tables
 # ============================================================================
 
-# ดึง Security Groups ทั้งหมด
-data "aws_security_groups" "all" {}
+data "aws_route_tables" "all" {
+  depends_on = [aws_iam_user_policy_attachment.ansible_readonly]
+}
 
-# ดึงรายละเอียดของแต่ละ Security Group
+data "aws_route_table" "detail" {
+  for_each       = toset(data.aws_route_tables.all.ids)
+  route_table_id = each.value
+  depends_on     = [aws_iam_user_policy_attachment.ansible_readonly]
+}
+
+# ============================================================================
+# 4. Security Groups
+# ============================================================================
+
+data "aws_security_groups" "all" {
+  depends_on = [aws_iam_user_policy_attachment.ansible_readonly]
+}
+
 data "aws_security_group" "detail" {
-  for_each = toset(data.aws_security_groups.all.ids)
-  id       = each.value
+  for_each   = toset(data.aws_security_groups.all.ids)
+  id         = each.value
+  depends_on = [aws_iam_user_policy_attachment.ansible_readonly]
 }
 
 # ============================================================================
-# 4. ดึงข้อมูล EBS Volumes ทั้งหมด (Storage)
+# 5. Storage (EBS Volumes)
 # ============================================================================
+
 data "aws_ebs_volumes" "all" {
-  filter {
-    name   = "status"
-    values = ["in-use", "available"]
-  }
+  depends_on = [aws_iam_user_policy_attachment.ansible_readonly]
 }
 
 # ============================================================================
-# 5. ดึงข้อมูล Elastic IPs (EIP)
+# 6. Elastic IPs
 # ============================================================================
-data "aws_eips" "all" {}
+
+data "aws_eips" "all" {
+  depends_on = [aws_iam_user_policy_attachment.ansible_readonly]
+}
 
 # ============================================================================
-# 6. สร้าง Local Data สำหรับสรุปข้อมูลทั้งหมด
+# 7. Internet Gateways
 # ============================================================================
+
+data "aws_internet_gateways" "all" {
+  depends_on = [aws_iam_user_policy_attachment.ansible_readonly]
+}
+
+# ============================================================================
+# 8. Locals: จัดรูปแบบข้อมูลสำหรับ Output
+# ============================================================================
+
 locals {
-  # จับคู่ IDs กับ IPs ของ running instances
+  # EC2 Running instances map
   running_instances = {
     for i, id in data.aws_instances.running.ids : id => {
-      private_ip = length(data.aws_instances.running.private_ips) > i ? data.aws_instances.running.private_ips[i] : "N/A"
-      public_ip  = length(data.aws_instances.running.public_ips) > i ? data.aws_instances.running.public_ips[i] : "No Public IP"
+      private_ip = try(data.aws_instances.running.private_ips[i], "N/A")
+      public_ip  = try(data.aws_instances.running.public_ips[i], "No Public IP")
     }
   }
 
-  # สรุปข้อมูล VPC
+  # VPC Summary
   vpc_summary = {
     for id, vpc in data.aws_vpc.detail : id => {
       cidr_block = vpc.cidr_block
@@ -89,24 +114,34 @@ locals {
     }
   }
 
-  # สรุปข้อมูล Subnet แบ่งตาม VPC
-  subnet_by_vpc = {
+  # Subnet Summary แบ่งตาม AZ
+  subnet_summary = {
     for id, subnet in data.aws_subnet.detail : id => {
       vpc_id            = subnet.vpc_id
       cidr_block        = subnet.cidr_block
       availability_zone = subnet.availability_zone
       available_ips     = subnet.available_ip_address_count
+      is_public         = subnet.map_public_ip_on_launch
     }
   }
 
-  # สรุปกฎ Security Group
-  security_group_rules = {
+  # Route Table Summary
+  route_table_summary = {
+    for id, rt in data.aws_route_table.detail : id => {
+      vpc_id      = rt.vpc_id
+      routes      = length(rt.routes)
+      associations = length(rt.associations)
+    }
+  }
+
+  # Security Group Summary
+  security_group_summary = {
     for id, sg in data.aws_security_group.detail : sg.name => {
       sg_id       = id
-      description = sg.description
       vpc_id      = sg.vpc_id
-      ingress     = length(sg.ingress)
-      egress      = length(sg.egress)
+      description = sg.description
+      inbound_rules  = length(sg.ingress)
+      outbound_rules = length(sg.egress)
     }
   }
 }
