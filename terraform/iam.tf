@@ -1,11 +1,4 @@
-# ============================================================================
-# IAM Policy สำหรับ Terraform EC2 Read-Only Access
-# ============================================================================
-# ไฟล์นี้สร้าง IAM Policy และผูกเข้ากับ User "Ansible"
-# เพื่อให้ Terraform มีสิทธิ์ดึงข้อมูล AWS ทุก Resource แบบ Read-Only
-# ============================================================================
 
-# สร้าง IAM Policy Document ที่อนุญาตสิทธิ์อ่านข้อมูล EC2/VPC ทั้งหมด
 data "aws_iam_policy_document" "terraform_readonly" {
   statement {
     sid    = "EC2ReadOnly"
@@ -60,14 +53,12 @@ data "aws_iam_policy_document" "terraform_readonly" {
   }
 }
 
-# สร้าง IAM Policy จาก Document ด้านบน
 resource "aws_iam_policy" "terraform_readonly" {
   name        = "TerraformEC2ReadOnly"
   description = "Read-only access to EC2/VPC resources for Terraform"
   policy      = data.aws_iam_policy_document.terraform_readonly.json
 }
 
-# ผูก Policy เข้ากับ IAM User "Ansible" ที่ Semaphore ใช้งาน
 resource "aws_iam_user_policy_attachment" "ansible_readonly" {
   user       = "Ansible"
   policy_arn = aws_iam_policy.terraform_readonly.arn
