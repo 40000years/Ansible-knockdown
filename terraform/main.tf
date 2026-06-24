@@ -20,69 +20,53 @@ data "aws_instances" "stopped" {
 # 2. VPC & Networking (ต้องการสิทธิ์จาก iam.tf ก่อน)
 # ============================================================================
 
-data "aws_vpcs" "all" {
-  depends_on = [aws_iam_user_policy_attachment.ansible_readonly]
-}
+data "aws_vpcs" "all" {}
 
 data "aws_vpc" "detail" {
   for_each   = toset(data.aws_vpcs.all.ids)
   id         = each.value
-  depends_on = [aws_iam_user_policy_attachment.ansible_readonly]
 }
 
-data "aws_subnets" "all" {
-  depends_on = [aws_iam_user_policy_attachment.ansible_readonly]
-}
+data "aws_subnets" "all" {}
 
 data "aws_subnet" "detail" {
   for_each   = toset(data.aws_subnets.all.ids)
   id         = each.value
-  depends_on = [aws_iam_user_policy_attachment.ansible_readonly]
 }
 
 # ============================================================================
 # 3. Route Tables
 # ============================================================================
 
-data "aws_route_tables" "all" {
-  depends_on = [aws_iam_user_policy_attachment.ansible_readonly]
-}
+data "aws_route_tables" "all" {}
 
 data "aws_route_table" "detail" {
   for_each       = toset(data.aws_route_tables.all.ids)
   route_table_id = each.value
-  depends_on     = [aws_iam_user_policy_attachment.ansible_readonly]
 }
 
 # ============================================================================
 # 4. Security Groups
 # ============================================================================
 
-data "aws_security_groups" "all" {
-  depends_on = [aws_iam_user_policy_attachment.ansible_readonly]
-}
+data "aws_security_groups" "all" {}
 
 data "aws_security_group" "detail" {
   for_each   = toset(data.aws_security_groups.all.ids)
   id         = each.value
-  depends_on = [aws_iam_user_policy_attachment.ansible_readonly]
 }
 
 # ============================================================================
 # 5. Storage (EBS Volumes)
 # ============================================================================
 
-data "aws_ebs_volumes" "all" {
-  depends_on = [aws_iam_user_policy_attachment.ansible_readonly]
-}
+data "aws_ebs_volumes" "all" {}
 
 # ============================================================================
 # 6. Elastic IPs
 # ============================================================================
 
-data "aws_eips" "all" {
-  depends_on = [aws_iam_user_policy_attachment.ansible_readonly]
-}
+data "aws_eips" "all" {}
 
 # ============================================================================
 # 7. (Reserved for Future Features)
