@@ -4,14 +4,14 @@
 
 output "summary_dashboard" {
   value = {
-    "🖥️  EC2 Running Instances" = length(data.aws_instances.running.ids)
-    "⏹️  EC2 Stopped Instances" = length(data.aws_instances.stopped.ids)
-    "🌐  VPCs"                  = length(data.aws_vpcs.all.ids)
-    "🔀  Subnets"               = length(data.aws_subnets.all.ids)
-    "🛣️  Route Tables"          = length(data.aws_route_tables.all.ids)
-    "🔒  Security Groups"       = length(data.aws_security_groups.all.ids)
-    "💾  EBS Volumes"           = length(data.aws_ebs_volumes.all.ids)
-    "📌  Elastic IPs"           = length(data.aws_eips.all.public_ips)
+    "EC2 Running Instances" = length(data.aws_instances.running.ids)
+    "EC2 Stopped Instances" = length(data.aws_instances.stopped.ids)
+    "VPCs"                  = length(data.aws_vpcs.all.ids)
+    "Subnets"               = length(data.aws_subnets.all.ids)
+    "Route Tables"          = length(data.aws_route_tables.all.ids)
+    "Security Groups"       = length(data.aws_security_groups.all.ids)
+    "EBS Volumes"           = length(data.aws_ebs_volumes.all.ids)
+    "Elastic IPs"           = length(data.aws_eips.all.public_ips)
   }
   description = "สรุปภาพรวมของทรัพยากร AWS ทั้งหมดใน Account"
 }
