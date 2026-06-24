@@ -1,5 +1,5 @@
 # ============================================================================
-# 1. EC2 Instances 
+# 1. EC2 Instances
 # ============================================================================
 
 data "aws_instances" "running" {
@@ -16,22 +16,28 @@ data "aws_instances" "stopped" {
   }
 }
 
+# EC2 Instance Detail (Tags, Type, AZ) — สำหรับ Grouping Output
+data "aws_instance" "detail" {
+  for_each    = toset(data.aws_instances.running.ids)
+  instance_id = each.value
+}
+
 # ============================================================================
-# 2. VPC & Networking 
+# 2. VPC & Networking
 # ============================================================================
 
 data "aws_vpcs" "all" {}
 
 data "aws_vpc" "detail" {
-  for_each   = toset(data.aws_vpcs.all.ids)
-  id         = each.value
+  for_each = toset(data.aws_vpcs.all.ids)
+  id       = each.value
 }
 
 data "aws_subnets" "all" {}
 
 data "aws_subnet" "detail" {
-  for_each   = toset(data.aws_subnets.all.ids)
-  id         = each.value
+  for_each = toset(data.aws_subnets.all.ids)
+  id       = each.value
 }
 
 # ============================================================================
@@ -52,8 +58,8 @@ data "aws_route_table" "detail" {
 data "aws_security_groups" "all" {}
 
 data "aws_security_group" "detail" {
-  for_each   = toset(data.aws_security_groups.all.ids)
-  id         = each.value
+  for_each = toset(data.aws_security_groups.all.ids)
+  id       = each.value
 }
 
 # ============================================================================
@@ -69,15 +75,22 @@ data "aws_ebs_volumes" "all" {}
 data "aws_eips" "all" {}
 
 # ============================================================================
-# 7. (Reserved for Future Features)
+# 7. Force Output in Semaphore UI (Dummy Resource)
 # ============================================================================
+# Semaphore UI hides outputs if there are 0 changes. This dummy resource 
+# changes every time, forcing Semaphore to print the outputs.
+resource "terraform_data" "force_semaphore_output" {
+  triggers_replace = timestamp()
+}
 
 # ============================================================================
-# 8. Locals
+# 8. Locals: Summary + Advanced Grouping
 # ============================================================================
 
 locals {
-  # EC2 Running instances map
+  # --------------------------------------------------------------------------
+  # EC2 Running instances — basic map (id → IPs)
+  # --------------------------------------------------------------------------
   running_instances = {
     for i, id in data.aws_instances.running.ids : id => {
       private_ip = try(data.aws_instances.running.private_ips[i], "N/A")
@@ -85,7 +98,64 @@ locals {
     }
   }
 
+  # --------------------------------------------------------------------------
+  # EC2 Running instances — detail map (id → full info + Tags)
+  # Used by: ansible_inventory_json, ec2_grouped_by_environment
+  # --------------------------------------------------------------------------
+  running_instances_detail = {
+    for id, inst in data.aws_instance.detail : id => {
+      private_ip        = inst.private_ip
+      public_ip         = coalesce(inst.public_ip, "No Public IP")
+      instance_type     = inst.instance_type
+      availability_zone = inst.availability_zone
+      key_name          = coalesce(inst.key_name, "none")
+      name              = try(inst.tags["Name"], id)
+      environment       = try(inst.tags["Environment"], "untagged")
+      role              = try(inst.tags["Role"], "untagged")
+    }
+  }
+
+  # --------------------------------------------------------------------------
+  # EC2 Grouped by "Environment" Tag
+  # Output: { "production" = { instance_ids=[...], private_ips=[...] }, ... }
+  # --------------------------------------------------------------------------
+  ec2_grouped_by_environment = {
+    for env in distinct([for inst in local.running_instances_detail : inst.environment]) :
+    env => {
+      instance_ids = [for id, inst in local.running_instances_detail : id if inst.environment == env]
+      private_ips  = [for id, inst in local.running_instances_detail : inst.private_ip if inst.environment == env]
+      public_ips   = [for id, inst in local.running_instances_detail : inst.public_ip if inst.environment == env && inst.public_ip != "No Public IP"]
+    }
+  }
+
+  # --------------------------------------------------------------------------
+  # Ansible Dynamic Inventory JSON (RFC-compliant format)
+  # OpenTofu/Terraform outputs this — Ansible reads it via script inventory
+  # --------------------------------------------------------------------------
+  ansible_inventory = {
+    all = {
+      hosts    = [for _, inst in local.running_instances_detail : inst.private_ip]
+      children = keys(local.ec2_grouped_by_environment)
+    }
+    _meta = {
+      hostvars = {
+        for _, inst in local.running_instances_detail : inst.private_ip => {
+          ansible_host          = inst.private_ip
+          ansible_user          = "ubuntu"
+          instance_id           = [for id, i in local.running_instances_detail : id if i.private_ip == inst.private_ip][0]
+          instance_type         = inst.instance_type
+          availability_zone     = inst.availability_zone
+          environment           = inst.environment
+          role                  = inst.role
+          name                  = inst.name
+        }
+      }
+    }
+  }
+
+  # --------------------------------------------------------------------------
   # VPC Summary
+  # --------------------------------------------------------------------------
   vpc_summary = {
     for id, vpc in data.aws_vpc.detail : id => {
       cidr_block = vpc.cidr_block
@@ -94,7 +164,9 @@ locals {
     }
   }
 
+  # --------------------------------------------------------------------------
   # Subnet Summary แบ่งตาม AZ
+  # --------------------------------------------------------------------------
   subnet_summary = {
     for id, subnet in data.aws_subnet.detail : id => {
       vpc_id            = subnet.vpc_id
@@ -105,16 +177,39 @@ locals {
     }
   }
 
+  # --------------------------------------------------------------------------
+  # Network Topology: VPC → Subnets (nested grouping)
+  # --------------------------------------------------------------------------
+  network_topology = {
+    for vpc_id, vpc in data.aws_vpc.detail : vpc_id => {
+      cidr_block = vpc.cidr_block
+      is_default = vpc.default
+      subnets = {
+        for sn_id, sn in data.aws_subnet.detail : sn_id => {
+          cidr_block        = sn.cidr_block
+          availability_zone = sn.availability_zone
+          is_public         = sn.map_public_ip_on_launch
+          available_ips     = sn.available_ip_address_count
+        }
+        if sn.vpc_id == vpc_id
+      }
+    }
+  }
+
+  # --------------------------------------------------------------------------
   # Route Table Summary
+  # --------------------------------------------------------------------------
   route_table_summary = {
     for id, rt in data.aws_route_table.detail : id => {
-      vpc_id      = rt.vpc_id
-      routes      = length(rt.routes)
+      vpc_id       = rt.vpc_id
+      routes       = length(rt.routes)
       associations = length(rt.associations)
     }
   }
 
+  # --------------------------------------------------------------------------
   # Security Group Summary
+  # --------------------------------------------------------------------------
   security_group_summary = {
     for id, sg in data.aws_security_group.detail : id => {
       name        = sg.name

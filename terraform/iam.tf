@@ -9,6 +9,7 @@ data "aws_iam_policy_document" "terraform_readonly" {
       "ec2:DescribeInstanceTypes",
       "ec2:DescribeInstanceAttribute",
       "ec2:DescribeInstanceStatus",
+      "ec2:DescribeInstanceCreditSpecifications",
       # VPC & Networking
       "ec2:DescribeVpcs",
       "ec2:DescribeVpcAttribute",
@@ -53,13 +54,20 @@ data "aws_iam_policy_document" "terraform_readonly" {
   }
 }
 
-resource "aws_iam_policy" "terraform_readonly" {
-  name        = "TerraformEC2ReadOnly"
-  description = "Read-only access to EC2/VPC resources for Terraform"
-  policy      = data.aws_iam_policy_document.terraform_readonly.json
-}
+# ============================================================================
+# หมายเหตุ: นำคอมเมนต์ออก (Uncomment) ไม่ได้ เพราะ User 'Ansible' 
+# ไม่มีสิทธิ์จัดการ IAM Policy (เพื่อความปลอดภัย)
+# เราจะเก็บโค้ดส่วนนี้ไว้เป็น Document ให้อ่านอ้างอิงเท่านั้น
+# การแก้ไขสิทธิ์ต้องไปทำที่ AWS Console โดยตรง
+# ============================================================================
 
-resource "aws_iam_user_policy_attachment" "ansible_readonly" {
-  user       = "Ansible"
-  policy_arn = aws_iam_policy.terraform_readonly.arn
-}
+# resource "aws_iam_policy" "terraform_readonly" {
+#   name        = "TerraformEC2ReadOnly"
+#   description = "Read-only access to EC2/VPC resources for Terraform"
+#   policy      = data.aws_iam_policy_document.terraform_readonly.json
+# }
+# 
+# resource "aws_iam_user_policy_attachment" "ansible_readonly" {
+#   user       = "Ansible"
+#   policy_arn = aws_iam_policy.terraform_readonly.arn
+# }

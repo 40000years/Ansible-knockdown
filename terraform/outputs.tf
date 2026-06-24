@@ -17,7 +17,7 @@ output "summary_dashboard" {
 }
 
 # ============================================================================
-# EC2 Instances
+# EC2 Instances — Basic
 # ============================================================================
 
 output "ec2_running" {
@@ -31,7 +31,32 @@ output "ec2_stopped_ids" {
 }
 
 # ============================================================================
-# VPC & Network
+# EC2 Instances — Advanced (OpenTofu-style Grouping)
+# ============================================================================
+
+output "ec2_running_detail" {
+  value       = local.running_instances_detail
+  description = "EC2 Running พร้อม Tags: Name, Environment, Role, Instance Type, AZ"
+}
+
+output "ec2_grouped_by_environment" {
+  value       = local.ec2_grouped_by_environment
+  description = "EC2 จัดกลุ่มตาม Tag 'Environment' → { instance_ids, private_ips, public_ips }"
+}
+
+# ============================================================================
+# Ansible Dynamic Inventory (พร้อมใช้งาน)
+# ============================================================================
+# วิธีใช้: tofu output -json ansible_inventory_json > inventory.json
+#          ansible -i inventory.json all -m ping
+
+output "ansible_inventory_json" {
+  value       = local.ansible_inventory
+  description = "Ansible Dynamic Inventory (RFC format) — all hosts + hostvars + environment groups"
+}
+
+# ============================================================================
+# VPC & Network — Basic
 # ============================================================================
 
 output "vpc_details" {
@@ -49,6 +74,14 @@ output "route_table_details" {
   description = "รายละเอียด Route Tables: VPC, จำนวน Routes, จำนวน Associations"
 }
 
+# ============================================================================
+# Network Topology (Advanced — Nested VPC → Subnets)
+# ============================================================================
+
+output "network_topology" {
+  value       = local.network_topology
+  description = "โครงสร้างเครือข่ายแบบ Nested: VPC → Subnets (CIDR, AZ, Public/Private)"
+}
 
 # ============================================================================
 # Security
