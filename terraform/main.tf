@@ -1,15 +1,10 @@
 # 1. ดึงข้อมูล EC2 Instances ทั้งหมดที่กำลังทำงานอยู่ (Running) ใน Region
+# (ใช้เพียง data.aws_instances ซึ่งต้องการเพียงสิทธิ์ ec2:DescribeInstances ที่คุณมีอยู่แล้ว)
 data "aws_instances" "existing" {
   filter {
     name   = "instance-state-name"
     values = ["running"]
   }
-}
-
-# 2. รายละเอียดแบบเจาะลึกของแต่ละ Instance (ดึงแบบรายเครื่องตาม ID ที่ค้นพบ)
-data "aws_instance" "detail" {
-  for_each    = toset(data.aws_instances.existing.ids)
-  instance_id = each.value
 }
 
 # -----------------------------------------------------------------------------
