@@ -7,15 +7,12 @@ terraform {
     }
   }
 
-  # -----------------------------------------------------------------------------
-  # S3 Backend: แนะนำให้เปิดใช้งานสำหรับ Semaphore เพื่อป้องกันไฟล์ state สูญหาย
-  # -----------------------------------------------------------------------------
-  # backend "s3" {
-  #   bucket         = "your-terraform-state-bucket"
-  #   key            = "ec2-fetch/terraform.tfstate"
-  #   region         = "ap-southeast-1"
-  #   dynamodb_table = "your-terraform-lock-table" # ตัวเลือกเพิ่มเติมสำหรับ State Locking
-  # }
+  backend "s3" {
+    bucket         = "thanaphat-web-app-bucket-2026-858039354188-ap-southeast-1-an"
+    key            = "ec2-fetch/terraform.tfstate"
+    region         = "ap-southeast-1"
+    # dynamodb_table = "your-terraform-lock-table" # เปิดใช้งานหากมี DynamoDB Table สำหรับ Lock State
+  }
 }
 
 provider "aws" {
