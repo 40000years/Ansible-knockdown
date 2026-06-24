@@ -56,7 +56,7 @@ output "route_table_details" {
 
 output "security_group_details" {
   value       = local.security_group_summary
-  description = "สรุปกฎ Security Groups: ชื่อ, VPC, จำนวน Inbound/Outbound rules"
+  description = "สรุปกฎ Security Groups: ชื่อ, VPC, Description"
 }
 
 # ============================================================================

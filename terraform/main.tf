@@ -120,8 +120,6 @@ locals {
       sg_id       = id
       vpc_id      = sg.vpc_id
       description = sg.description
-      inbound_rules  = length(sg.ingress)
-      outbound_rules = length(sg.egress)
     }
   }
 }
