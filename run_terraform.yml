@@ -1,0 +1,50 @@
+---
+- name: Run Terraform and Display AWS Inventory Dashboard
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Run Terraform Apply
+      community.general.terraform:
+        project_path: "{{ playbook_dir }}/terraform"
+        state: present
+        force_init: true
+      register: tf_result
+
+    - name: Display AWS Inventory Dashboard
+      ansible.builtin.debug:
+        msg:
+          - "=================================================="
+          - "📊 AWS INVENTORY DASHBOARD"
+          - "=================================================="
+          - "{{ tf_result.outputs.summary_dashboard.value | to_nice_json }}"
+          - ""
+          - "=================================================="
+          - "🖥️  EC2 RUNNING INSTANCES"
+          - "=================================================="
+          - "{{ tf_result.outputs.ec2_running.value | to_nice_json }}"
+          - ""
+          - "=================================================="
+          - "🌐 VPC DETAILS"
+          - "=================================================="
+          - "{{ tf_result.outputs.vpc_details.value | to_nice_json }}"
+          - ""
+          - "=================================================="
+          - "🔀 SUBNET DETAILS"
+          - "=================================================="
+          - "{{ tf_result.outputs.subnet_details.value | to_nice_json }}"
+          - ""
+          - "=================================================="
+          - "🛣️  ROUTE TABLE DETAILS"
+          - "=================================================="
+          - "{{ tf_result.outputs.route_table_details.value | to_nice_json }}"
+          - ""
+          - "=================================================="
+          - "🔒 SECURITY GROUP DETAILS"
+          - "=================================================="
+          - "{{ tf_result.outputs.security_group_details.value | to_nice_json }}"
+          - ""
+          - "=================================================="
+          - "💾 EBS VOLUMES & IPS"
+          - "=================================================="
+          - "Volumes: {{ tf_result.outputs.ebs_volume_ids.value | to_nice_json }}"
+          - "Elastic IPs: {{ tf_result.outputs.elastic_ips.value | to_nice_json }}"
