@@ -116,8 +116,8 @@ locals {
 
   # Security Group Summary
   security_group_summary = {
-    for id, sg in data.aws_security_group.detail : sg.name => {
-      sg_id       = id
+    for id, sg in data.aws_security_group.detail : id => {
+      name        = sg.name
       vpc_id      = sg.vpc_id
       description = sg.description
     }
