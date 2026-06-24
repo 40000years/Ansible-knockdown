@@ -12,7 +12,6 @@ output "summary_dashboard" {
     "🔒  Security Groups"       = length(data.aws_security_groups.all.ids)
     "💾  EBS Volumes"           = length(data.aws_ebs_volumes.all.ids)
     "📌  Elastic IPs"           = length(data.aws_eips.all.public_ips)
-    "🌍  Internet Gateways"     = length(data.aws_internet_gateways.all.ids)
   }
   description = "สรุปภาพรวมของทรัพยากร AWS ทั้งหมดใน Account"
 }
@@ -50,10 +49,6 @@ output "route_table_details" {
   description = "รายละเอียด Route Tables: VPC, จำนวน Routes, จำนวน Associations"
 }
 
-output "internet_gateway_ids" {
-  value       = data.aws_internet_gateways.all.ids
-  description = "รายชื่อ Internet Gateway IDs"
-}
 
 # ============================================================================
 # 🔒 Security

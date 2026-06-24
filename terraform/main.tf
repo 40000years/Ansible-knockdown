@@ -85,12 +85,8 @@ data "aws_eips" "all" {
 }
 
 # ============================================================================
-# 7. Internet Gateways
+# 7. (Reserved for Future Features)
 # ============================================================================
-
-data "aws_internet_gateways" "all" {
-  depends_on = [aws_iam_user_policy_attachment.ansible_readonly]
-}
 
 # ============================================================================
 # 8. Locals: จัดรูปแบบข้อมูลสำหรับ Output
