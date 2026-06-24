@@ -1,0 +1,12 @@
+# Terraform temporary files
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+*.vars
+
+# Ansible temporary files
+*.retry
+*.log
+audit_reports/
+.DS_Store
