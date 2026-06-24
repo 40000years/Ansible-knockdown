@@ -65,11 +65,6 @@ resource "aws_iam_policy" "terraform_readonly" {
   name        = "TerraformEC2ReadOnly"
   description = "Read-only access to EC2/VPC resources for Terraform"
   policy      = data.aws_iam_policy_document.terraform_readonly.json
-
-  tags = {
-    ManagedBy = "Terraform"
-    Purpose   = "EC2 Resource Inventory"
-  }
 }
 
 # ผูก Policy เข้ากับ IAM User "Ansible" ที่ Semaphore ใช้งาน
