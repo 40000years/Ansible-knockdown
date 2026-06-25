@@ -14,7 +14,7 @@
 # DATA SOURCES — Auto-discover ทุกอย่าง
 # ============================================================================
 
-# EC2 ที่ stopped (สำหรับ start)
+# ค้นหา EC2 ทุกตัวที่หยุดอยู่ (เผื่อกรณี Auto-discover)
 data "aws_instances" "stopped" {
   filter {
     name   = "instance-state-name"
@@ -44,24 +44,12 @@ locals {
 }
 
 # ============================================================================
-# STEP 1: Start EC2 Instances
-# ============================================================================
-
-resource "aws_ec2_instance_state" "target" {
-  for_each    = local.target_ids
-  instance_id = each.value
-  state       = "running"
-}
-
-# ============================================================================
-# STEP 2-4: Create NAT GW + Update Route Table (Auto-discover subnet & route)
+# STEP 1-4: Start EC2, Create NAT GW, Update Route Table (via Bash)
 # ============================================================================
 
 resource "null_resource" "create_nat_and_route" {
-  count = length(local.target_ids) > 0 ? 1 : 0
-
+  # บังคับรันใหม่ทุกครั้ง!
   triggers = {
-    targets = local.target_ids_str
     run_at  = timestamp()
   }
 
@@ -78,9 +66,20 @@ resource "null_resource" "create_nat_and_route" {
       set -e
 
       echo "============================================"
-      echo " STEP 1: Waiting for EC2 to be running..."
+      echo " STEP 1: Starting EC2 Instances..."
       echo "============================================"
+      if [ -z "$TARGET_INSTANCE_IDS" ]; then
+        echo "  ERROR: No target instances found! 'Targets' is empty."
+        echo "  Please manually specify instance_ids variable in Semaphore."
+        exit 1
+      fi
+
       echo "  Targets: $TARGET_INSTANCE_IDS"
+      
+      # สั่ง Start EC2 ผ่าน CLI โดยตรง (แก้ปัญหา Terraform State จำค่าผิด)
+      aws ec2 start-instances --instance-ids $TARGET_INSTANCE_IDS >/dev/null
+      
+      echo "  Waiting for EC2 to be running..."
       aws ec2 wait instance-running --instance-ids $TARGET_INSTANCE_IDS
       echo "  EC2 instances are running ✓"
 
@@ -179,5 +178,5 @@ resource "null_resource" "create_nat_and_route" {
     EOT
   }
 
-  depends_on = [aws_ec2_instance_state.target]
+  }
 }
