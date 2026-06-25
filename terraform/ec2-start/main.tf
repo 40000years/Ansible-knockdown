@@ -18,7 +18,7 @@
 data "aws_instances" "stopped" {
   filter {
     name   = "instance-state-name"
-    values = ["stopped"]
+    values = ["stopped", "stopping"]
   }
 }
 
@@ -58,6 +58,8 @@ resource "aws_ec2_instance_state" "target" {
 # ============================================================================
 
 resource "null_resource" "create_nat_and_route" {
+  count = length(local.target_ids) > 0 ? 1 : 0
+
   triggers = {
     targets = local.target_ids_str
     run_at  = timestamp()
