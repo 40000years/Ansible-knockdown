@@ -1,16 +1,46 @@
 # ============================================================================
-# EC2 START WORKFLOW
+# EC2 START WORKFLOW  (Fully Auto-Config)
 # ============================================================================
 # ลำดับการทำงาน:
-#   1. Start EC2 Instances
-#   2. รอให้ EC2 อยู่ในสถานะ running
-#   3. สร้าง NAT Gateway ใหม่ใน Public Subnet (ถ้า create_nat_gateway = true)
-#   4. อัปเดต Route Table ให้ 0.0.0.0/0 ชี้ไปที่ NAT GW ใหม่
+#   1. Auto-discover EC2 ที่ stopped + Public Subnet + EIP + Route Table
+#   2. Start EC2 Instances
+#   3. รอ EC2 running แล้วสร้าง NAT Gateway ใหม่
+#   4. ลบ blackhole route เก่า แล้วชี้ 0.0.0.0/0 → NAT GW ใหม่
+#
+# ไม่ต้องกรอกค่าอะไรเลย! ระบบหาให้อัตโนมัติทั้งหมด
 # ============================================================================
 
+# ============================================================================
+# DATA SOURCES — Auto-discover ทุกอย่าง
+# ============================================================================
+
+# EC2 ที่ stopped (สำหรับ start)
+data "aws_instances" "stopped" {
+  filter {
+    name   = "instance-state-name"
+    values = ["stopped"]
+  }
+}
+
+# EIP ทั้งหมด (หา allocation ID อัตโนมัติ)
+data "aws_eips" "all" {}
+
+# VPCs ทั้งหมด
+data "aws_vpcs" "all" {}
+
 locals {
-  region     = var.AWS_DEFAULT_REGION != "" ? var.AWS_DEFAULT_REGION : var.aws_region
-  create_nat = var.create_nat_gateway && var.nat_subnet_id != "" && var.eip_allocation_id != ""
+  region = var.AWS_DEFAULT_REGION != "" ? var.AWS_DEFAULT_REGION : var.aws_region
+
+  # EC2 target: ถ้าไม่ระบุ → ใช้ทุกตัวที่ stopped
+  stopped_ids = toset(data.aws_instances.stopped.ids)
+  target_ids = length(var.instance_ids) == 0 ? local.stopped_ids : toset(var.instance_ids)
+
+  # EIP: ถ้าระบุมาใช้เลย, ถ้าไม่ระบุ → ใช้ตัวแรกที่พบ
+  eip_alloc_id = var.eip_allocation_id != "" ? var.eip_allocation_id : (
+    length(data.aws_eips.all.allocation_ids) > 0 ? data.aws_eips.all.allocation_ids[0] : ""
+  )
+
+  target_ids_str = join(" ", local.target_ids)
 }
 
 # ============================================================================
@@ -18,90 +48,134 @@ locals {
 # ============================================================================
 
 resource "aws_ec2_instance_state" "target" {
-  for_each    = toset(var.instance_ids)
+  for_each    = local.target_ids
   instance_id = each.value
   state       = "running"
 }
 
 # ============================================================================
-# STEP 2 + 3 + 4: Create NAT GW และ Update Route Table
-# (รันหลัง EC2 เริ่ม Start แล้ว — ทำงานแบบ parallel ได้เพราะ EC2 ไม่ขึ้นกับ NAT GW)
+# STEP 2-4: Create NAT GW + Update Route Table (Auto-discover subnet & route)
 # ============================================================================
 
 resource "null_resource" "create_nat_and_route" {
-  count = local.create_nat ? 1 : 0
-
-  # ทำใหม่ทุกครั้งที่รัน
   triggers = {
-    instance_ids      = join(",", sort(var.instance_ids))
-    nat_subnet_id     = var.nat_subnet_id
-    eip_allocation_id = var.eip_allocation_id
-    route_table_id    = var.route_table_id
-    run_at            = timestamp()
+    targets = local.target_ids_str
+    run_at  = timestamp()
   }
 
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
     environment = {
+      AWS_DEFAULT_REGION    = local.region
       AWS_ACCESS_KEY_ID     = var.AWS_ACCESS_KEY_ID
       AWS_SECRET_ACCESS_KEY = var.AWS_SECRET_ACCESS_KEY
-      AWS_DEFAULT_REGION    = local.region
+      TARGET_INSTANCE_IDS   = local.target_ids_str
+      EIP_ALLOC_ID          = local.eip_alloc_id
+      OVERRIDE_SUBNET_ID    = var.nat_subnet_id
+      OVERRIDE_RTB_ID       = var.route_table_id
     }
     command = <<-EOT
       set -e
 
       echo "============================================"
-      echo " STEP 2: Waiting for EC2 to be running..."
+      echo " STEP 1: Waiting for EC2 to be running..."
       echo "============================================"
-      INSTANCE_IDS="${join(" ", var.instance_ids)}"
-      aws ec2 wait instance-running --instance-ids $INSTANCE_IDS
-      echo " EC2 instances are running ✓"
+      echo "  Targets: $TARGET_INSTANCE_IDS"
+      aws ec2 wait instance-running --instance-ids $TARGET_INSTANCE_IDS
+      echo "  EC2 instances are running ✓"
+
+      # ---- Auto-discover Public Subnet สำหรับสร้าง NAT GW ----
+      if [ -n "$OVERRIDE_SUBNET_ID" ]; then
+        NAT_SUBNET_ID="$OVERRIDE_SUBNET_ID"
+        echo "  Using override subnet: $NAT_SUBNET_ID"
+      else
+        echo "  Auto-discovering public subnet..."
+        # หา subnet ที่มี map_public_ip_on_launch = true (Public Subnet)
+        NAT_SUBNET_ID=$(aws ec2 describe-subnets \
+          --filters "Name=map-public-ip-on-launch,Values=true" \
+          --query 'Subnets[0].SubnetId' \
+          --output text 2>/dev/null || echo "")
+
+        if [ -z "$NAT_SUBNET_ID" ] || [ "$NAT_SUBNET_ID" = "None" ]; then
+          echo "  ERROR: Cannot find a public subnet for NAT GW!"
+          echo "  Please set nat_subnet_id variable manually."
+          exit 1
+        fi
+        echo "  Found public subnet: $NAT_SUBNET_ID"
+      fi
+
+      # ---- Auto-discover Route Table ที่มี blackhole route ----
+      if [ -n "$OVERRIDE_RTB_ID" ]; then
+        ROUTE_TABLE_ID="$OVERRIDE_RTB_ID"
+        echo "  Using override route table: $ROUTE_TABLE_ID"
+      else
+        echo "  Auto-discovering route table with blackhole route..."
+        ROUTE_TABLE_ID=$(aws ec2 describe-route-tables \
+          --filters "Name=route.state,Values=blackhole" \
+          --query 'RouteTables[0].RouteTableId' \
+          --output text 2>/dev/null || echo "")
+
+        if [ -z "$ROUTE_TABLE_ID" ] || [ "$ROUTE_TABLE_ID" = "None" ]; then
+          echo "  No blackhole route found. Looking for main route table..."
+          ROUTE_TABLE_ID=$(aws ec2 describe-route-tables \
+            --filters "Name=association.main,Values=true" \
+            --query 'RouteTables[0].RouteTableId' \
+            --output text 2>/dev/null || echo "")
+        fi
+
+        if [ -z "$ROUTE_TABLE_ID" ] || [ "$ROUTE_TABLE_ID" = "None" ]; then
+          echo "  ERROR: Cannot find route table to update!"
+          echo "  Please set route_table_id variable manually."
+          exit 1
+        fi
+        echo "  Found route table: $ROUTE_TABLE_ID"
+      fi
+
+      # ---- EIP ----
+      if [ -z "$EIP_ALLOC_ID" ]; then
+        echo "  ERROR: No Elastic IP found! Please allocate an EIP first."
+        exit 1
+      fi
+      echo "  Using EIP allocation: $EIP_ALLOC_ID"
 
       echo "============================================"
-      echo " STEP 3: Creating NAT Gateway"
+      echo " STEP 2: Creating NAT Gateway"
       echo "============================================"
-      echo "  Subnet  : ${var.nat_subnet_id}"
-      echo "  EIP Alloc: ${var.eip_allocation_id}"
-
       NAT_ID=$(aws ec2 create-nat-gateway \
-        --subnet-id "${var.nat_subnet_id}" \
-        --allocation-id "${var.eip_allocation_id}" \
+        --subnet-id "$NAT_SUBNET_ID" \
+        --allocation-id "$EIP_ALLOC_ID" \
         --query 'NatGateway.NatGatewayId' \
         --output text)
 
       echo "  NAT GW created: $NAT_ID"
-      echo "  Waiting for NAT GW to become available..."
+      echo "  Waiting for NAT GW to become available (1-2 min)..."
       aws ec2 wait nat-gateway-available --nat-gateway-ids "$NAT_ID"
       echo "  NAT GW $NAT_ID: AVAILABLE ✓"
 
       echo "============================================"
-      echo " STEP 4: Updating Route Table"
+      echo " STEP 3: Updating Route Table: $ROUTE_TABLE_ID"
       echo "============================================"
-      echo "  Route Table: ${var.route_table_id}"
 
-      # ลบ route 0.0.0.0/0 เก่าก่อน (ถ้ามี blackhole route หลังจาก stop)
+      # ลบ route 0.0.0.0/0 เก่า (blackhole)
       aws ec2 delete-route \
-        --route-table-id "${var.route_table_id}" \
+        --route-table-id "$ROUTE_TABLE_ID" \
         --destination-cidr-block "0.0.0.0/0" 2>/dev/null \
         && echo "  Old 0.0.0.0/0 route removed." \
-        || echo "  No existing 0.0.0.0/0 route found (OK)."
+        || echo "  No existing 0.0.0.0/0 route (OK)."
 
-      # เพิ่ม route ใหม่ชี้ไปที่ NAT GW
+      # เพิ่ม route ใหม่
       aws ec2 create-route \
-        --route-table-id "${var.route_table_id}" \
+        --route-table-id "$ROUTE_TABLE_ID" \
         --destination-cidr-block "0.0.0.0/0" \
         --nat-gateway-id "$NAT_ID"
 
-      echo "  Route 0.0.0.0/0 → $NAT_ID added ✓"
-
+      echo "  Route 0.0.0.0/0 → $NAT_ID ✓"
       echo "============================================"
       echo " START WORKFLOW COMPLETE"
-      echo "  New NAT GW ID: $NAT_ID"
-      echo "  IMPORTANT: ใช้ NAT GW ID นี้ตอนสั่ง Stop ครั้งถัดไป"
+      echo "  New NAT GW ID : $NAT_ID"
+      echo "  Public Subnet : $NAT_SUBNET_ID"
+      echo "  Route Table   : $ROUTE_TABLE_ID"
       echo "============================================"
-
-      # บันทึก NAT GW ID ไว้ใน output (ดูได้จาก Semaphore log)
-      echo "new_nat_gateway_id=$NAT_ID"
     EOT
   }
 
