@@ -52,6 +52,29 @@ data "aws_route_table" "detail" {
 }
 
 # ============================================================================
+# 3a. Internet Gateways
+# ============================================================================
+
+data "aws_internet_gateway" "detail" {
+  for_each = toset(data.aws_vpcs.all.ids)
+  filter {
+    name   = "attachment.vpc-id"
+    values = [each.value]
+  }
+}
+
+# ============================================================================
+# 3b. NAT Gateways
+# ============================================================================
+
+data "aws_nat_gateways" "all" {}
+
+data "aws_nat_gateway" "detail" {
+  for_each = toset(data.aws_nat_gateways.all.ids)
+  id       = each.value
+}
+
+# ============================================================================
 # 4. Security Groups
 # ============================================================================
 
@@ -197,13 +220,57 @@ locals {
   }
 
   # --------------------------------------------------------------------------
-  # Route Table Summary
+  # Route Table Detail — แสดง Routes จริง (destination → target)
   # --------------------------------------------------------------------------
   route_table_summary = {
     for id, rt in data.aws_route_table.detail : id => {
       vpc_id       = rt.vpc_id
-      routes       = length(rt.routes)
+      is_main      = anytrue([for a in rt.associations : a.main])
       associations = length(rt.associations)
+      routes = [
+        for r in rt.routes : {
+          destination = coalesce(
+            r.destination_cidr_block,
+            try(r.destination_ipv6_cidr_block, ""),
+            try(r.destination_prefix_list_id, "unknown")
+          )
+          target = coalesce(
+            try(r.gateway_id != "" ? r.gateway_id : null, null),
+            try(r.nat_gateway_id != "" ? r.nat_gateway_id : null, null),
+            try(r.transit_gateway_id != "" ? r.transit_gateway_id : null, null),
+            try(r.vpc_peering_connection_id != "" ? r.vpc_peering_connection_id : null, null),
+            try(r.network_interface_id != "" ? r.network_interface_id : null, null),
+            try(r.instance_id != "" ? r.instance_id : null, null),
+            "local"
+          )
+          state = r.state
+        }
+      ]
+    }
+  }
+
+  # --------------------------------------------------------------------------
+  # Internet Gateway Summary
+  # --------------------------------------------------------------------------
+  internet_gateway_summary = {
+    for vpc_id, igw in data.aws_internet_gateway.detail : vpc_id => {
+      igw_id     = igw.id
+      state      = try(igw.attachments[0].state, "detached")
+      owner_id   = igw.owner_id
+    }
+  }
+
+  # --------------------------------------------------------------------------
+  # NAT Gateway Summary
+  # --------------------------------------------------------------------------
+  nat_gateway_summary = {
+    for id, nat in data.aws_nat_gateway.detail : id => {
+      vpc_id            = nat.vpc_id
+      subnet_id         = nat.subnet_id
+      state             = nat.state
+      connectivity_type = nat.connectivity_type
+      public_ip         = try(nat.public_ip, "N/A")
+      private_ip        = try(nat.private_ip, "N/A")
     }
   }
 

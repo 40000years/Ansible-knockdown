@@ -8,6 +8,8 @@ output "summary_dashboard" {
     "EC2 Stopped Instances" = length(data.aws_instances.stopped.ids)
     "VPCs"                  = length(data.aws_vpcs.all.ids)
     "Subnets"               = length(data.aws_subnets.all.ids)
+    "Internet Gateways"     = length(data.aws_internet_gateway.detail)
+    "NAT Gateways"          = length(data.aws_nat_gateways.all.ids)
     "Route Tables"          = length(data.aws_route_tables.all.ids)
     "Security Groups"       = length(data.aws_security_groups.all.ids)
     "EBS Volumes"           = length(data.aws_ebs_volumes.all.ids)
@@ -72,6 +74,20 @@ output "subnet_details" {
 output "route_table_details" {
   value       = local.route_table_summary
   description = "รายละเอียด Route Tables: VPC, จำนวน Routes, จำนวน Associations"
+}
+
+# ============================================================================
+# Gateways (Internet Gateway + NAT Gateway)
+# ============================================================================
+
+output "internet_gateways" {
+  value       = local.internet_gateway_summary
+  description = "Internet Gateways: VPC ID → IGW ID, State"
+}
+
+output "nat_gateways" {
+  value       = local.nat_gateway_summary
+  description = "NAT Gateways: ID → VPC, Subnet, State, Connectivity Type, Public/Private IP"
 }
 
 # ============================================================================
