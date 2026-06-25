@@ -9,7 +9,7 @@ output "stopped_instances" {
 }
 
 output "deleted_nat_gateways" {
-  value       = var.nat_gateway_ids
+  value       = local.nat_ids_to_delete
   description = "NAT Gateways ที่ถูกลบก่อน Stop EC2"
 }
 
@@ -18,9 +18,9 @@ output "summary" {
     ===================================
     EC2 Stop Workflow Complete
     -----------------------------------
-    Instances Stopped : ${length(var.instance_ids)}
-    NAT GWs Deleted   : ${length(var.nat_gateway_ids)}
-    Region            : ${var.AWS_DEFAULT_REGION != "" ? var.AWS_DEFAULT_REGION : var.aws_region}
+    Instances Stopped : ${length(local.target_ids)}
+    NAT GWs Deleted   : ${length(local.nat_ids_to_delete)}
+    Region            : ${local.region}
     ===================================
   EOT
   description = "สรุปผลการ Stop EC2"
