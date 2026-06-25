@@ -244,7 +244,6 @@ locals {
             try(r.instance_id != "" ? r.instance_id : null, null),
             "local"
           )
-          state = r.state
         }
       ]
     }
