@@ -230,9 +230,10 @@ locals {
       routes = [
         for r in rt.routes : {
           destination = coalesce(
-            r.destination_cidr_block,
-            try(r.destination_ipv6_cidr_block, ""),
-            try(r.destination_prefix_list_id, "unknown")
+            try(r.cidr_block != "" ? r.cidr_block : null, null),
+            try(r.ipv6_cidr_block != "" ? r.ipv6_cidr_block : null, null),
+            try(r.destination_prefix_list_id != "" ? r.destination_prefix_list_id : null, null),
+            "unknown"
           )
           target = coalesce(
             try(r.gateway_id != "" ? r.gateway_id : null, null),
@@ -248,6 +249,7 @@ locals {
       ]
     }
   }
+
 
   # --------------------------------------------------------------------------
   # Internet Gateway Summary
