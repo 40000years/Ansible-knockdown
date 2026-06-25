@@ -8,32 +8,17 @@ output "started_instances" {
   description = "EC2 Instances ที่ถูก Start"
 }
 
-output "nat_gateway_created" {
-  value       = local.create_nat
-  description = "มีการสร้าง NAT Gateway ใหม่หรือไม่"
-}
-
-output "nat_config" {
-  value = local.create_nat ? {
-    subnet_id         = var.nat_subnet_id
-    eip_allocation_id = var.eip_allocation_id
-    route_table_id    = var.route_table_id
-  } : null
-  description = "ค่าตั้งต้นที่ใช้สร้าง NAT Gateway ใหม่"
-}
-
 output "summary" {
   value = <<-EOT
     ===================================
     EC2 Start Workflow Complete
     -----------------------------------
-    Instances Started : ${length(var.instance_ids)}
-    NAT GW Created    : ${local.create_nat ? "YES" : "NO"}
-    Route Table       : ${var.route_table_id != "" ? var.route_table_id : "N/A"}
-    Region            : ${var.AWS_DEFAULT_REGION != "" ? var.AWS_DEFAULT_REGION : var.aws_region}
+    Instances Started : ${length(local.target_ids)}
+    NAT GW Created    : YES (Auto-Configured)
+    Region            : ${local.region}
     -----------------------------------
-    ⚠ ดู NAT GW ID ใหม่จาก Log ด้านบน
-       (ค้นหา "new_nat_gateway_id=")
+    ⚠ ดูรายละเอียด NAT GW ID, Subnet, Route Table
+       ที่ถูก Auto-Discover ได้จาก Log ของ Semaphore ด้านบน
     ===================================
   EOT
   description = "สรุปผลการ Start EC2 + สร้าง NAT GW"
