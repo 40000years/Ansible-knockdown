@@ -66,13 +66,11 @@ resource "null_resource" "create_nat_and_route" {
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
     environment = {
-      AWS_DEFAULT_REGION    = local.region
-      AWS_ACCESS_KEY_ID     = var.AWS_ACCESS_KEY_ID
-      AWS_SECRET_ACCESS_KEY = var.AWS_SECRET_ACCESS_KEY
-      TARGET_INSTANCE_IDS   = local.target_ids_str
-      EIP_ALLOC_ID          = local.eip_alloc_id
-      OVERRIDE_SUBNET_ID    = var.nat_subnet_id
-      OVERRIDE_RTB_ID       = var.route_table_id
+      AWS_DEFAULT_REGION  = local.region
+      TARGET_INSTANCE_IDS = local.target_ids_str
+      EIP_ALLOC_ID        = local.eip_alloc_id
+      OVERRIDE_SUBNET_ID  = var.nat_subnet_id
+      OVERRIDE_RTB_ID     = var.route_table_id
     }
     command = <<-EOT
       set -e
