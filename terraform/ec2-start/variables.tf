@@ -31,11 +31,11 @@ variable "AWS_SECRET_ACCESS_KEY" {
 # EC2 Start Parameters
 # ============================================================
 variable "instance_ids" {
-  type        = list(string)
-  description = <<-EOT
-    รายการ EC2 Instance IDs ที่ต้องการ Start
-    ตัวอย่าง: ["i-0ac9db71e7a4f2d52", "i-0e5d32c1dc7b8710d"]
-  EOT
+  type    = list(string)
+  default = []
+  # ถ้าปล่อยว่าง → auto-discover EC2 ที่ stopped อยู่ทั้งหมด
+  # override เฉพาะตัว: -var='instance_ids=["i-0ac9db71e7a4f2d52"]'
+  description = "EC2 Instance IDs ที่ต้องการ Start (ถ้าว่าง = auto-discover ทุกตัวที่ stopped)"
 }
 
 # ============================================================
