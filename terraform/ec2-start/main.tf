@@ -177,6 +177,4 @@ resource "null_resource" "create_nat_and_route" {
       echo "============================================"
     EOT
   }
-
-  }
 }
