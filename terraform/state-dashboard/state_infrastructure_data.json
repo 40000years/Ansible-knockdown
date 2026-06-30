@@ -1,0 +1,70 @@
+{
+  "ec2_running": {
+    "i-0123456789abcdef0": {
+      "private_ip": "10.0.10.15",
+      "public_ip": "1.2.3.4"
+    }
+  },
+  "ec2_stopped_ids": [],
+  "ec2_running_detail": {
+    "i-0123456789abcdef0": {
+      "private_ip": "10.0.10.15",
+      "public_ip": "1.2.3.4",
+      "instance_type": "t3.micro",
+      "availability_zone": null,
+      "key_name": "none",
+      "name": "WebServer-StateMock",
+      "environment": "production",
+      "role": "untagged"
+    }
+  },
+  "ec2_grouped_by_environment": {
+    "production": {
+      "instance_ids": [
+        "i-0123456789abcdef0"
+      ],
+      "private_ips": [
+        "10.0.10.15"
+      ],
+      "public_ips": [
+        "1.2.3.4"
+      ]
+    }
+  },
+  "vpc_details": {
+    "vpc-0abc123def456": {
+      "cidr_block": "10.0.0.0/16",
+      "is_default": false,
+      "state": "default"
+    }
+  },
+  "subnet_details": {
+    "subnet-0xyz987abc654": {
+      "vpc_id": "vpc-0abc123def456",
+      "cidr_block": "10.0.10.0/24",
+      "availability_zone": "ap-southeast-1a",
+      "available_ips": 0,
+      "is_public": true
+    }
+  },
+  "route_table_details": {},
+  "internet_gateways": {},
+  "nat_gateways": {},
+  "security_groups": {},
+  "network_topology": {
+    "vpc-0abc123def456": {
+      "cidr_block": "10.0.0.0/16",
+      "is_default": false,
+      "subnets": {
+        "subnet-0xyz987abc654": {
+          "cidr_block": "10.0.10.0/24",
+          "availability_zone": "ap-southeast-1a",
+          "is_public": true,
+          "available_ips": 0
+        }
+      }
+    }
+  },
+  "region": "unknown",
+  "updated_at": "2026-06-30T07:49:14Z"
+}
