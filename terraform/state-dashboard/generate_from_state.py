@@ -2,7 +2,7 @@ import json
 import sys
 import os
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone
 
 def parse_tfstate(state_path):
     with open(state_path, 'r', encoding='utf-8') as f:
@@ -21,7 +21,7 @@ def parse_tfstate(state_path):
         "security_groups": {},
         "network_topology": {},
         "region": "unknown",
-        "updated_at": datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+        "updated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     }
 
     resources = tfstate.get("resources", [])

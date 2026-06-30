@@ -1,0 +1,52 @@
+---
+- name: Generate Offline AWS Dashboard from Terraform State
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  
+  vars:
+    # ตั้งค่า Bucket และ Path ที่เก็บไฟล์ terraform.tfstate 
+    s3_state_bucket: "thanaphat-web-app-bucket-2026-858039354188-ap-southeast-1-an"
+    s3_state_key: "ec2-fetch/terraform.tfstate"
+    
+    # ถ้าต้องการให้ Semaphore อัปโหลดหน้าเว็บขึ้น S3 อัตโนมัติ ให้ใส่ชื่อ Bucket ตรงนี้
+    # เช่น "aws-infra-dashboard-12345-ap-southeast-1"
+    s3_html_bucket: "" 
+
+  tasks:
+    - name: 1. Download terraform.tfstate from S3 Backend
+      amazon.aws.s3_object:
+        bucket: "{{ s3_state_bucket }}"
+        object: "{{ s3_state_key }}"
+        dest: "{{ playbook_dir }}/terraform/state-dashboard/terraform.tfstate"
+        mode: get
+      register: s3_download
+      ignore_errors: true
+
+    - name: 2. Check if state file is available
+      ansible.builtin.stat:
+        path: "{{ playbook_dir }}/terraform/state-dashboard/terraform.tfstate"
+      register: state_file
+      failed_when: not state_file.stat.exists
+      
+    - name: 3. Run Python Script to generate dashboard
+      ansible.builtin.command:
+        cmd: "python3 generate_from_state.py terraform.tfstate"
+        chdir: "{{ playbook_dir }}/terraform/state-dashboard/"
+      register: script_output
+
+    - name: 4. Print Output
+      ansible.builtin.debug:
+        var: script_output.stdout_lines
+
+    - name: 5. Upload state_dashboard.html to S3 (Optional)
+      amazon.aws.s3_object:
+        bucket: "{{ s3_html_bucket }}"
+        object: "state_dashboard.html"
+        src: "{{ playbook_dir }}/terraform/state-dashboard/state_dashboard.html"
+        mode: put
+      when: s3_html_bucket != ""
+      
+    - name: 6. Success Message
+      ansible.builtin.debug:
+        msg: "Dashboard successfully generated! You can view the artifacts in Semaphore or S3."
