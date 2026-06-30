@@ -11,7 +11,7 @@
     
     # ถ้าต้องการให้ Semaphore อัปโหลดหน้าเว็บขึ้น S3 อัตโนมัติ ให้ใส่ชื่อ Bucket ตรงนี้
     # เช่น "aws-infra-dashboard-12345-ap-southeast-1"
-    s3_html_bucket: "" 
+    s3_html_bucket: "aws-infra-dashboard-858039354188-ap-southeast-1" 
 
   tasks:
     - name: 1. Download terraform.tfstate from S3 Backend
