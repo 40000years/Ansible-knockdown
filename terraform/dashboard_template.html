@@ -308,7 +308,9 @@
             <section x-show="activeTab === 'summary'" class="space-y-7 fade-up">
                 <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <template x-for="s in statCards" :key="s.label">
-                        <div class="glass rounded-2xl p-5 relative overflow-hidden group">
+                        <div class="glass rounded-2xl p-5 relative overflow-hidden group"
+                             @mousemove="showTooltip($event, s.tooltip)"
+                             @mouseleave="hideTooltip()">
                             <div
                                 class="absolute -right-6 -bottom-6 text-7xl opacity-[0.06] transition-opacity group-hover:opacity-[0.12]">
                                 <i class="fa-solid" :class="s.icon"></i>
@@ -477,8 +479,9 @@
                     </div>
                 </div>
 
-                <div class="glass-strong rounded-2xl p-2 overflow-hidden">
-                    <div id="topology-svg-wrap" class="w-full overflow-auto scroll-area"></div>
+                <div class="glass-strong rounded-2xl p-2 overflow-hidden relative">
+                    <div class="absolute top-4 right-4 text-[10px] text-slate-500 bg-slate-900/60 px-2 py-1 rounded border border-slate-800 pointer-events-none z-10 flex items-center gap-1.5"><i class="fa-solid fa-arrows-up-down-left-right"></i> Scroll to zoom, Drag to pan</div>
+                    <div id="topology-svg-wrap" class="w-full overflow-hidden bg-[#070b14] rounded-xl relative cursor-grab"></div>
                 </div>
 
                 <!-- Subnet detail strip -->
@@ -528,9 +531,10 @@
                                     style="background:var(--c-igw)"></span>→ IGW (public)</span>
                             <span class="flex items-center"><span class="inline-block w-6 h-[2px] mr-1.5"
                                     style="background:var(--c-nat)"></span>→ NAT (private egress)</span>
+                            <span class="px-2 py-0.5 rounded border border-slate-700/50 bg-slate-800/30 ml-2 hidden sm:flex items-center"><i class="fa-solid fa-arrows-up-down-left-right mr-1.5"></i>Pan & Zoom</span>
                         </div>
                     </div>
-                    <div id="route-flow-wrap" class="w-full overflow-auto scroll-area"></div>
+                    <div id="route-flow-wrap" class="w-full overflow-hidden bg-[#070b14] rounded-b-xl relative cursor-grab"></div>
                 </div>
 
                 <!-- Gateway cards -->
@@ -851,23 +855,33 @@
 
                     get statCards() {
                     const d = this.data;
+                    
+                    const runningEc2Tooltip = Object.values(d.ec2_running_detail).map(i => `<div><span class="text-emerald-400 font-mono">${i.name || i.id}</span> <span class="text-slate-400">(${i.private_ip})</span></div>`).join('') || '<div class="text-slate-500">None</div>';
+                    const stoppedEc2Tooltip = d.ec2_stopped_ids.map(id => `<div><span class="text-rose-400 font-mono">${id}</span></div>`).join('') || '<div class="text-slate-500">None</div>';
+                    const vpcTooltip = Object.keys(d.vpc_details).map(id => `<div><span class="text-indigo-400 font-mono">${id}</span> <span class="text-slate-400">(${d.vpc_details[id].cidr_block})</span></div>`).join('') || '<div class="text-slate-500">None</div>';
+                    const subnetTooltip = Object.keys(d.subnet_details).map(id => `<div><span class="text-cyan-400 font-mono">${id}</span> <span class="text-slate-400">(${d.subnet_details[id].availability_zone})</span></div>`).join('') || '<div class="text-slate-500">None</div>';
+                    const rtTooltip = Object.keys(d.route_table_details).map(id => `<div><span class="text-slate-300 font-mono">${id}</span></div>`).join('') || '<div class="text-slate-500">None</div>';
+                    const natTooltip = Object.keys(d.nat_gateways).map(id => `<div><span class="text-amber-400 font-mono">${id}</span> <span class="text-slate-400">(${d.nat_gateways[id].state})</span></div>`).join('') || '<div class="text-slate-500">None</div>';
+                    const igwTooltip = Object.keys(d.internet_gateways).map(id => `<div><span class="text-violet-400 font-mono">${d.internet_gateways[id].igw_id}</span></div>`).join('') || '<div class="text-slate-500">None</div>';
+                    const sgTooltip = Object.keys(d.security_groups).map(id => `<div><span class="text-fuchsia-400 font-mono">${id}</span> <span class="text-slate-400">(${d.security_groups[id].name})</span></div>`).join('') || '<div class="text-slate-500">None</div>';
+
                     return [
                     { label: 'Running EC2', value: Object.keys(d.ec2_running_detail).length, icon: 'fa-circle-play',
-                    badge: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25' },
+                    badge: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25', tooltip: `<div class="font-bold mb-1 border-b border-slate-700/50 pb-1 text-emerald-300">Running Instances</div>${runningEc2Tooltip}` },
                     { label: 'Stopped EC2', value: d.ec2_stopped_ids.length, icon: 'fa-circle-stop', badge:
-                    'bg-rose-500/10 text-rose-300 border-rose-500/25' },
+                    'bg-rose-500/10 text-rose-300 border-rose-500/25', tooltip: `<div class="font-bold mb-1 border-b border-slate-700/50 pb-1 text-rose-300">Stopped Instances</div>${stoppedEc2Tooltip}` },
                     { label: 'VPCs', value: Object.keys(d.vpc_details).length, icon: 'fa-circle-nodes', badge:
-                    'bg-indigo-500/10 text-indigo-300 border-indigo-500/25' },
+                    'bg-indigo-500/10 text-indigo-300 border-indigo-500/25', tooltip: `<div class="font-bold mb-1 border-b border-slate-700/50 pb-1 text-indigo-300">VPCs</div>${vpcTooltip}` },
                     { label: 'Subnets', value: Object.keys(d.subnet_details).length, icon: 'fa-diagram-project', badge:
-                    'bg-cyan-500/10 text-cyan-300 border-cyan-500/25' },
+                    'bg-cyan-500/10 text-cyan-300 border-cyan-500/25', tooltip: `<div class="font-bold mb-1 border-b border-slate-700/50 pb-1 text-cyan-300">Subnets</div>${subnetTooltip}` },
                     { label: 'Route Tables', value: Object.keys(d.route_table_details).length, icon: 'fa-route', badge:
-                    'bg-slate-500/10 text-slate-300 border-slate-500/25' },
+                    'bg-slate-500/10 text-slate-300 border-slate-500/25', tooltip: `<div class="font-bold mb-1 border-b border-slate-700/50 pb-1 text-slate-300">Route Tables</div>${rtTooltip}` },
                     { label: 'NAT Gateways', value: Object.keys(d.nat_gateways).length, icon: 'fa-network-wired', badge:
-                    'bg-amber-500/10 text-amber-300 border-amber-500/25' },
+                    'bg-amber-500/10 text-amber-300 border-amber-500/25', tooltip: `<div class="font-bold mb-1 border-b border-slate-700/50 pb-1 text-amber-300">NAT Gateways</div>${natTooltip}` },
                     { label: 'Internet GW', value: Object.keys(d.internet_gateways).length, icon: 'fa-globe', badge:
-                    'bg-violet-500/10 text-violet-300 border-violet-500/25' },
+                    'bg-violet-500/10 text-violet-300 border-violet-500/25', tooltip: `<div class="font-bold mb-1 border-b border-slate-700/50 pb-1 text-violet-300">Internet Gateways</div>${igwTooltip}` },
                     { label: 'Security Groups', value: Object.keys(d.security_groups).length, icon: 'fa-shield-halved',
-                    badge: 'bg-fuchsia-500/10 text-fuchsia-300 border-fuchsia-500/25' },
+                    badge: 'bg-fuchsia-500/10 text-fuchsia-300 border-fuchsia-500/25', tooltip: `<div class="font-bold mb-1 border-b border-slate-700/50 pb-1 text-fuchsia-300">Security Groups</div>${sgTooltip}` },
                     ];
                     },
 
@@ -904,9 +918,8 @@
                     const W = Math.max(1100, wrap.clientWidth || 1100);
                     const vpcCount = vpcIds.length;
                     const sectionW = W / vpcCount;
-                    const H = 560;
-                    const svg = svgEl('svg', { width: '100%', viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'xMidYMid meet' });
-                    svg.style.minWidth = '900px';
+                    const H = 600;
+                    const svg = svgEl('svg', { width: '100%', height: '560px', viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'xMidYMid meet' });
 
                     // defs: glow filters keyed by color name
                     const defs = svgEl('defs', {}, svg);
@@ -920,8 +933,11 @@
                     svgEl('feMergeNode', { in: 'SourceGraphic' }, m);
                     });
 
-                    const linkLayer = svgEl('g', { fill: 'none' }, svg);
-                    const nodeLayer = svgEl('g', {}, svg);
+                    const mainG = svgEl('g', {}, svg);
+                    this.enablePanZoom(svg, mainG);
+
+                    const linkLayer = svgEl('g', { fill: 'none' }, mainG);
+                    const nodeLayer = svgEl('g', {}, mainG);
 
                     vpcIds.forEach((vpcId, vi) => {
                     const vpc = data.network_topology[vpcId];
@@ -955,7 +971,7 @@
                     const ang = (i / subnetIds.length) * Math.PI * 2 - Math.PI / 2;
                     const sx = cx + Math.cos(ang) * ringR;
                     const sy = cy + Math.sin(ang) * ringR * 0.7;
-                    subPos[sid] = { x: sx, y: sy };
+                    subPos[sid] = { x: sx, y: sy, ang: ang };
                     this.topoNode(nodeLayer, sx, sy, 'subnet', 'diagram-project', shortId(sid),
                     `Subnet ${sid}\nCIDR ${vpc.subnets[sid].cidr_block}\n${vpc.subnets[sid].availability_zone} ·
                     ${vpc.subnets[sid].available_ips} IPs · ${vpc.subnets[sid].is_public ? 'Public' : 'Private'}`,
@@ -963,28 +979,42 @@
                     svgEl('line', { x1: cx, y1: cy, x2: sx, y2: sy, stroke: COLORS.subnet, 'stroke-width': '1.1', opacity: '0.55' }, linkLayer);
                     });
 
-                    // NAT nodes positioned near top between IGW and VPC
-                    nats.forEach(([natId, nat], i) => {
-                    const nx = cx - 70 + i * 140;
-                    const ny = cy - 95;
+                    // NAT nodes positioned radially outward from their subnet
+                    nats.forEach(([natId, nat]) => {
+                    if (subPos[nat.subnet_id]) {
+                    const p = subPos[nat.subnet_id];
+                    const nx = p.x + Math.cos(p.ang) * 75;
+                    const ny = p.y + Math.sin(p.ang) * 75;
                     this.topoNode(nodeLayer, nx, ny, 'nat', 'network-wired', shortId(natId),
                     `NAT ${natId}\n${nat.public_ip} · ${nat.state}\nsubnet ${shortId(nat.subnet_id)}`, 13);
-                    svgEl('line', { x1: nx, y1: ny, x2: cx, y2: cy, stroke: COLORS.nat, 'stroke-width': '1.5', opacity: '0.75' }, linkLayer);
-                    if (subPos[nat.subnet_id]) {
-                    svgEl('line', { x1: nx, y1: ny, x2: subPos[nat.subnet_id].x, y2: subPos[nat.subnet_id].y,
-                    stroke: COLORS.nat, 'stroke-width': '1', 'stroke-dasharray': '3 4', opacity: '0.5' }, linkLayer);
+                    svgEl('line', { x1: nx, y1: ny, x2: p.x, y2: p.y,
+                    stroke: COLORS.nat, 'stroke-width': '1.5', opacity: '0.75' }, linkLayer);
                     }
                     });
 
-                    // EC2 nodes — attach each running instance to first subnet (data lacks subnet-id mapping on
-                    // instance)
+                    // EC2 nodes — attach each running instance to its actual subnet via CIDR match
+                    const ipToNum = (ip) => ip.split('.').reduce((acc, octet) => (acc << 8) + parseInt(octet, 10), 0) >>> 0;
+                    const isIpInCidr = (ip, cidr) => {
+                        if (!ip || !cidr) return false;
+                        const [net, mask] = cidr.split('/');
+                        const maskNum = ~((1 << (32 - parseInt(mask, 10))) - 1) >>> 0;
+                        return (ipToNum(ip) & maskNum) === (ipToNum(net) & maskNum);
+                    };
+
                     const ec2s = Object.entries(data.ec2_running_detail);
-                    ec2s.forEach(([iid, inst], i) => {
-                    const sid = subnetIds[0];
-                    if (!subPos[sid]) return;
-                    const p = subPos[sid];
-                    const ex = p.x + 42;
-                    const ey = p.y + 36;
+                    ec2s.forEach(([iid, inst]) => {
+                    let matchedSid = null;
+                    for (const sid of subnetIds) {
+                        if (isIpInCidr(inst.private_ip, vpc.subnets[sid].cidr_block)) {
+                            matchedSid = sid; break;
+                        }
+                    }
+                    if (!matchedSid || !subPos[matchedSid]) return;
+                    
+                    const p = subPos[matchedSid];
+                    // Offset slightly differently from NAT so they don't overlap if both are in same subnet
+                    const ex = p.x + Math.cos(p.ang + 0.6) * 60;
+                    const ey = p.y + Math.sin(p.ang + 0.6) * 60;
                     this.topoNode(nodeLayer, ex, ey, 'ec2', 'server', shortId(iid),
                     `EC2 ${iid}\n${inst.instance_type} · ${inst.private_ip}\n${inst.availability_zone}`, 9);
                     svgEl('line', { x1: p.x, y1: p.y, x2: ex, y2: ey, stroke: COLORS.ec2, 'stroke-width': '1', opacity: '0.55' }, linkLayer);
@@ -1002,15 +1032,17 @@
                     topoNode(layer, x, y, type, faIcon, label, tooltip, r = 13, pulse = false) {
                     const color = COLORS[type] || COLORS.rt;
                     const g = svgEl('g', { transform: `translate(${x} ${y})`, style: 'cursor: pointer' }, layer);
-                    if (pulse) g.setAttribute('class', 'pulse-node');
+                    
+                    const innerG = svgEl('g', {}, g);
+                    if (pulse) innerG.setAttribute('class', 'pulse-node');
 
                     // outer glow disc
-                    svgEl('circle', { r: r + 6, fill: color, opacity: '0.12' }, g);
+                    svgEl('circle', { r: r + 6, fill: color, opacity: '0.12' }, innerG);
                     // main circle
                     svgEl('circle', { r, fill: '#0b1020', stroke: color, 'stroke-width': '1.8', filter:
-                    `url(#glow-${type})` }, g);
+                    `url(#glow-${type})` }, innerG);
                     // icon
-                    const fo = svgEl('foreignObject', { x: -10, y: -10, width: 20, height: 20 }, g);
+                    const fo = svgEl('foreignObject', { x: -10, y: -10, width: 20, height: 20 }, innerG);
                     const span = document.createElement('span');
                     span.style.cssText =
                     'display:flex;align-items:center;justify-content:center;width:20px;height:20px;color:' + color +
@@ -1019,7 +1051,7 @@
                     fo.appendChild(span);
 
                     const t = svgEl('text', { y: r + 14, 'text-anchor': 'middle', fill: '#94a3b8', 'font-size': '9',
-                    'font-family': 'JetBrains Mono, monospace' }, g);
+                    'font-family': 'JetBrains Mono, monospace' }, innerG);
                     t.textContent = label;
 
                     g.addEventListener('mousemove', (e) => showTooltip(e, tooltip.split('\n').map(s => `<div>${s}</div>
@@ -1041,62 +1073,104 @@
                     return;
                     }
 
-                    // Columnar left → right flow: Source | Route Table | Target | Exit
-                    const cols = ['Source', 'Route Table', 'Target', 'Exit'];
-                    const colX = [80, 380, 720, 1000];
-                    const rowH = 80;
-                    const padTop = 64;
-                    const W = 1120;
-                    const H = padTop + rtEntries.length * rowH + 24;
+                    // Columnar left → right flow: Source | Route Table | Network Connection
+                    const cols = ['Source', 'Route Table', 'Network Connection'];
+                    const colX = [180, 570, 960];
+                    const rowH = 70;
+                    const padTop = 80;
+                    const W = 1140;
+                    const H = Math.max(500, padTop + rtEntries.length * rowH + 40);
 
-                    const svg = svgEl('svg', { width: '100%', viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'xMidYMid meet' });
-                    svg.style.minWidth = '1000px';
+                    const svg = svgEl('svg', { width: '100%', height: '500px', viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'xMidYMid meet' });
 
-                    const linkLayer = svgEl('g', { fill: 'none' }, svg);
-                    const nodeLayer = svgEl('g', {}, svg);
+                    const mainG = svgEl('g', {}, svg);
+                    this.enablePanZoom(svg, mainG);
 
-                    // Header row
+                    const linkLayer = svgEl('g', { fill: 'none' }, mainG);
+                    const nodeLayer = svgEl('g', {}, mainG);
+
+                    // Header row (fixed to svg)
                     cols.forEach((c, i) => {
-                    svgEl('text', { x: colX[i], y: 30, fill: '#64748b', 'font-size': '11', 'font-weight': '600',
-                    'letter-spacing': '1.5' }, svg).textContent = c.toUpperCase();
+                    svgEl('text', { x: colX[i], y: 40, fill: '#64748b', 'font-size': '11', 'font-weight': '600',
+                    'letter-spacing': '1.5', 'text-anchor': 'middle' }, svg).textContent = c.toUpperCase();
                     });
-                    svgEl('line', { x1: 30, y1: 46, x2: W - 30, y2: 46, stroke: '#1e293b', 'stroke-width': '1' }, svg);
+                    svgEl('line', { x1: 40, y1: 56, x2: W - 40, y2: 56, stroke: '#1e293b', 'stroke-width': '1' }, svg);
 
+                    // Find unique targets and sort rtEntries to avoid crossing lines
+                    rtEntries.sort((a, b) => {
+                        const tA = (a[1].routes.find(r => r.destination === '0.0.0.0/0') || a[1].routes[0])?.target || 'local';
+                        const tB = (b[1].routes.find(r => r.destination === '0.0.0.0/0') || b[1].routes[0])?.target || 'local';
+                        return tA.localeCompare(tB);
+                    });
+
+                    const uniqueTargets = {};
+                    rtEntries.forEach(([rtId, rt]) => {
+                        const defRoute = rt.routes.find(r => r.destination === '0.0.0.0/0') || rt.routes[0];
+                        let target = defRoute ? defRoute.target : null;
+                        
+                        // Ignore local routes and blackhole/deleted NAT gateways (same as AWS Resource Map)
+                        if (target === 'local') target = null;
+                        if (target && target.startsWith('nat-') && (!data.nat_gateways || !data.nat_gateways[target])) {
+                            target = null;
+                        }
+                        
+                        if (target) {
+                            if (!uniqueTargets[target]) uniqueTargets[target] = [];
+                            uniqueTargets[target].push(rtId);
+                        }
+                    });
+
+                    const targetKeys = Object.keys(uniqueTargets);
+                    const totalTargetAreaH = Math.max(300, targetKeys.length * 120);
+                    const targetYs = {};
+                    targetKeys.forEach((tgt, i) => {
+                        targetYs[tgt] = padTop + (i + 0.5) * (totalTargetAreaH / targetKeys.length);
+                    });
+
+                    // Draw RTs and Sources
                     rtEntries.forEach(([rtId, rt], idx) => {
-                    const y = padTop + idx * rowH + rowH / 2;
-                    const defRoute = rt.routes.find(r => r.destination === '0.0.0.0/0') || rt.routes[0];
-                    const target = defRoute ? defRoute.target : 'local';
+                        const y = padTop + (idx + 0.5) * rowH;
+                        const defRoute = rt.routes.find(r => r.destination === '0.0.0.0/0') || rt.routes[0];
+                        let target = defRoute ? defRoute.target : null;
+                        
+                        if (target === 'local') target = null;
+                        if (target && target.startsWith('nat-') && (!data.nat_gateways || !data.nat_gateways[target])) {
+                            target = null;
+                        }
 
-                    let targetType, targetColor, targetIcon, targetLabel, exitLabel, exitIcon;
-                    if (target.indexOf('igw-') === 0) {
-                    targetType = 'igw'; targetColor = COLORS.igw; targetIcon = 'globe'; targetLabel = 'IGW';
-                    const igw = Object.values(data.internet_gateways).find(g => g.igw_id === target);
-                    exitLabel = igw ? 'Internet' : target; exitIcon = 'cloud';
-                    } else if (target.indexOf('nat-') === 0) {
-                    targetType = 'nat'; targetColor = COLORS.nat; targetIcon = 'network-wired'; targetLabel = 'NAT';
-                    const nat = data.nat_gateways[target];
-                    exitLabel = nat ? (nat.public_ip || 'Internet') : target; exitIcon = 'globe';
-                    } else {
-                    targetType = 'rt'; targetColor = COLORS.rt; targetIcon = 'circle-nodes'; targetLabel = 'Local';
-                    exitLabel = 'VPC'; exitIcon = 'circle';
-                    }
+                        const srcLabel = rt.associations > 0 ? `${rt.associations} subnet${rt.associations === 1 ? '' : 's'}` : 'no assoc.';
+                        this.flowNode(nodeLayer, colX[0], y, COLORS.subnet, 'network-wired', srcLabel,
+                        `Route table ${rtId}\nAssociated: ${rt.associations} subnet(s)`);
+                        this.flowNode(nodeLayer, colX[1], y, COLORS.rt, 'route', shortId(rtId),
+                        `${rtId}${rt.is_main ? ' (Main)' : ''}\n${rt.routes.length} route(s)`);
+                        
+                        this.flowLink(linkLayer, colX[0] + 40, y, colX[1] - 40, y, '#475569', false, '');
+                        
+                        if (target) {
+                            const tY = targetYs[target];
+                            let targetType = 'rt';
+                            if (target.indexOf('igw-') === 0) targetType = 'igw';
+                            else if (target.indexOf('nat-') === 0) targetType = 'nat';
+                            const linkColor = targetType === 'igw' ? COLORS.igw : (targetType === 'nat' ? COLORS.nat : COLORS.rt);
+                            
+                            this.flowLink(linkLayer, colX[1] + 40, y, colX[2] - 40, tY, linkColor, true, defRoute ? defRoute.destination : '');
+                        }
+                    });
 
-                    const srcLabel = rt.associations > 0 ? `${rt.associations} subnet${rt.associations === 1 ? '' : 's'}` : 'no assoc.';
-                    this.flowNode(nodeLayer, colX[0], y, COLORS.subnet, 'network-wired', srcLabel,
-                    `Route table ${rtId}\nAssociated: ${rt.associations} subnet(s)`);
-                    this.flowNode(nodeLayer, colX[1], y, COLORS.rt, 'route', shortId(rtId),
-                    `${rtId}${rt.is_main ? ' (Main)' : ''}\n${rt.routes.length} route(s)`);
-                    this.flowNode(nodeLayer, colX[2], y, targetColor, targetIcon, targetLabel,
-                    `Target: ${target}\nType: ${targetType.toUpperCase()}`);
-                    this.flowNode(nodeLayer, colX[3], y, targetColor, exitIcon,
-                    exitLabel.length > 14 ? shortId(exitLabel) : exitLabel, exitLabel);
+                    // Draw Targets
+                    targetKeys.forEach(target => {
+                        const y = targetYs[target];
+                        let targetType, targetColor, targetIcon, targetLabel;
+                        
+                        if (target.indexOf('igw-') === 0) {
+                            targetType = 'igw'; targetColor = COLORS.igw; targetIcon = 'globe'; targetLabel = 'IGW';
+                        } else if (target.indexOf('nat-') === 0) {
+                            targetType = 'nat'; targetColor = COLORS.nat; targetIcon = 'network-wired'; targetLabel = 'NAT';
+                        } else {
+                            targetType = 'rt'; targetColor = COLORS.rt; targetIcon = 'circle-nodes'; targetLabel = 'Local Route';
+                        }
 
-                    const linkColor = targetType === 'igw' ? COLORS.igw : (targetType === 'nat' ? COLORS.nat :
-                    COLORS.rt);
-                    this.flowLink(linkLayer, colX[0] + 40, y, colX[1] - 40, y, '#475569', false, '');
-                    this.flowLink(linkLayer, colX[1] + 40, y, colX[2] - 40, y, linkColor, true, defRoute ?
-                    defRoute.destination : '');
-                    this.flowLink(linkLayer, colX[2] + 40, y, colX[3] - 40, y, linkColor, true, '');
+                        this.flowNode(nodeLayer, colX[2], y, targetColor, targetIcon, target.length > 14 ? shortId(target) : target, `Target: ${target}\nType: ${targetLabel}`);
                     });
 
                     wrap.appendChild(svg);
@@ -1139,6 +1213,36 @@
                     'middle', 'font-family': 'JetBrains Mono, monospace' }, layer);
                     t.textContent = label;
                     }
+                    },
+
+                    enablePanZoom(svg, g) {
+                    let isDragging = false, startX, startY;
+                    let currentX = 0, currentY = 0, scale = 1;
+                    g.setAttribute('transform', `translate(${currentX}, ${currentY}) scale(${scale})`);
+                    svg.addEventListener('mousedown', (e) => {
+                    isDragging = true; startX = e.clientX - currentX; startY = e.clientY - currentY;
+                    svg.style.cursor = 'grabbing';
+                    });
+                    window.addEventListener('mousemove', (e) => {
+                    if (!isDragging) return;
+                    currentX = e.clientX - startX; currentY = e.clientY - startY;
+                    g.setAttribute('transform', `translate(${currentX}, ${currentY}) scale(${scale})`);
+                    });
+                    window.addEventListener('mouseup', () => {
+                    isDragging = false; svg.style.cursor = 'grab';
+                    });
+                    svg.addEventListener('wheel', (e) => {
+                    e.preventDefault();
+                    const rect = svg.getBoundingClientRect();
+                    const mouseX = e.clientX - rect.left; const mouseY = e.clientY - rect.top;
+                    const zoom = Math.exp(-e.deltaY * 0.002);
+                    const newScale = Math.min(Math.max(0.2, scale * zoom), 4);
+                    currentX = mouseX - (mouseX - currentX) * (newScale / scale);
+                    currentY = mouseY - (mouseY - currentY) * (newScale / scale);
+                    scale = newScale;
+                    g.setAttribute('transform', `translate(${currentX}, ${currentY}) scale(${scale})`);
+                    }, { passive: false });
+                    svg.style.cursor = 'grab';
                     },
                     };
                     }
