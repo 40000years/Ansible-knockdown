@@ -14,13 +14,8 @@
 # DATA SOURCES — Auto-discover ทุกอย่าง
 # ============================================================================
 
-# ค้นหา EC2 ทุกตัวที่หยุดอยู่ (เผื่อกรณี Auto-discover)
-data "aws_instances" "stopped" {
-  filter {
-    name   = "instance-state-name"
-    values = ["stopped", "stopping"]
-  }
-}
+# ไม่ใช้ data.aws_instances ของ Terraform แล้ว 
+# เพราะมีบั๊กคืนค่าว่างเปล่า จะใช้ AWS CLI ดึงแทน
 
 # EIP ทั้งหมด (หา allocation ID อัตโนมัติ)
 data "aws_eips" "all" {}
@@ -31,16 +26,13 @@ data "aws_vpcs" "all" {}
 locals {
   region = var.AWS_DEFAULT_REGION != "" ? var.AWS_DEFAULT_REGION : var.aws_region
 
-  # EC2 target: ถ้าไม่ระบุ → ใช้ทุกตัวที่ stopped
-  stopped_ids = toset(data.aws_instances.stopped.ids)
-  target_ids = length(var.instance_ids) == 0 ? local.stopped_ids : toset(var.instance_ids)
+  # ถ้า user ระบุผ่าน UI ก็ใช้ตัวนั้น ถ้าไม่ระบุจะปล่อยว่างให้ Bash ไปหาเอง
+  target_ids_str = join(" ", var.instance_ids)
 
   # EIP: ถ้าระบุมาใช้เลย, ถ้าไม่ระบุ → ใช้ตัวแรกที่พบ
   eip_alloc_id = var.eip_allocation_id != "" ? var.eip_allocation_id : (
     length(data.aws_eips.all.allocation_ids) > 0 ? data.aws_eips.all.allocation_ids[0] : ""
   )
-
-  target_ids_str = join(" ", local.target_ids)
 }
 
 # ============================================================================
@@ -64,70 +56,99 @@ resource "null_resource" "create_nat_and_route" {
     }
     command = <<-EOT
       set -e
+      set -x
 
       echo "============================================"
       echo " STEP 1: Starting EC2 Instances..."
       echo "============================================"
       if [ -z "$TARGET_INSTANCE_IDS" ]; then
-        echo "  ERROR: No target instances found! 'Targets' is empty."
-        echo "  Please manually specify instance_ids variable in Semaphore."
-        exit 1
+        echo "  No target instances specified. Auto-discovering stopped instances via AWS CLI..."
+        TARGET_INSTANCE_IDS=$(aws ec2 describe-instances \
+          --filters "Name=instance-state-name,Values=stopped,stopping" \
+          --query 'Reservations[*].Instances[*].InstanceId' \
+          --output text | tr -s '\t\n' ' ')
       fi
 
-      echo "  Targets: $TARGET_INSTANCE_IDS"
-      
-      # สั่ง Start EC2 ผ่าน CLI โดยตรง (แก้ปัญหา Terraform State จำค่าผิด)
-      aws ec2 start-instances --instance-ids $TARGET_INSTANCE_IDS >/dev/null
-      
-      echo "  Waiting for EC2 to be running..."
-      aws ec2 wait instance-running --instance-ids $TARGET_INSTANCE_IDS
-      echo "  EC2 instances are running ✓"
+      if [ -z "$TARGET_INSTANCE_IDS" ] || [ "$TARGET_INSTANCE_IDS" = " " ]; then
+        echo "  WARNING: No stopped instances found in AWS! (They might already be running)."
+        echo "  Skipping instance start step and proceeding to NAT GW creation..."
+        
+        # แต่เรายังต้องใช้ Instance ID เพื่อไปหา VPC และ Subnet ใน Step ถัดไป!
+        # ดังนั้นถ้าไม่เจอเครื่องดับ ให้หาเครื่องที่เปิดอยู่มาใช้แทน
+        TARGET_INSTANCE_IDS=$(aws ec2 describe-instances \
+          --filters "Name=instance-state-name,Values=running" \
+          --query 'Reservations[*].Instances[*].InstanceId' \
+          --output text | tr -s '\t\n' ' ')
+          
+        if [ -z "$TARGET_INSTANCE_IDS" ] || [ "$TARGET_INSTANCE_IDS" = " " ]; then
+          echo "  ERROR: No stopped OR running instances found! Cannot determine VPC."
+          exit 1
+        fi
+      else
+        echo "  Targets: $TARGET_INSTANCE_IDS"
+        # สั่ง Start EC2 ผ่าน CLI โดยตรง (แก้ปัญหา Terraform State จำค่าผิด)
+        aws ec2 start-instances --instance-ids $TARGET_INSTANCE_IDS >/dev/null
+        
+        echo "  Waiting for EC2 to be running..."
+        aws ec2 wait instance-running --instance-ids $TARGET_INSTANCE_IDS
+        echo "  EC2 instances are running ✓"
+      fi
 
-      # ---- Auto-discover Public Subnet สำหรับสร้าง NAT GW ----
+      # ======================================================================
+      # BULLETPROOF AUTO-DISCOVERY: NAT Subnet & Private Route Table
+      # ======================================================================
+      
+      # 1. หา VPC ของเครื่อง EC2
+      VPC_ID=$(aws ec2 describe-instances --instance-ids $TARGET_INSTANCE_IDS --query 'Reservations[0].Instances[0].VpcId' --output text)
+      echo "  EC2 is in VPC: $VPC_ID"
+
+      # 2. หา Public Subnet (สำหรับวาง NAT GW) โดยการสแกนทุก Subnet ใน VPC หาอันที่ออก IGW ได้
       if [ -n "$OVERRIDE_SUBNET_ID" ]; then
         NAT_SUBNET_ID="$OVERRIDE_SUBNET_ID"
         echo "  Using override subnet: $NAT_SUBNET_ID"
       else
-        echo "  Auto-discovering public subnet..."
-        # หา subnet ที่มี map_public_ip_on_launch = true (Public Subnet)
-        NAT_SUBNET_ID=$(aws ec2 describe-subnets \
-          --filters "Name=map-public-ip-on-launch,Values=true" \
-          --query 'Subnets[0].SubnetId' \
-          --output text 2>/dev/null || echo "")
+        echo "  Auto-discovering true Public Subnet..."
+        NAT_SUBNET_ID=""
+        
+        ALL_SUBNETS=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$VPC_ID" --query 'Subnets[*].SubnetId' --output text)
+        for sub in $ALL_SUBNETS; do
+          # หา Route Table ของ Subnet นี้
+          RTB=$(aws ec2 describe-route-tables --filters "Name=association.subnet-id,Values=$sub" --query 'RouteTables[0].RouteTableId' --output text 2>/dev/null || echo "None")
+          if [ "$RTB" = "None" ]; then
+            RTB=$(aws ec2 describe-route-tables --filters "Name=vpc-id,Values=$VPC_ID" "Name=association.main,Values=true" --query 'RouteTables[0].RouteTableId' --output text)
+          fi
+          
+          # เช็คว่า Route Table นี้มีเส้นทางออก Internet Gateway (igw-*) หรือไม่
+          HAS_IGW=$(aws ec2 describe-route-tables --route-table-ids "$RTB" --query 'RouteTables[0].Routes[*].GatewayId' --output text 2>/dev/null | grep -o 'igw-[a-zA-Z0-9]*' | head -n 1)
+          if [ -z "$HAS_IGW" ]; then HAS_IGW="None"; fi
+          
+          if [ "$HAS_IGW" != "None" ] && [ -n "$HAS_IGW" ]; then
+            NAT_SUBNET_ID=$sub
+            echo "  Found Public Subnet: $NAT_SUBNET_ID (Route Table: $RTB -> $HAS_IGW)"
+            break
+          fi
+        done
 
-        if [ -z "$NAT_SUBNET_ID" ] || [ "$NAT_SUBNET_ID" = "None" ]; then
-          echo "  ERROR: Cannot find a public subnet for NAT GW!"
-          echo "  Please set nat_subnet_id variable manually."
+        if [ -z "$NAT_SUBNET_ID" ]; then
+          echo "  ERROR: Cannot find any public subnet (with IGW route) in VPC $VPC_ID!"
           exit 1
         fi
-        echo "  Found public subnet: $NAT_SUBNET_ID"
       fi
 
-      # ---- Auto-discover Route Table ที่มี blackhole route ----
+      # 3. หา Route Table ของฝั่ง Private (ตัวที่ EC2 ใช้งานอยู่) เพื่อเอาไปแก้ให้ออก NAT
       if [ -n "$OVERRIDE_RTB_ID" ]; then
         ROUTE_TABLE_ID="$OVERRIDE_RTB_ID"
         echo "  Using override route table: $ROUTE_TABLE_ID"
       else
-        echo "  Auto-discovering route table with blackhole route..."
-        ROUTE_TABLE_ID=$(aws ec2 describe-route-tables \
-          --filters "Name=route.state,Values=blackhole" \
-          --query 'RouteTables[0].RouteTableId' \
-          --output text 2>/dev/null || echo "")
-
-        if [ -z "$ROUTE_TABLE_ID" ] || [ "$ROUTE_TABLE_ID" = "None" ]; then
-          echo "  No blackhole route found. Looking for main route table..."
-          ROUTE_TABLE_ID=$(aws ec2 describe-route-tables \
-            --filters "Name=association.main,Values=true" \
-            --query 'RouteTables[0].RouteTableId' \
-            --output text 2>/dev/null || echo "")
+        echo "  Auto-discovering Private Route Table of the EC2 instance..."
+        EC2_SUBNET_ID=$(aws ec2 describe-instances --instance-ids $TARGET_INSTANCE_IDS --query 'Reservations[0].Instances[0].SubnetId' --output text)
+        
+        ROUTE_TABLE_ID=$(aws ec2 describe-route-tables --filters "Name=association.subnet-id,Values=$EC2_SUBNET_ID" --query 'RouteTables[0].RouteTableId' --output text 2>/dev/null || echo "None")
+        if [ "$ROUTE_TABLE_ID" = "None" ]; then
+          ROUTE_TABLE_ID=$(aws ec2 describe-route-tables --filters "Name=vpc-id,Values=$VPC_ID" "Name=association.main,Values=true" --query 'RouteTables[0].RouteTableId' --output text)
         fi
-
-        if [ -z "$ROUTE_TABLE_ID" ] || [ "$ROUTE_TABLE_ID" = "None" ]; then
-          echo "  ERROR: Cannot find route table to update!"
-          echo "  Please set route_table_id variable manually."
-          exit 1
-        fi
-        echo "  Found route table: $ROUTE_TABLE_ID"
+        
+        echo "  Found EC2 Route Table: $ROUTE_TABLE_ID"
       fi
 
       # ---- EIP ----

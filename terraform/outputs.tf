@@ -121,3 +121,12 @@ output "elastic_ips" {
   value       = data.aws_eips.all.public_ips
   description = "Elastic IPs (EIP) ทั้งหมดที่จองไว้"
 }
+
+# ============================================================================
+# Infrastructure Dashboard Web URL
+# ============================================================================
+
+output "dashboard_url" {
+  value       = "https://${aws_cloudfront_distribution.dashboard.domain_name}"
+  description = "URL สำหรับเปิดดูหน้าเว็บ HTML Infrastructure Dashboard แบบ Real-time ผ่าน CloudFront"
+}

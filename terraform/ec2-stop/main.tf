@@ -13,13 +13,8 @@
 # DATA SOURCES
 # ============================================================================
 
-# ดึง EC2 ที่ running (สำหรับ stop)
-data "aws_instances" "running" {
-  filter {
-    name   = "instance-state-name"
-    values = ["running"]
-  }
-}
+# ไม่ใช้ data.aws_instances ของ Terraform แล้ว 
+# เพราะมีบั๊กคืนค่าว่างเปล่า จะใช้ AWS CLI ดึงแทน
 
 # ดึง NAT GW ทั้งหมดที่ active ใน region โดยตรง (ไม่ขึ้นกับ EC2 state!)
 data "aws_nat_gateways" "active" {
@@ -32,18 +27,14 @@ data "aws_nat_gateways" "active" {
 locals {
   region = var.AWS_DEFAULT_REGION != "" ? var.AWS_DEFAULT_REGION : var.aws_region
 
-  # EC2 target: ถ้าไม่ระบุ → ใช้ทุกตัวที่ running
-  running_ids = toset(data.aws_instances.running.ids)
-  target_ids = length(var.instance_ids) == 0 ? local.running_ids : toset([
-    for id in var.instance_ids : id if contains(tolist(local.running_ids), id)
-  ])
+  # ถ้า user ระบุผ่าน UI ก็ใช้ตัวนั้น ถ้าไม่ระบุจะปล่อยว่างให้ Bash ไปหาเอง
+  target_ids_str = join(" ", var.instance_ids)
 
   # NAT GW target: ถ้าระบุมาใช้เลย, ถ้าไม่ระบุ → ใช้ทุกตัวที่ active ใน region
   discovered_nat_ids = toset(data.aws_nat_gateways.active.ids)
   nat_ids_to_delete = length(var.nat_gateway_ids) == 0 ? local.discovered_nat_ids : toset(var.nat_gateway_ids)
 
   nat_ids_str    = join(" ", local.nat_ids_to_delete)
-  target_ids_str = join(" ", local.target_ids)
 }
 
 # ============================================================================
@@ -101,12 +92,51 @@ resource "null_resource" "delete_nat_gateways" {
 # STEP 3: Stop EC2 Instances (ต้องรอ Step 1-2 เสร็จก่อนเสมอ)
 # ============================================================================
 
-resource "aws_ec2_instance_state" "target" {
-  for_each    = local.target_ids
-  instance_id = each.value
-  state       = "stopped"
+resource "null_resource" "stop_instances" {
+  # บังคับรันใหม่ทุกครั้ง!
+  triggers = {
+    run_at = timestamp()
+  }
 
-  # บังคับให้ทำหลัง NAT GW ถูกลบเสมอ
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    environment = {
+      AWS_DEFAULT_REGION  = local.region
+      TARGET_INSTANCE_IDS = local.target_ids_str
+    }
+    command = <<-EOT
+      set -e
+      set -x
+
+      echo "============================================"
+      echo " STEP 3: Stopping EC2 Instances"
+      echo "============================================"
+      
+      if [ -z "$TARGET_INSTANCE_IDS" ]; then
+        echo "  No target instances specified. Auto-discovering running instances via AWS CLI..."
+        TARGET_INSTANCE_IDS=$(aws ec2 describe-instances \
+          --filters "Name=instance-state-name,Values=running" \
+          --query 'Reservations[*].Instances[*].InstanceId' \
+          --output text | tr -s '\t\n' ' ')
+      fi
+
+      if [ -z "$TARGET_INSTANCE_IDS" ] || [ "$TARGET_INSTANCE_IDS" = " " ]; then
+        echo "  No target instances found running in AWS. Skipping."
+        exit 0
+      fi
+
+      echo "  Targets: $TARGET_INSTANCE_IDS"
+      
+      # สั่ง Stop EC2 ผ่าน CLI โดยตรง (แก้ปัญหา Terraform State จำค่าผิด)
+      aws ec2 stop-instances --instance-ids $TARGET_INSTANCE_IDS >/dev/null
+      
+      echo "  Waiting for EC2 to be fully stopped..."
+      aws ec2 wait instance-stopped --instance-ids $TARGET_INSTANCE_IDS
+      echo "  EC2 instances are STOPPED ✓"
+      echo "============================================"
+    EOT
+  }
+
   depends_on = [null_resource.delete_nat_gateways]
 }
 

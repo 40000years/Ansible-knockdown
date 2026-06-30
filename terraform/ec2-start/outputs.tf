@@ -1,11 +1,6 @@
 output "started_instances" {
-  value = {
-    for id, inst in aws_ec2_instance_state.target : id => {
-      instance_id = inst.instance_id
-      state       = inst.state
-    }
-  }
-  description = "EC2 Instances ที่ถูก Start"
+  value       = var.instance_ids
+  description = "EC2 Instances ที่ถูก Start (ถ้าระบุ)"
 }
 
 output "summary" {
@@ -13,7 +8,7 @@ output "summary" {
     ===================================
     EC2 Start Workflow Complete
     -----------------------------------
-    Instances Started : ${length(local.target_ids)}
+    Instances Target  : ${length(var.instance_ids) == 0 ? "Auto-discovered" : length(var.instance_ids)}
     NAT GW Created    : YES (Auto-Configured)
     Region            : ${local.region}
     -----------------------------------

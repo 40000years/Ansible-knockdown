@@ -1,11 +1,6 @@
 output "stopped_instances" {
-  value = {
-    for id, inst in aws_ec2_instance_state.target : id => {
-      instance_id = inst.instance_id
-      state       = inst.state
-    }
-  }
-  description = "EC2 Instances ที่ถูก Stop"
+  value       = var.instance_ids
+  description = "EC2 Instances ที่ถูก Stop (ถ้าระบุ)"
 }
 
 output "deleted_nat_gateways" {
@@ -18,7 +13,7 @@ output "summary" {
     ===================================
     EC2 Stop Workflow Complete
     -----------------------------------
-    Instances Stopped : ${length(local.target_ids)}
+    Instances Target  : ${length(var.instance_ids) == 0 ? "Auto-discovered" : length(var.instance_ids)}
     NAT GWs Deleted   : ${length(local.nat_ids_to_delete)}
     Region            : ${local.region}
     ===================================

@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AWS Cloud Infrastructure Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        slate: { 950: '#020617' },
+                        ink: { 950: '#05070f', 900: '#0a0e1a', 850: '#0e1424' }
+                    },
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'ui-monospace', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <style>
+        :root {
+            --c-vpc: #818cf8;
+            --c-subnet: #22d3ee;
+            --c-ec2: #34d399;
+            --c-nat: #fbbf24;
+            --c-igw: #c084fc;
+            --c-rt: #94a3b8;
+            --c-sg: #f472b6;
+        }
+
+        * {
+            -webkit-font-smoothing: antialiased;
+        }
+
+        html,
+        body {
+            background: #05070f;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            color: #e2e8f0;
+            overflow-x: hidden;
+        }
+
+        /* Animated gradient backdrop */
+        #bg-canvas {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .aurora {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            background:
+                radial-gradient(60rem 40rem at 12% -8%, rgba(99, 102, 241, 0.18), transparent 60%),
+                radial-gradient(50rem 36rem at 100% 0%, rgba(34, 211, 238, 0.12), transparent 55%),
+                radial-gradient(48rem 40rem at 50% 120%, rgba(168, 85, 247, 0.12), transparent 55%);
+        }
+
+        /* Glass card */
+        .glass {
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.015));
+            border: 1px solid rgba(148, 163, 184, 0.14);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+        }
+
+        .glass-strong {
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.75), rgba(8, 12, 22, 0.65));
+            border: 1px solid rgba(148, 163, 184, 0.16);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            height: 10px;
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.35);
+            border-radius: 999px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.6);
+            background-clip: padding-box;
+        }
+
+        /* Glow utilities */
+        .glow-vpc {
+            box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.25), 0 8px 40px -12px rgba(129, 140, 248, 0.45);
+        }
+
+        /* Tab transitions */
+        [x-cloak] {
+            display: none !important;
+        }
+
+        /* Animated flow dash on SVG paths */
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -28;
+            }
+        }
+
+        .flow-line {
+            stroke-dasharray: 6 8;
+            animation: dash 1.4s linear infinite;
+        }
+
+        @keyframes pulse-node {
+
+            0%,
+            100% {
+                opacity: 0.55;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.08);
+            }
+        }
+
+        .pulse-node {
+            animation: pulse-node 2.4s ease-in-out infinite;
+            transform-origin: center;
+            transform-box: fill-box;
+        }
+
+        /* Pulsing live dot */
+        @keyframes livePing {
+            0% {
+                transform: scale(1);
+                opacity: 0.9;
+            }
+
+            80%,
+            100% {
+                transform: scale(2.6);
+                opacity: 0;
+            }
+        }
+
+        .live-dot::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 999px;
+            background: currentColor;
+            animation: livePing 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+
+        /* Subtle fade-in */
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-up {
+            animation: fadeUp 0.5s ease both;
+        }
+
+        /* Stat number */
+        .stat-num {
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Tooltip */
+        .tt {
+            position: fixed;
+            z-index: 200;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.12s ease;
+            transform: translate(-50%, -120%);
+            background: rgba(8, 12, 22, 0.95);
+            border: 1px solid rgba(129, 140, 248, 0.4);
+            border-radius: 10px;
+            padding: 8px 10px;
+            font-size: 11px;
+            line-height: 1.5;
+            box-shadow: 0 12px 40px -8px rgba(0, 0, 0, 0.7);
+            white-space: nowrap;
+            backdrop-filter: blur(8px);
+        }
+
+        .tt.show {
+            opacity: 1;
+        }
+
+        .scroll-area {
+            scrollbar-width: thin;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col relative">
+
+    <canvas id="bg-canvas"></canvas>
+    <div class="aurora"></div>
+
+    <!-- Data Island (Python will inject JSON here) -->
+    <script type="application/json" id="infra-data">__INFRA_JSON__</script>
+
+    <!-- Tooltip -->
+    <div id="tooltip" class="tt"></div>
+
+    <div class="relative z-10 flex flex-col flex-1" x-data="dashboard()">
+
+        <!-- Header / Navbar -->
+        <header class="border-b border-slate-800/70 glass-strong sticky top-0 z-40">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div
+                        class="relative bg-indigo-500/15 text-indigo-300 p-2.5 rounded-xl border border-indigo-500/30 glow-vpc">
+                        <i class="fa-solid fa-cloud-bolt text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-base font-bold tracking-tight text-white flex items-center gap-2">
+                            AWS Cloud Dashboard
+                            <span
+                                class="hidden sm:inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/25">v2</span>
+                        </h1>
+                        <p class="text-[11px] text-slate-400">
+                            Region <span class="text-indigo-300 font-medium" x-text="data.region"></span>
+                        </p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span
+                        class="relative inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-300 border border-emerald-500/25">
+                        <span
+                            class="relative live-dot w-1.5 h-1.5 mr-1.5 rounded-full bg-emerald-400 text-emerald-400"></span>
+                        Live Inventory
+                    </span>
+                    <p class="text-[10px] text-slate-500 mt-1 font-mono" x-text="'Updated ' + data.updatedAt"></p>
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-7">
+
+            <!-- Navigation Tabs -->
+            <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800/70 pb-4 mb-7">
+                <nav class="flex flex-wrap space-x-1.5" aria-label="Tabs">
+                    <template x-for="t in tabs" :key="t.id">
+                        <button @click="activeTab = t.id" :class="activeTab === t.id
+                                    ? 'bg-indigo-500/15 text-indigo-200 border-indigo-500/40 shadow-[0_8px_30px_-12px_rgba(99,102,241,0.6)]'
+                                    : 'text-slate-400 hover:text-slate-200 border-transparent hover:bg-slate-100/5'"
+                            class="px-3.5 py-2 text-[13px] font-medium rounded-xl border transition-all duration-200 flex items-center space-x-2">
+                            <i class="fa-solid text-[13px]" :class="t.icon"></i>
+                            <span x-text="t.label"></span>
+                        </button>
+                    </template>
+                </nav>
+
+                <!-- Search and Filter (EC2 tab) -->
+                <div x-show="activeTab === 'ec2'" x-cloak class="flex items-center space-x-2.5 w-full sm:w-auto">
+                    <div class="relative flex-1 sm:w-60">
+                        <input type="text" x-model="searchQuery" placeholder="Search name or ID…"
+                            class="w-full bg-slate-900/60 border border-slate-700/70 rounded-xl py-2 pl-9 pr-3 text-sm text-slate-200 focus:outline-none focus:border-indigo-500/70 focus:ring-2 focus:ring-indigo-500/20 placeholder-slate-500">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-xs text-slate-500"></i>
+                    </div>
+                    <select x-model="envFilter"
+                        class="bg-slate-900/60 border border-slate-700/70 rounded-xl py-2 px-3 text-sm text-slate-200 focus:outline-none focus:border-indigo-500/70">
+                        <option value="all">All Environments</option>
+                        <template x-for="e in environments" :key="e">
+                            <option :value="e" x-text="e"></option>
+                        </template>
+                    </select>
+                </div>
+            </div>
+
+            <!-- =================== SUMMARY =================== -->
+            <section x-show="activeTab === 'summary'" class="space-y-7 fade-up">
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <template x-for="s in statCards" :key="s.label">
+                        <div class="glass rounded-2xl p-5 relative overflow-hidden group">
+                            <div
+                                class="absolute -right-6 -bottom-6 text-7xl opacity-[0.06] transition-opacity group-hover:opacity-[0.12]">
+                                <i class="fa-solid" :class="s.icon"></i>
+                            </div>
+                            <div class="flex items-center space-x-3.5 relative">
+                                <div class="p-3 rounded-xl border" :class="s.badge">
+                                    <i class="fa-solid text-xl" :class="s.icon"></i>
+                                </div>
+                                <div>
+                                    <p class="text-[11px] uppercase tracking-wider text-slate-400 font-medium"
+                                        x-text="s.label"></p>
+                                    <p class="text-3xl font-bold text-white stat-num mt-0.5" x-text="s.value"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 glass-strong rounded-3xl p-7 relative overflow-hidden">
+                        <div
+                            class="absolute -right-12 -bottom-16 opacity-[0.06] pointer-events-none text-[18rem] text-indigo-300">
+                            <i class="fa-solid fa-server"></i>
+                        </div>
+                        <div class="flex items-center space-x-2 mb-3">
+                            <span
+                                class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/25">OVERVIEW</span>
+                        </div>
+                        <h3 class="text-2xl font-bold text-white mb-3">Cloud Infrastructure at a Glance</h3>
+                        <p class="text-sm text-slate-300/90 leading-relaxed max-w-2xl">
+                            A live, reactive map of every resource discovered by Terraform — VPCs, subnets, route
+                            tables, gateways, and running instances. Auto-updated on every apply and distributed
+                            globally through CloudFront.
+                        </p>
+                        <div class="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <template x-for="l in legendItems" :key="l.label">
+                                <div class="flex items-center text-[11px] text-slate-300">
+                                    <span class="w-2.5 h-2.5 rounded-full mr-2"
+                                        :style="`background:${l.color};box-shadow:0 0 10px ${l.color}`"></span>
+                                    <span x-text="l.label"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <div class="glass-strong rounded-3xl p-6">
+                        <h3 class="text-base font-semibold text-white mb-4 flex items-center gap-2">
+                            <i class="fa-solid fa-sliders text-indigo-300"></i> Environment Context
+                        </h3>
+                        <ul class="space-y-0">
+                            <template x-for="(c, i) in contextItems" :key="c.label">
+                                <li class="flex items-center justify-between py-3"
+                                    :class="i < contextItems.length - 1 ? 'border-b border-slate-800/70' : ''">
+                                    <span class="text-[13px] text-slate-400 flex items-center gap-2">
+                                        <i class="fa-solid text-[11px] text-slate-500 w-4" :class="c.icon"></i>
+                                        <span x-text="c.label"></span>
+                                    </span>
+                                    <span class="text-[13px] font-semibold text-slate-100 font-mono"
+                                        x-text="c.value"></span>
+                                </li>
+                            </template>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- =================== EC2 =================== -->
+            <section x-show="activeTab === 'ec2'" x-cloak class="fade-up">
+                <div class="glass-strong rounded-2xl overflow-hidden">
+                    <div class="overflow-x-auto scroll-area">
+                        <table class="min-w-full divide-y divide-slate-800/70">
+                            <thead class="bg-slate-900/40">
+                                <tr>
+                                    <template
+                                        x-for="h in ['Instance','Status','Environment / Role','Network IPs','Type & Zone']"
+                                        :key="h">
+                                        <th class="px-6 py-4 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider"
+                                            x-text="h"></th>
+                                    </template>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800/70 bg-slate-950/20">
+                                <template x-for="inst in filteredInstances" :key="inst.id">
+                                    <tr class="hover:bg-indigo-500/5 transition-colors">
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="flex items-center space-x-3">
+                                                <div class="p-2.5 rounded-xl border"
+                                                    :class="inst.running ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25' : 'bg-rose-500/10 text-rose-300 border-rose-500/25'">
+                                                    <i class="fa-solid fa-server"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="text-sm font-semibold text-white"
+                                                        x-text="inst.name || inst.id"></div>
+                                                    <div class="text-[11px] text-slate-500 font-mono mt-0.5"
+                                                        x-text="inst.id"></div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span
+                                                class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium border"
+                                                :class="inst.running ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25' : 'bg-rose-500/10 text-rose-300 border-rose-500/25'">
+                                                <span class="w-1.5 h-1.5 mr-1.5 rounded-full"
+                                                    :class="inst.running ? 'bg-emerald-400' : 'bg-rose-400'"></span>
+                                                <span x-text="inst.running ? 'Running' : 'Stopped'"></span>
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                            <div class="flex flex-col space-y-1">
+                                                <span
+                                                    class="inline-flex items-center px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-300 text-[11px] font-medium border border-indigo-500/20 w-fit">
+                                                    Env: <span class="ml-1" x-text="inst.environment"></span>
+                                                </span>
+                                                <span class="text-slate-500 text-[11px]">Role: <span
+                                                        x-text="inst.role"></span></span>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                            <div class="flex flex-col space-y-1 font-mono text-[12px]">
+                                                <span class="text-slate-200"><i
+                                                        class="fa-solid fa-network-wired text-slate-500 mr-1.5"></i><span
+                                                        x-text="inst.private_ip"></span></span>
+                                                <span
+                                                    :class="inst.public_ip && inst.public_ip !== 'No Public IP' ? 'text-emerald-300' : 'text-slate-500'"><i
+                                                        class="fa-solid fa-globe mr-1.5"></i><span
+                                                        x-text="inst.public_ip"></span></span>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                            <div class="flex flex-col">
+                                                <span class="font-medium text-slate-200"
+                                                    x-text="inst.instance_type"></span>
+                                                <span class="text-slate-500 text-[11px] mt-0.5 font-mono"
+                                                    x-text="inst.availability_zone"></span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </template>
+                                <template x-if="filteredInstances.length === 0">
+                                    <tr>
+                                        <td colspan="5" class="px-6 py-14 text-center text-slate-500">
+                                            <i class="fa-solid fa-ban text-3xl mb-3 block"></i>
+                                            <p class="text-sm">No EC2 instances match the current filters.</p>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- =================== TOPOLOGY (SVG GRAPH) =================== -->
+            <section x-show="activeTab === 'topology'" x-cloak class="space-y-6 fade-up">
+                <div class="flex items-end justify-between flex-wrap gap-3">
+                    <div>
+                        <h3 class="text-lg font-bold text-white">Network Topology Graph</h3>
+                        <p class="text-[13px] text-slate-400 mt-0.5">How every resource connects — hover any node for
+                            details.</p>
+                    </div>
+                    <div class="flex items-center gap-3 text-[11px] text-slate-400 flex-wrap">
+                        <template x-for="l in legendItems" :key="l.label">
+                            <span class="flex items-center"><span class="w-2 h-2 rounded-full mr-1.5"
+                                    :style="`background:${l.color}`"></span><span x-text="l.label"></span></span>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="glass-strong rounded-2xl p-2 overflow-hidden">
+                    <div id="topology-svg-wrap" class="w-full overflow-auto scroll-area"></div>
+                </div>
+
+                <!-- Subnet detail strip -->
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    <template x-for="sn in allSubnets" :key="sn.id">
+                        <div class="glass rounded-xl p-3.5 hover:border-cyan-400/40 transition-colors">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="w-2.5 h-2.5 rounded-full"
+                                    :style="`background:var(--c-subnet);box-shadow:0 0 10px var(--c-subnet)`"></span>
+                                <span class="text-[10px] font-mono text-slate-500" x-text="sn.shortId"></span>
+                            </div>
+                            <p class="text-[12px] font-mono text-cyan-300 truncate" x-text="sn.cidr_block"></p>
+                            <p class="text-[11px] text-slate-400 mt-1" x-text="sn.availability_zone"></p>
+                            <div class="mt-2 flex items-center justify-between text-[10px]">
+                                <span
+                                    class="px-1.5 py-0.5 rounded bg-slate-700/40 text-slate-300 border border-slate-600/40">
+                                    <i class="fa-solid mr-1 text-[9px]"
+                                        :class="sn.is_public ? 'fa-lock-open' : 'fa-lock'"></i><span
+                                        x-text="sn.is_public ? 'Public' : 'Private'"></span>
+                                </span>
+                                <span class="text-slate-400"><span class="text-slate-200 font-semibold"
+                                        x-text="sn.available_ips"></span> IPs</span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </section>
+
+            <!-- =================== ROUTING & GATEWAYS =================== -->
+            <section x-show="activeTab === 'gateways'" x-cloak class="space-y-7 fade-up">
+                <div>
+                    <h3 class="text-lg font-bold text-white">Routing Flow</h3>
+                    <p class="text-[13px] text-slate-400 mt-0.5">Every route path — from subnets, through route tables,
+                        to the internet gateway or NAT.</p>
+                </div>
+
+                <!-- HERO: full SVG flow -->
+                <div class="glass-strong rounded-2xl p-2 overflow-hidden relative">
+                    <div
+                        class="flex items-center justify-between px-4 py-2.5 border-b border-slate-800/70 flex-wrap gap-2">
+                        <div class="flex items-center gap-2 text-[12px] text-slate-300">
+                            <i class="fa-solid fa-diagram-project text-indigo-300"></i>
+                            <span class="font-semibold">End-to-End Route Paths</span>
+                        </div>
+                        <div class="flex items-center gap-4 text-[11px] text-slate-400">
+                            <span class="flex items-center"><span class="inline-block w-6 h-[2px] mr-1.5"
+                                    style="background:var(--c-igw)"></span>→ IGW (public)</span>
+                            <span class="flex items-center"><span class="inline-block w-6 h-[2px] mr-1.5"
+                                    style="background:var(--c-nat)"></span>→ NAT (private egress)</span>
+                        </div>
+                    </div>
+                    <div id="route-flow-wrap" class="w-full overflow-auto scroll-area"></div>
+                </div>
+
+                <!-- Gateway cards -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                    Diff preview truncated: 246 lines omitted to keep UI responsive.
+                    // ============================================================
+                    // Helpers
+                    // ============================================================
+                    const COLORS = {
+                    vpc: '#818cf8', subnet: '#22d3ee', ec2: '#34d399', stopped: '#f43f5e',
+                    nat: '#fbbf24', igw: '#c084fc', rt: '#94a3b8', sg: '#f472b6'
+                    };
+                    const shortId = (id) => id.length > 14 ? id.slice(0, 6) + '…' + id.slice(-4) : id;
+
+                    function showTooltip(e, html) {
+                    const tt = document.getElementById('tooltip');
+                    tt.innerHTML = html;
+                    tt.style.left = e.clientX + 'px';
+                    tt.style.top = (e.clientY - 8) + 'px';
+                    tt.classList.add('show');
+                    }
+                    function hideTooltip() {
+                    document.getElementById('tooltip').classList.remove('show');
+                    }
+
+                    function svgEl(tag, attrs = {}, parent) {
+                    const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+                    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+                    if (parent) parent.appendChild(el);
+                    return el;
+                    }
+
+                    // ============================================================
+                    // Alpine: dashboard component
+                    // ============================================================
+                    function dashboard() {
+                    return {
+                    activeTab: 'summary',
+                    searchQuery: '',
+                    envFilter: 'all',
+                    data: {
+                    region: '', updatedAt: '',
+                    ec2_running_detail: {}, ec2_stopped_ids: [],
+                    vpc_details: {}, subnet_details: {}, route_table_details: {},
+                    internet_gateways: {}, nat_gateways: {}, security_groups: {},
+                    network_topology: {}
+                    },
+                    tabs: [
+                    { id: 'summary', label: 'Summary', icon: 'fa-chart-pie' },
+                    { id: 'ec2', label: 'EC2 Instances', icon: 'fa-server' },
+                    { id: 'topology', label: 'Topology', icon: 'fa-network-wired' },
+                    { id: 'gateways', label: 'Routing & Gateways', icon: 'fa-route' },
+                    { id: 'security', label: 'Security Groups', icon: 'fa-shield-halved' },
+                    ],
+                    legendItems: [
+                    { label: 'VPC', color: COLORS.vpc },
+                    { label: 'Subnet', color: COLORS.subnet },
+                    { label: 'EC2', color: COLORS.ec2 },
+                    { label: 'IGW', color: COLORS.igw },
+                    { label: 'NAT', color: COLORS.nat },
+                    { label: 'Route', color: COLORS.rt },
+                    { label: 'SG', color: COLORS.sg },
+                    ],
+
+                    init() {
+                    this.loadData();
+                    this.$watch('activeTab', (t) => {
+                    this.$nextTick(() => {
+                    if (t === 'topology') this.renderTopology();
+                    if (t === 'gateways') this.renderRouteFlow();
+                    });
+                    });
+                    },
+
+                    loadData() {
+                    const raw = document.getElementById('infra-data').textContent.trim();
+                    try {
+                    const j = JSON.parse(raw);
+                    this.data = {
+                    ec2_running_detail: j.ec2_running_detail || {},
+                    ec2_stopped_ids: j.ec2_stopped_ids || [],
+                    vpc_details: j.vpc_details || {},
+                    subnet_details: j.subnet_details || {},
+                    route_table_details: j.route_table_details || {},
+                    internet_gateways: j.internet_gateways || {},
+                    nat_gateways: j.nat_gateways || {},
+                    security_groups: j.security_groups || {},
+                    network_topology: j.network_topology || {},
+                    region: j.region || 'unknown',
+                    updatedAt: this.formatTime(j.updated_at || ''),
+                    };
+                    } catch (e) {
+                    console.error('Failed to parse infra data', e);
+                    }
+                    },
+
+                    formatTime(raw) {
+                    if (!raw) return 'unknown';
+                    try {
+                    const d = new Date(raw);
+                    if (isNaN(d)) return raw;
+                    return d.toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+                    } catch { return raw; }
+                    },
+
+                    get environments() {
+                    const set = new Set();
+                    Object.values(this.data.ec2_running_detail).forEach(i => set.add(i.environment || 'untagged'));
+                    return [...set].sort();
+                    },
+
+                    get instances() {
+                    const run = Object.entries(this.data.ec2_running_detail).map(([id, i]) => ({
+                    id, running: true, name: i.name || id, environment: i.environment || 'untagged',
+                    role: i.role || 'untagged', private_ip: i.private_ip || 'N/A',
+                    public_ip: i.public_ip || 'No Public IP', instance_type: i.instance_type || 'N/A',
+                    availability_zone: i.availability_zone || 'N/A'
+                    }));
+                    const stop = this.data.ec2_stopped_ids.map(id => ({
+                    id, running: false, name: id, environment: 'untagged', role: 'unknown',
+                    private_ip: 'Offline', public_ip: 'No Public IP', instance_type: 'unknown',
+                    availability_zone: 'unknown'
+                    }));
+                    return [...run, ...stop];
+                    },
+
+                    get filteredInstances() {
+                    const q = this.searchQuery.toLowerCase();
+                    return this.instances.filter(i => {
+                    const envOk = this.envFilter === 'all' || i.environment === this.envFilter;
+                    const qOk = !q || i.id.toLowerCase().includes(q) || (i.name || '').toLowerCase().includes(q);
+                    return envOk && qOk;
+                    });
+                    },
+
+                    get statCards() {
+                    const d = this.data;
+                    return [
+                    { label: 'Running EC2', value: Object.keys(d.ec2_running_detail).length, icon: 'fa-circle-play',
+                    badge: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25' },
+                    { label: 'Stopped EC2', value: d.ec2_stopped_ids.length, icon: 'fa-circle-stop', badge:
+                    'bg-rose-500/10 text-rose-300 border-rose-500/25' },
+                    { label: 'VPCs', value: Object.keys(d.vpc_details).length, icon: 'fa-circle-nodes', badge:
+                    'bg-indigo-500/10 text-indigo-300 border-indigo-500/25' },
+                    { label: 'Subnets', value: Object.keys(d.subnet_details).length, icon: 'fa-diagram-project', badge:
+                    'bg-cyan-500/10 text-cyan-300 border-cyan-500/25' },
+                    { label: 'Route Tables', value: Object.keys(d.route_table_details).length, icon: 'fa-route', badge:
+                    'bg-slate-500/10 text-slate-300 border-slate-500/25' },
+                    { label: 'NAT Gateways', value: Object.keys(d.nat_gateways).length, icon: 'fa-network-wired', badge:
+                    'bg-amber-500/10 text-amber-300 border-amber-500/25' },
+                    { label: 'Internet GW', value: Object.keys(d.internet_gateways).length, icon: 'fa-globe', badge:
+                    'bg-violet-500/10 text-violet-300 border-violet-500/25' },
+                    { label: 'Security Groups', value: Object.keys(d.security_groups).length, icon: 'fa-shield-halved',
+                    badge: 'bg-fuchsia-500/10 text-fuchsia-300 border-fuchsia-500/25' },
+                    ];
+                    },
+
+                    get contextItems() {
+                    const d = this.data;
+                    return [
+                    { label: 'AWS Region', value: d.region, icon: 'fa-location-dot' },
+                    { label: 'Subnets', value: Object.keys(d.subnet_details).length, icon: 'fa-diagram-project' },
+                    { label: 'Route Tables', value: Object.keys(d.route_table_details).length, icon: 'fa-route' },
+                    { label: 'Security Groups', value: Object.keys(d.security_groups).length, icon: 'fa-shield-halved'
+                    },
+                    ];
+                    },
+
+                    get allSubnets() {
+                    return Object.entries(this.data.subnet_details).map(([id, s]) => ({
+                    id, ...s, shortId: shortId(id)
+                    })).sort((a, b) => a.cidr_block.localeCompare(b.cidr_block));
+                    },
+
+                    // ---------- TOPOLOGY SVG ----------
+                    renderTopology() {
+                    const wrap = document.getElementById('topology-svg-wrap');
+                    if (!wrap) return;
+                    wrap.innerHTML = '';
+
+                    const data = this.data;
+                    const vpcIds = Object.keys(data.network_topology);
+                    if (vpcIds.length === 0) {
+                    wrap.innerHTML = '<p class="text-center text-slate-500 py-12 text-sm">No VPC data.</p>';
+                    return;
+                    }
+
+                    const W = Math.max(1100, wrap.clientWidth || 1100);
+                    const vpcCount = vpcIds.length;
+                    const sectionW = W / vpcCount;
+                    const H = 560;
+                    const svg = svgEl('svg', { width: '100%', viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'xMidYMid
+                    meet' });
+                    svg.style.minWidth = '900px';
+
+                    // defs: glow filters keyed by color name
+                    const defs = svgEl('defs', {}, svg);
+                    const glowSet = ['vpc', 'subnet', 'ec2', 'nat', 'igw', 'stopped'];
+                    glowSet.forEach(name => {
+                    const col = COLORS[name];
+                    const f = svgEl('filter', { id: `glow-${name}`, x: '-60%', y: '-60%', width: '220%', height: '220%'
+                    }, defs);
+                    svgEl('feGaussianBlur', { stdDeviation: '3.5', result: 'b' }, f);
+                    const m = svgEl('feMerge', {}, f);
+                    svgEl('feMergeNode', { in: 'b' }, m);
+                    svgEl('feMergeNode', { in: 'SourceGraphic' }, m);
+                    });
+
+                    const linkLayer = svgEl('g', { fill: 'none' }, svg);
+                    const nodeLayer = svgEl('g', {}, svg);
+
+                    vpcIds.forEach((vpcId, vi) => {
+                    const vpc = data.network_topology[vpcId];
+                    const cx = sectionW * vi + sectionW / 2;
+                    const cy = 290;
+
+                    // IGW node
+                    const igwEntry = Object.entries(data.internet_gateways).find(([vid]) => vid === vpcId);
+                    const igw = igwEntry ? igwEntry[1] : null;
+                    if (igw) {
+                    const ix = cx, iy = cy - 160;
+                    this.topoNode(nodeLayer, ix, iy, 'igw', 'globe', shortId(igw.igw_id),
+                    `Internet Gateway\n${igw.igw_id}\nstate: ${igw.state}`, 15, true);
+                    svgEl('line', { x1: ix, y1: iy, x2: cx, y2: cy, stroke: COLORS.igw, 'stroke-width': '1.8', opacity:
+                    '0.7' }, linkLayer);
+                    }
+
+                    // VPC node (center)
+                    this.topoNode(nodeLayer, cx, cy, 'vpc', 'circle-nodes', vpcId,
+                    `VPC\n${vpcId}\nCIDR ${vpc.cidr_block}${vpc.is_default ? ' (default)' : ''}`, 28, true);
+
+                    // NAT nodes
+                    const nats = Object.entries(data.nat_gateways).filter(([_, n]) => n.vpc_id === vpcId && n.state ===
+                    'available');
+
+                    // Subnets ring
+                    const subnetIds = Object.keys(vpc.subnets);
+                    const ringR = 135;
+                    const subPos = {};
+                    subnetIds.forEach((sid, i) => {
+                    const ang = (i / subnetIds.length) * Math.PI * 2 - Math.PI / 2;
+                    const sx = cx + Math.cos(ang) * ringR;
+                    const sy = cy + Math.sin(ang) * ringR * 0.7;
+                    subPos[sid] = { x: sx, y: sy };
+                    this.topoNode(nodeLayer, sx, sy, 'subnet', 'diagram-project', shortId(sid),
+                    `Subnet ${sid}\nCIDR ${vpc.subnets[sid].cidr_block}\n${vpc.subnets[sid].availability_zone} ·
+                    ${vpc.subnets[sid].available_ips} IPs · ${vpc.subnets[sid].is_public ? 'Public' : 'Private'}`,
+                    12);
+                    svgEl('line', { x1: cx, y1: cy, x2: sx, y2: sy, stroke: COLORS.subnet, 'stroke-width': '1.1',
+                    opacity: '0.55' }, linkLayer);
+                    });
+
+                    // NAT nodes positioned near top between IGW and VPC
+                    nats.forEach(([natId, nat], i) => {
+                    const nx = cx - 70 + i * 140;
+                    const ny = cy - 95;
+                    this.topoNode(nodeLayer, nx, ny, 'nat', 'network-wired', shortId(natId),
+                    `NAT ${natId}\n${nat.public_ip} · ${nat.state}\nsubnet ${shortId(nat.subnet_id)}`, 13);
+                    svgEl('line', { x1: nx, y1: ny, x2: cx, y2: cy, stroke: COLORS.nat, 'stroke-width': '1.5', opacity:
+                    '0.75' }, linkLayer);
+                    if (subPos[nat.subnet_id]) {
+                    svgEl('line', { x1: nx, y1: ny, x2: subPos[nat.subnet_id].x, y2: subPos[nat.subnet_id].y,
+                    stroke: COLORS.nat, 'stroke-width': '1', 'stroke-dasharray': '3 4', opacity: '0.5' }, linkLayer);
+                    }
+                    });
+
+                    // EC2 nodes — attach each running instance to first subnet (data lacks subnet-id mapping on
+                    instance)
+                    const ec2s = Object.entries(data.ec2_running_detail);
+                    ec2s.forEach(([iid, inst], i) => {
+                    const sid = subnetIds[0];
+                    if (!subPos[sid]) return;
+                    const p = subPos[sid];
+                    const ex = p.x + 42;
+                    const ey = p.y + 36;
+                    this.topoNode(nodeLayer, ex, ey, 'ec2', 'server', shortId(iid),
+                    `EC2 ${iid}\n${inst.instance_type} · ${inst.private_ip}\n${inst.availability_zone}`, 9);
+                    svgEl('line', { x1: p.x, y1: p.y, x2: ex, y2: ey, stroke: COLORS.ec2, 'stroke-width': '1', opacity:
+                    '0.55' }, linkLayer);
+                    });
+                    });
+
+                    // Title
+                    svgEl('text', { x: 20, y: 28, fill: '#cbd5e1', 'font-size': '13', 'font-weight': '600',
+                    'font-family': 'Outfit' }, svg)
+                    .textContent = 'Network Topology — ' + vpcIds.length + ' VPC' + (vpcIds.length > 1 ? 's' : '');
+
+                    wrap.appendChild(svg);
+                    },
+
+                    topoNode(layer, x, y, type, faIcon, label, tooltip, r = 13, pulse = false) {
+                    const color = COLORS[type] || COLORS.rt;
+                    const g = svgEl('g', { transform: `translate(${x} ${y})`, style: 'cursor: pointer' }, layer);
+                    if (pulse) g.setAttribute('class', 'pulse-node');
+
+                    // outer glow disc
+                    svgEl('circle', { r: r + 6, fill: color, opacity: '0.12' }, g);
+                    // main circle
+                    svgEl('circle', { r, fill: '#0b1020', stroke: color, 'stroke-width': '1.8', filter:
+                    `url(#glow-${type})` }, g);
+                    // icon
+                    const fo = svgEl('foreignObject', { x: -10, y: -10, width: 20, height: 20 }, g);
+                    const span = document.createElement('span');
+                    span.style.cssText =
+                    'display:flex;align-items:center;justify-content:center;width:20px;height:20px;color:' + color +
+                    ';font-size:11px;';
+                    span.innerHTML = `<i class="fa-solid ${faIcon}"></i>`;
+                    fo.appendChild(span);
+
+                    const t = svgEl('text', { y: r + 14, 'text-anchor': 'middle', fill: '#94a3b8', 'font-size': '9',
+                    'font-family': 'JetBrains Mono, monospace' }, g);
+                    t.textContent = label;
+
+                    g.addEventListener('mousemove', (e) => showTooltip(e, tooltip.split('\n').map(s => `<div>${s}</div>
+                    `).join('')));
+                    g.addEventListener('mouseleave', hideTooltip);
+                    return g;
+                    },
+
+                    // ---------- ROUTE FLOW SVG ----------
+                    renderRouteFlow() {
+                    const wrap = document.getElementById('route-flow-wrap');
+                    if (!wrap) return;
+                    wrap.innerHTML = '';
+
+                    const data = this.data;
+                    const rtEntries = Object.entries(data.route_table_details);
+                    if (rtEntries.length === 0) {
+                    wrap.innerHTML = '<p class="text-center text-slate-500 py-12 text-sm">No route tables.</p>';
+                    return;
+                    }
+
+                    // Columnar left → right flow: Source | Route Table | Target | Exit
+                    const cols = ['Source', 'Route Table', 'Target', 'Exit'];
+                    const colX = [80, 380, 720, 1000];
+                    const rowH = 80;
+                    const padTop = 64;
+                    const W = 1120;
+                    const H = padTop + rtEntries.length * rowH + 24;
+
+                    const svg = svgEl('svg', { width: '100%', viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'xMidYMid
+                    meet' });
+                    svg.style.minWidth = '1000px';
+
+                    const linkLayer = svgEl('g', { fill: 'none' }, svg);
+                    const nodeLayer = svgEl('g', {}, svg);
+
+                    // Header row
+                    cols.forEach((c, i) => {
+                    svgEl('text', { x: colX[i], y: 30, fill: '#64748b', 'font-size': '11', 'font-weight': '600',
+                    'letter-spacing': '1.5' }, svg).textContent = c.toUpperCase();
+                    });
+                    svgEl('line', { x1: 30, y1: 46, x2: W - 30, y2: 46, stroke: '#1e293b', 'stroke-width': '1' }, svg);
+
+                    rtEntries.forEach(([rtId, rt], idx) => {
+                    const y = padTop + idx * rowH + rowH / 2;
+                    const defRoute = rt.routes.find(r => r.destination === '0.0.0.0/0') || rt.routes[0];
+                    const target = defRoute ? defRoute.target : 'local';
+
+                    let targetType, targetColor, targetIcon, targetLabel, exitLabel, exitIcon;
+                    if (target.indexOf('igw-') === 0) {
+                    targetType = 'igw'; targetColor = COLORS.igw; targetIcon = 'globe'; targetLabel = 'IGW';
+                    const igw = Object.values(data.internet_gateways).find(g => g.igw_id === target);
+                    exitLabel = igw ? 'Internet' : target; exitIcon = 'cloud';
+                    } else if (target.indexOf('nat-') === 0) {
+                    targetType = 'nat'; targetColor = COLORS.nat; targetIcon = 'network-wired'; targetLabel = 'NAT';
+                    const nat = data.nat_gateways[target];
+                    exitLabel = nat ? (nat.public_ip || 'Internet') : target; exitIcon = 'globe';
+                    } else {
+                    targetType = 'rt'; targetColor = COLORS.rt; targetIcon = 'circle-nodes'; targetLabel = 'Local';
+                    exitLabel = 'VPC'; exitIcon = 'circle';
+                    }
+
+                    const srcLabel = rt.associations > 0 ? `${rt.associations} subnet${rt.associations === 1 ? '' :
+                    's'}` : 'no assoc.';
+                    this.flowNode(nodeLayer, colX[0], y, COLORS.subnet, 'network-wired', srcLabel,
+                    `Route table ${rtId}\nAssociated: ${rt.associations} subnet(s)`);
+                    this.flowNode(nodeLayer, colX[1], y, COLORS.rt, 'route', shortId(rtId),
+                    `${rtId}${rt.is_main ? ' (Main)' : ''}\n${rt.routes.length} route(s)`);
+                    this.flowNode(nodeLayer, colX[2], y, targetColor, targetIcon, targetLabel,
+                    `Target: ${target}\nType: ${targetType.toUpperCase()}`);
+                    this.flowNode(nodeLayer, colX[3], y, targetColor, exitIcon,
+                    exitLabel.length > 14 ? shortId(exitLabel) : exitLabel, exitLabel);
+
+                    const linkColor = targetType === 'igw' ? COLORS.igw : (targetType === 'nat' ? COLORS.nat :
+                    COLORS.rt);
+                    this.flowLink(linkLayer, colX[0] + 40, y, colX[1] - 40, y, '#475569', false, '');
+                    this.flowLink(linkLayer, colX[1] + 40, y, colX[2] - 40, y, linkColor, true, defRoute ?
+                    defRoute.destination : '');
+                    this.flowLink(linkLayer, colX[2] + 40, y, colX[3] - 40, y, linkColor, true, '');
+                    });
+
+                    wrap.appendChild(svg);
+                    },
+
+                    flowNode(layer, x, y, color, faIcon, label, tooltip, w = 78) {
+                    const g = svgEl('g', { transform: `translate(${x} ${y})`, style: 'cursor: pointer' }, layer);
+                    const rect = svgEl('rect', { x: -w/2, y: -19, width: w, height: 38, rx: 10, fill: '#0b1020', stroke:
+                    color, 'stroke-width': '1.6' }, g);
+                    rect.style.filter = `drop-shadow(0 0 6px ${color}88)`;
+
+                    const fo = svgEl('foreignObject', { x: -w/2 + 6, y: -8, width: w - 12, height: 16 }, g);
+                    const span = document.createElement('span');
+                    span.style.cssText =
+                    'display:flex;align-items:center;justify-content:center;width:100%;height:16px;color:' + color +
+                    ';font-size:11px;';
+                    span.innerHTML = `<i class="fa-solid ${faIcon}"></i>`;
+                    fo.appendChild(span);
+
+                    const t = svgEl('text', { y: 30, 'text-anchor': 'middle', fill: '#cbd5e1', 'font-size': '9.5',
+                    'font-family': 'JetBrains Mono, monospace' }, g);
+                    t.textContent = label.length > 16 ? label.slice(0, 14) + '…' : label;
+
+                    g.addEventListener('mousemove', (e) => showTooltip(e, tooltip.split('\n').map(s => `<div>${s}</div>
+                    `).join('')));
+                    g.addEventListener('mouseleave', hideTooltip);
+                    return g;
+                    },
+
+                    flowLink(layer, x1, y1, x2, y2, color, animated, label) {
+                    const path = svgEl('path', {
+                    d: `M ${x1} ${y1} C ${(x1+x2)/2} ${y1}, ${(x1+x2)/2} ${y2}, ${x2} ${y2}`,
+                    stroke: color, 'stroke-width': '1.8', fill: 'none', opacity: '0.9'
+                    }, layer);
+                    if (animated) {
+                    path.setAttribute('class', 'flow-line');
+                    path.style.filter = `drop-shadow(0 0 4px ${color}aa)`;
+                    }
+                    if (label) {
+                    const t = svgEl('text', { x: (x1+x2)/2, y: y1 - 8, fill: '#64748b', 'font-size': '9', 'text-anchor':
+                    'middle', 'font-family': 'JetBrains Mono, monospace' }, layer);
+                    t.textContent = label;
+                    }
+                    },
+                    };
+                    }
+                    </script>
+</body>
+
+</html>

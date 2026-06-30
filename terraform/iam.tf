@@ -52,6 +52,34 @@ data "aws_iam_policy_document" "terraform_readonly" {
       "arn:aws:s3:::thanaphat-web-app-bucket-2026-858039354188-ap-southeast-1-an/*",
     ]
   }
+
+  # ============================================================
+  # สิทธิ์สำหรับ HTML Dashboard (S3 Bucket + CloudFront)
+  # เพิ่มประสิทธิภาพ IAM Policy นี้ให้ User Ansible เพื่อให้ terraform apply
+  # สร้างและจัดการ S3 Bucket และ CloudFront Distribution ได้อัตโนมัติ
+  # (บีบอัดโค้ดโดยใช้ Wildcard เพื่อแก้ปัญหาเรื่องความยาวเกิน 2048 ตัวอักษร)
+  # ============================================================
+
+  statement {
+    sid    = "S3DashboardBucketManagement"
+    effect = "Allow"
+    actions = [
+      "s3:*"
+    ]
+    resources = [
+      "arn:aws:s3:::aws-infra-dashboard-858039354188-ap-southeast-1",
+      "arn:aws:s3:::aws-infra-dashboard-858039354188-ap-southeast-1/*",
+    ]
+  }
+
+  statement {
+    sid    = "CloudFrontDashboardManagement"
+    effect = "Allow"
+    actions = [
+      "cloudfront:*"
+    ]
+    resources = ["*"]
+  }
 }
 
 # ============================================================================
