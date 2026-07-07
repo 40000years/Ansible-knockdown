@@ -15,8 +15,9 @@ except ImportError:
 PORT = 8000
 DIRECTORY = os.path.dirname(os.path.abspath(__file__))
 
-ec2 = boto3.client('ec2')
-ssm = boto3.client('ssm')
+region = os.environ.get('AWS_DEFAULT_REGION', 'ap-southeast-1')
+ec2 = boto3.client('ec2', region_name=region)
+ssm = boto3.client('ssm', region_name=region)
 
 class LocalDashboardHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
