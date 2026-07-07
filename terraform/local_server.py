@@ -12,7 +12,7 @@ except ImportError:
     print("Please install it by running: pip install boto3")
     sys.exit(1)
 
-PORT = 5000
+PORT = 8000
 DIRECTORY = os.path.dirname(os.path.abspath(__file__))
 
 ec2 = boto3.client('ec2')
