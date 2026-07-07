@@ -28,21 +28,20 @@ def main():
     data["updated_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
     # Workaround: Terraform's data.aws_instances has a bug where it completely misses stopped instances.
-    # We will fetch ALL true live EC2 instances via AWS CLI and fully populate the JSON before injecting.
-    log("Fetching ALL live EC2 states and details via AWS CLI...")
+    # We will fetch ALL true live EC2 instances via boto3 and fully populate the JSON before injecting.
+    log("Fetching ALL live EC2 states and details via boto3...")
     try:
-        result = subprocess.run([
-            "aws", "ec2", "describe-instances",
-            "--output", "json"
-        ], capture_output=True, text=True, check=True)
-        live_states = json.loads(result.stdout)
+        import boto3
+        region = os.environ.get("AWS_DEFAULT_REGION", "ap-southeast-1")
+        ec2 = boto3.client('ec2', region_name=region)
+        response = ec2.describe_instances()
         
         if "ec2_all_detail" not in data or not isinstance(data["ec2_all_detail"], dict):
             data["ec2_all_detail"] = {}
             
         patched_count = 0
         added_count = 0
-        for res in live_states.get("Reservations", []):
+        for res in response.get("Reservations", []):
             for inst in res.get("Instances", []):
                 inst_id = inst.get("InstanceId")
                 tags = {t.get("Key"): t.get("Value") for t in inst.get("Tags", [])}
@@ -68,7 +67,7 @@ def main():
         # Also fix ec2_stopped_ids just in case
         data["ec2_stopped_ids"] = [i for i, v in data["ec2_all_detail"].items() if v.get("instance_state") not in ["running", "pending"]]
         
-        log(f"AWS CLI Sync: Patched {patched_count} existing, Added {added_count} missing instances.")
+        log(f"boto3 Sync: Patched {patched_count} existing, Added {added_count} missing instances.")
     except Exception as e:
         log(f"Warning: Could not fetch true live EC2 states: {e}")
 
@@ -106,39 +105,45 @@ def main():
 
     log(f"Uploading {html_path} to S3 bucket {bucket_name}...")
     try:
-        subprocess.run([
-            "aws", "s3", "cp", html_path, f"s3://{bucket_name}/index.html",
-            "--content-type", "text/html",
-            "--cache-control", "max-age=0, no-cache, no-store, must-revalidate"
-        ], check=True)
+        import boto3
+        s3 = boto3.client('s3')
+        with open(html_path, 'rb') as f:
+            s3.put_object(
+                Bucket=bucket_name,
+                Key='index.html',
+                Body=f,
+                ContentType='text/html',
+                CacheControl='max-age=0, no-cache, no-store, must-revalidate'
+            )
         log("S3 Upload Successful ✓")
-    except subprocess.CalledProcessError as e:
+    except Exception as e:
         log(f"Error uploading to S3: {e}")
         sys.exit(1)
 
     # Invalidate CloudFront cache & print dashboard URL
-    dist_id = os.environ.get("CLOUDFRONT_DIST_ID", "")
     if dist_id:
         log(f"Invalidating CloudFront cache for distribution {dist_id}...")
         try:
-            subprocess.run([
-                "aws", "cloudfront", "create-invalidation",
-                "--distribution-id", dist_id,
-                "--paths", "/index.html"
-            ], check=True, capture_output=True)
+            cf = boto3.client('cloudfront')
+            cf.create_invalidation(
+                DistributionId=dist_id,
+                InvalidationBatch={
+                    'Paths': {
+                        'Quantity': 1,
+                        'Items': ['/index.html']
+                    },
+                    'CallerReference': str(datetime.datetime.now().timestamp())
+                }
+            )
             log("CloudFront cache invalidated ✓")
-        except subprocess.CalledProcessError as e:
+        except Exception as e:
             log(f"Warning: cache invalidation failed: {e}")
 
         # Get CloudFront domain
         try:
-            result = subprocess.run([
-                "aws", "cloudfront", "get-distribution",
-                "--id", dist_id,
-                "--query", "Distribution.DomainName",
-                "--output", "text"
-            ], check=True, capture_output=True, text=True)
-            cf_domain = result.stdout.strip()
+            cf = boto3.client('cloudfront')
+            dist = cf.get_distribution(Id=dist_id)
+            cf_domain = dist['Distribution']['DomainName']
             dashboard_url = f"https://{cf_domain}"
         except Exception:
             dashboard_url = f"https://[CloudFront domain for dist {dist_id}]"

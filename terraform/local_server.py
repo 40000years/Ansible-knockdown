@@ -16,8 +16,17 @@ PORT = 8000
 DIRECTORY = os.path.dirname(os.path.abspath(__file__))
 
 region = os.environ.get('AWS_DEFAULT_REGION', 'ap-southeast-1')
-ec2 = boto3.client('ec2', region_name=region)
-ssm = boto3.client('ssm', region_name=region)
+NEEDS_SETUP = False
+try:
+    import botocore.exceptions
+    sts = boto3.client('sts', region_name=region)
+    sts.get_caller_identity()
+    ec2 = boto3.client('ec2', region_name=region)
+    ssm = boto3.client('ssm', region_name=region)
+except Exception:
+    NEEDS_SETUP = True
+    ec2 = None
+    ssm = None
 
 class LocalDashboardHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
@@ -35,18 +44,65 @@ class LocalDashboardHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        if NEEDS_SETUP and self.path != '/setup.html':
+            self.send_response(302)
+            self.send_header('Location', '/setup.html')
+            self.end_headers()
+            return
+            
         # Serve index.html for root path "/"
         if self.path == '/':
             self.path = '/index.html'
         return super().do_GET()
 
     def do_POST(self):
-        if self.path == '/ec2':
+        if self.path == '/setup_aws':
+            self.handle_setup_aws()
+        elif self.path == '/ec2':
             self.handle_ec2_api()
         elif self.path == '/refresh':
             self.handle_refresh_api()
         else:
             self.send_error(404, "API endpoint not found")
+
+    def handle_setup_aws(self):
+        content_length = int(self.headers['Content-Length'])
+        post_data = self.rfile.read(content_length)
+        body = json.loads(post_data.decode('utf-8'))
+        
+        access_key = body.get('access_key')
+        secret_key = body.get('secret_key')
+        region_input = body.get('region', 'ap-southeast-1')
+        
+        if not access_key or not secret_key:
+            self.send_json_response(400, {'error': 'Missing access_key or secret_key'})
+            return
+
+        aws_dir = os.path.expanduser('~/.aws')
+        if not os.path.exists(aws_dir):
+            os.makedirs(aws_dir)
+            
+        with open(os.path.join(aws_dir, 'credentials'), 'w') as f:
+            f.write(f"[default]\naws_access_key_id = {access_key}\naws_secret_access_key = {secret_key}\n")
+            
+        with open(os.path.join(aws_dir, 'config'), 'w') as f:
+            f.write(f"[default]\nregion = {region_input}\n")
+            
+        # Re-initialize globals
+        global NEEDS_SETUP, ec2, ssm, region
+        region = region_input
+        try:
+            import importlib
+            importlib.reload(boto3)
+            ec2 = boto3.client('ec2', region_name=region)
+            ssm = boto3.client('ssm', region_name=region)
+            
+            sts = boto3.client('sts', region_name=region)
+            sts.get_caller_identity()
+            NEEDS_SETUP = False
+            self.send_json_response(200, {"success": True, "message": "Credentials configured!"})
+        except Exception as e:
+            self.send_json_response(400, {"error": f"Invalid credentials: {e}"})
 
     def handle_refresh_api(self):
         print("[Local Server] Refresh requested. Re-running Terraform gather & dashboard build...")

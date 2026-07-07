@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radahn System - Setup</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        /* Animated Background Gradients */
+        .blob-1 {
+            position: absolute;
+            top: -100px;
+            left: -100px;
+            width: 400px;
+            height: 400px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.6;
+            animation: float 8s ease-in-out infinite alternate;
+        }
+        
+        .blob-2 {
+            position: absolute;
+            bottom: -100px;
+            right: -100px;
+            width: 500px;
+            height: 500px;
+            background: linear-gradient(135deg, #ec4899, #f43f5e);
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.5;
+            animation: float 10s ease-in-out infinite alternate-reverse;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0) scale(1); }
+            100% { transform: translateY(-50px) scale(1.1); }
+        }
+
+        /* Glassmorphism Card */
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            z-index: 10;
+        }
+
+        .input-field {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            transition: all 0.3s ease;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+            background: rgba(15, 23, 42, 0.9);
+        }
+
+        .btn-connect {
+            background: linear-gradient(135deg, #3b82f6, #6366f1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-connect:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -10px rgba(59, 130, 246, 0.6);
+        }
+
+        .btn-connect:active {
+            transform: translateY(0);
+        }
+        
+        /* Spinner */
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 3px solid #fff;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="blob-1"></div>
+    <div class="blob-2"></div>
+
+    <div class="glass-card w-full max-w-md rounded-2xl p-8 relative" x-data="setupForm()">
+        
+        <div class="text-center mb-8">
+            <div class="inline-block p-3 rounded-full bg-blue-500/20 text-blue-400 mb-4">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+            </div>
+            <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-400">Welcome to Radahn</h1>
+            <p class="text-slate-400 mt-2 text-sm">Please provide your AWS credentials to connect your local system.</p>
+        </div>
+
+        <form @submit.prevent="submitForm">
+            
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-slate-300 mb-2">AWS Access Key ID</label>
+                <input type="text" x-model="accessKey" class="input-field w-full px-4 py-3 rounded-xl" placeholder="AKIAIOSFODNN7EXAMPLE" required>
+            </div>
+
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-slate-300 mb-2">AWS Secret Access Key</label>
+                <input type="password" x-model="secretKey" class="input-field w-full px-4 py-3 rounded-xl" placeholder="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" required>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-slate-300 mb-2">AWS Region</label>
+                <input type="text" x-model="region" class="input-field w-full px-4 py-3 rounded-xl" placeholder="ap-southeast-1" required>
+            </div>
+
+            <div x-show="errorMsg" style="display: none;" class="mb-5 p-3 rounded-xl bg-red-500/20 border border-red-500/30 text-red-400 text-sm flex items-start">
+                <svg class="w-5 h-5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span x-text="errorMsg"></span>
+            </div>
+
+            <button type="submit" class="btn-connect w-full text-white font-semibold py-3 rounded-xl flex items-center justify-center space-x-2" :disabled="isLoading">
+                <span x-show="!isLoading">Connect System</span>
+                <div x-show="isLoading" class="spinner" style="display: none;"></div>
+                <span x-show="isLoading" style="display: none;">Authenticating...</span>
+            </button>
+
+            <p class="text-xs text-slate-500 mt-6 text-center">
+                Credentials are saved locally and securely inside the container. We never send your keys anywhere else.
+            </p>
+        </form>
+    </div>
+
+    <script>
+        function setupForm() {
+            return {
+                accessKey: '',
+                secretKey: '',
+                region: 'ap-southeast-1',
+                isLoading: false,
+                errorMsg: '',
+
+                async submitForm() {
+                    this.isLoading = true;
+                    this.errorMsg = '';
+                    
+                    try {
+                        const response = await fetch('/setup_aws', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                access_key: this.accessKey,
+                                secret_key: this.secretKey,
+                                region: this.region
+                            })
+                        });
+
+                        const data = await response.json();
+                        
+                        if (response.ok) {
+                            // Success! Redirect to main dashboard
+                            window.location.href = '/';
+                        } else {
+                            this.errorMsg = data.error || 'Failed to authenticate.';
+                        }
+                    } catch (err) {
+                        this.errorMsg = 'Network error. Make sure the server is running.';
+                    } finally {
+                        this.isLoading = false;
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
