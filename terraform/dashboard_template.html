@@ -1921,10 +1921,6 @@
 
                 async _callEc2Api(action, id) {
                     const url = this.data.api_gateway_url;
-                    if (!url) {
-                        alert("API Gateway URL not found! Please ensure terraform applied the API changes.");
-                        return;
-                    }
 
                     this.processingInstances[id] = true;
 
@@ -1956,7 +1952,6 @@
                     if (this.pollingIntervals[id]) return;
 
                     const url = this.data.api_gateway_url;
-                    if (!url) return;
 
                     const poll = async () => {
                         try {
@@ -2018,7 +2013,6 @@
 
                 async fetchMetrics(id) {
                     const url = this.data.api_gateway_url;
-                    if (!url) { this.addToast('API URL not configured', 'error'); return; }
                     if (!this.metrics[id]) this.metrics[id] = {};
                     this.metrics[id].loading = true;
                     try {
@@ -2121,11 +2115,6 @@
                     state.progress = 10;
 
                     const url = this.data.api_gateway_url;
-                    if (!url) {
-                        state.output += 'Error: API Gateway URL not found.\n';
-                        state.status = 'failed';
-                        return;
-                    }
 
                     const playbooks = {
                         'nginx': 'https://raw.githubusercontent.com/ansible/ansible-examples/master/lamp_simple/roles/web/tasks/main.yml',
