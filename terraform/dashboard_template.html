@@ -1756,27 +1756,46 @@
                     if (!this.metrics[id]) this.metrics[id] = {};
                     this.metrics[id].loading = true;
                     try {
+                        // Step 1: Send the SSM command
                         const res = await fetch(API_URL, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ action: 'get_metrics', instance_ids: [id] })
                         });
-                        const data = await res.json();
-                        if (res.ok && !data.error) {
-                            this.metrics[id] = {
-                                loading: false,
-                                cpu: data.cpu,
-                                mem_percent: data.mem_percent,
-                                mem_total: data.mem_total,
-                                disk: data.disk
-                            };
-                        } else {
-                            this.metrics[id].loading = false;
-                            this.addToast(data.error || 'Failed to fetch metrics', 'error');
+                        const d = await res.json();
+                        if (!res.ok || d.error) throw new Error(d.error || 'Failed to start metrics command');
+                        
+                        const commandId = d.command_id;
+                        
+                        // Step 2: Poll for result via playbook_status
+                        for (let i = 0; i < 20; i++) {
+                            await new Promise(r => setTimeout(r, 1500));
+                            const poll = await fetch(API_URL, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ action: 'playbook_status', instance_ids: [id], command_id: commandId })
+                            });
+                            const pr = await poll.json();
+                            if (pr.status === 'Success') {
+                                try {
+                                    const m = JSON.parse(pr.output.trim());
+                                    this.metrics[id] = { loading: false, cpu: m.cpu, mem_percent: m.mem_percent, mem_total: m.mem_total, disk: m.disk };
+                                } catch(e) {
+                                    this.metrics[id].loading = false;
+                                    this.addToast('Could not parse metrics: ' + pr.output.substring(0, 100), 'error');
+                                }
+                                return;
+                            } else if (['Failed','Cancelled','TimedOut'].includes(pr.status)) {
+                                this.metrics[id].loading = false;
+                                this.addToast('Metrics SSM failed: ' + (pr.error || pr.status), 'error');
+                                return;
+                            }
                         }
+                        this.metrics[id].loading = false;
+                        this.addToast('Metrics timed out (30s). Is SSM Agent running?', 'error');
                     } catch (e) {
                         this.metrics[id].loading = false;
-                        this.addToast('Error fetching metrics', 'error');
+                        this.addToast('Error fetching metrics: ' + e.message, 'error');
                     }
                 },
 
