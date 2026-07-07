@@ -98,6 +98,10 @@ class LocalDashboardHandler(http.server.SimpleHTTPRequestHandler):
             sts = boto3.client('sts')
             sts.get_caller_identity()
             NEEDS_SETUP = False
+            
+            # Rebuild the dashboard with the new credentials so the UI shows live data immediately
+            subprocess.run([sys.executable, "generate_dashboard.py"], cwd=DIRECTORY, check=True)
+            
             self.send_json_response(200, {"success": True, "message": "Credentials configured!"})
         except Exception as e:
             self.send_json_response(400, {"error": f"Invalid credentials: {e}"})
@@ -581,6 +585,15 @@ if __name__ == '__main__':
     print(f" Directory: {DIRECTORY}")
     print(f" Press Ctrl+C to stop.")
     print(f"==================================================================\n")
+    
+    if not NEEDS_SETUP:
+        print("[Local Server] Valid credentials found on startup. Rebuilding dashboard...")
+        try:
+            subprocess.run([sys.executable, "generate_dashboard.py"], cwd=DIRECTORY, check=True)
+            print("[Local Server] Dashboard rebuild complete.")
+        except Exception as e:
+            print(f"[Local Server] Failed to rebuild dashboard on startup: {e}")
+
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

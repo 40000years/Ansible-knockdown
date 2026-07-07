@@ -26,6 +26,7 @@ def main():
 
     # Inject updated_at here so Terraform doesn't have to trigger a diff on every run
     data["updated_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    data["api_gateway_url"] = ""
 
     # Workaround: Terraform's data.aws_instances has a bug where it completely misses stopped instances.
     # We will fetch ALL true live EC2 instances via boto3 and fully populate the JSON before injecting.
