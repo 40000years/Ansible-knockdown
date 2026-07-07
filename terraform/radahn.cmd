@@ -12,14 +12,16 @@ if "%1"=="" goto help
 if "%1"=="start" goto start
 if "%1"=="stop" goto stop
 if "%1"=="logs" goto logs
+if "%1"=="update" goto update
 if "%1"=="help" goto help
 
 :help
-echo Usage: radahn [start^|stop^|logs]
+echo Usage: radahn [start^|stop^|logs^|update]
 echo Commands:
 echo   start   - Builds and starts the Radahn Local Dashboard container
 echo   stop    - Stops the Radahn Local Dashboard container
 echo   logs    - Shows the logs of the container
+echo   update  - Pulls the latest version from GitHub
 exit /b 1
 
 :start
@@ -51,4 +53,12 @@ exit /b 0
 
 :logs
 docker logs -f %CONTAINER_NAME%
+exit /b 0
+
+:update
+echo [Radahn] Updating system from GitHub...
+cd /d "%DIR%\.."
+git fetch origin Radahn
+git reset --hard origin/Radahn
+echo [Radahn] Update complete! Run 'radahn start' to apply changes.
 exit /b 0

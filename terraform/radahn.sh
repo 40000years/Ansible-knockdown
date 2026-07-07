@@ -14,11 +14,12 @@ done
 DIR="$(cd -P "$(dirname "$SCRIPT_PATH")" >/dev/null 2>&1 && pwd)"
 # Function to show usage
 show_help() {
-    echo "Usage: radahn [start|stop|logs]"
+    echo "Usage: radahn [start|stop|logs|update]"
     echo "Commands:"
     echo "  start   - Builds and starts the Radahn Local Dashboard container"
     echo "  stop    - Stops the Radahn Local Dashboard container"
     echo "  logs    - Shows the logs of the container"
+    echo "  update  - Pulls the latest version from GitHub"
 }
 
 if [ $# -eq 0 ]; then
@@ -59,6 +60,11 @@ case "$1" in
         ;;
     logs)
         docker logs -f $CONTAINER_NAME
+        ;;
+    update)
+        echo "[Radahn] Updating system from GitHub..."
+        (cd "$DIR/.." && git fetch origin Radahn && git reset --hard origin/Radahn)
+        echo "[Radahn] Update complete! Run 'radahn start' to apply changes."
         ;;
     help)
         show_help
