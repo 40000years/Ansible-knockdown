@@ -566,7 +566,7 @@
                         <div>
                             <p class="text-[11px] text-slate-400 uppercase tracking-wider">Running</p>
                             <p class="text-2xl font-bold text-emerald-400"
-                                x-text="Object.keys(data.ec2_running_detail||{}).length"></p>
+                                x-text="liveRunningCount"></p>
                         </div>
                     </div>
                     <div class="glass-strong rounded-2xl p-4 flex items-center gap-3">
@@ -575,7 +575,7 @@
                         </div>
                         <div>
                             <p class="text-[11px] text-slate-400 uppercase tracking-wider">Stopped</p>
-                            <p class="text-2xl font-bold text-rose-400" x-text="(data.ec2_stopped_ids||[]).length"></p>
+                            <p class="text-2xl font-bold text-rose-400" x-text="liveStoppedCount"></p>
                         </div>
                     </div>
                     <div class="glass-strong rounded-2xl p-4 flex items-center gap-3">
@@ -585,7 +585,7 @@
                         <div>
                             <p class="text-[11px] text-slate-400 uppercase tracking-wider">Total</p>
                             <p class="text-2xl font-bold text-indigo-400"
-                                x-text="Object.keys(data.ec2_running_detail||{}).length + (data.ec2_stopped_ids||[]).length">
+                                x-text="totalEc2Count">
                             </p>
                         </div>
                     </div>
@@ -2357,8 +2357,8 @@
                     lines.push('');
 
                     // Summary
-                    const runCount = Object.keys(d.ec2_running_detail).length;
-                    const stopCount = d.ec2_stopped_ids.length;
+                    const runCount = this.liveRunningCount;
+                    const stopCount = this.liveStoppedCount;
                     const vpcCount = Object.keys(d.vpc_details).length;
                     const subnetCount = Object.keys(d.subnet_details).length;
                     const sgCount = Object.keys(d.security_groups).length;
@@ -2611,36 +2611,20 @@
                 },
 
                 get instances() {
-                    if (Object.keys(this.data.ec2_all_detail || {}).length > 0) {
-                        return Object.entries(this.data.ec2_all_detail).map(([id, i]) => ({
-                            id,
-                            running: i.instance_state === 'running' || i.instance_state === 'pending',
-                            name: i.name || id,
-                            environment: i.environment || 'untagged',
-                            role: i.role || 'untagged',
-                            private_ip: i.private_ip || 'Offline',
-                            public_ip: i.public_ip || 'No Public IP',
-                            instance_type: i.instance_type || 'unknown',
-                            availability_zone: i.availability_zone || 'unknown',
-                            isNistCertified: i.isNistCertified || false,
-                            aws_state: i.instance_state
-                        }));
-                    }
-                    // Fallback for old state files
-                    const run = Object.entries(this.data.ec2_running_detail).map(([id, i]) => ({
-                        id, running: true, name: i.name || id, environment: i.environment || 'untagged',
-                        role: i.role || 'untagged', private_ip: i.private_ip || 'N/A',
-                        public_ip: i.public_ip || 'No Public IP', instance_type: i.instance_type || 'N/A',
-                        availability_zone: i.availability_zone || 'N/A',
-                        isNistCertified: i.isNistCertified || false,
-                        aws_state: 'running'
+                    if (!this.data.ec2_all_detail) return [];
+                    return Object.entries(this.data.ec2_all_detail).map(([id, i]) => ({
+                        id,
+                        running: i.instance_state === 'running' || i.instance_state === 'pending',
+                        name: i.name || id,
+                        environment: i.environment || 'untagged',
+                        role: i.role || 'untagged',
+                        private_ip: i.private_ip || 'Offline',
+                        public_ip: i.public_ip || 'No Public IP',
+                        instance_type: i.instance_type || 'unknown',
+                        availability_zone: i.availability_zone || 'unknown',
+                        aws_state: i.instance_state || 'unknown',
+                        isNistCertified: i.isNistCertified || false
                     }));
-                    const stop = this.data.ec2_stopped_ids.map(id => ({
-                        id, running: false, name: id, environment: 'untagged', role: 'unknown',
-                        private_ip: 'Offline', public_ip: 'No Public IP', instance_type: 'unknown',
-                        availability_zone: 'unknown', aws_state: 'stopped'
-                    }));
-                    return [...run, ...stop];
                 },
 
                 get filteredInstances() {
@@ -2651,6 +2635,19 @@
                         return envOk && qOk;
                     });
                 },
+
+                get liveRunningCount() {
+                    return this.instances.filter(i => this.isLiveRunning(i)).length;
+                },
+
+                get liveStoppedCount() {
+                    return this.instances.filter(i => !this.isLiveRunning(i)).length;
+                },
+
+                get totalEc2Count() {
+                    return this.instances.length;
+                },
+
 
                 get statCards() {
                     const d = this.data;
@@ -2666,11 +2663,11 @@
 
                     return [
                         {
-                            label: 'Running EC2', value: Object.keys(d.ec2_running_detail).length, icon: 'fa-circle-play',
+                            label: 'Running EC2', value: this.liveRunningCount, icon: 'fa-circle-play',
                             badge: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25', tooltip: `<div class="font-bold mb-1 border-b border-slate-700/50 pb-1 text-emerald-300">Running Instances</div>${runningEc2Tooltip}`
                         },
                         {
-                            label: 'Stopped EC2', value: d.ec2_stopped_ids.length, icon: 'fa-circle-stop', badge:
+                            label: 'Stopped EC2', value: this.liveStoppedCount, icon: 'fa-circle-stop', badge:
                                 'bg-rose-500/10 text-rose-300 border-rose-500/25', tooltip: `<div class="font-bold mb-1 border-b border-slate-700/50 pb-1 text-rose-300">Stopped Instances</div>${stoppedEc2Tooltip}`
                         },
                         {

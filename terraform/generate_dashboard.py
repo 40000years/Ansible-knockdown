@@ -64,8 +64,9 @@ def main():
                 info["role"] = tags.get("Role", "untagged")
                 info["is_nist_certified"] = (tags.get("NistCertified", "false").lower() == "true")
                 
-        # Also fix ec2_stopped_ids just in case
+        # Also fix ec2_stopped_ids and ec2_running_detail just in case
         data["ec2_stopped_ids"] = [i for i, v in data["ec2_all_detail"].items() if v.get("instance_state") not in ["running", "pending"]]
+        data["ec2_running_detail"] = {i: v for i, v in data["ec2_all_detail"].items() if v.get("instance_state") in ["running", "pending"]}
         
         log(f"boto3 Sync: Patched {patched_count} existing, Added {added_count} missing instances.")
     except Exception as e:
