@@ -59,6 +59,7 @@ def main():
                 info["name"] = tags.get("Name", inst_id)
                 info["environment"] = tags.get("Environment", "untagged")
                 info["role"] = tags.get("Role", "untagged")
+                info["is_nist_certified"] = (tags.get("NistCertified", "false").lower() == "true")
                 
         # Also fix ec2_stopped_ids just in case
         data["ec2_stopped_ids"] = [i for i, v in data["ec2_all_detail"].items() if v.get("instance_state") not in ["running", "pending"]]
