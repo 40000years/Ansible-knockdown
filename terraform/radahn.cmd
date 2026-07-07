@@ -33,7 +33,7 @@ echo [Radahn] Building Docker image (this will be fast if already built)...
 docker build -t %IMAGE_NAME% "%DIR%"
 
 echo [Radahn] Starting container...
-docker run -d --name %CONTAINER_NAME% -p %PORT%:8000 -v "%USERPROFILE%\.aws:/root/.aws:ro" -v "%DIR%:/app" -w /app %IMAGE_NAME%
+docker run -d --name %CONTAINER_NAME% -p %PORT%:8000 -v "%USERPROFILE%\.aws:/root/.aws" -v "%DIR%:/app" -w /app %IMAGE_NAME%
 
 echo.
 echo ==================================================================

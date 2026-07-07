@@ -39,7 +39,7 @@ case "$1" in
         echo "[Radahn] Starting container..."
         docker run -d --name $CONTAINER_NAME \
             -p $PORT:8000 \
-            -v ~/.aws:/root/.aws:ro \
+            -v ~/.aws:/root/.aws \
             -v "$DIR":/app \
             -w /app \
             $IMAGE_NAME
