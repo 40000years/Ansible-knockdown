@@ -1322,7 +1322,7 @@
                                     </div>
 
                                     <!-- Loading State -->
-                                    <template x-if="metrics[playbookTarget.id]?.loading && !metrics[playbookTarget.id]?.cpu">
+                                    <template x-if="metrics[playbookTarget.id]?.loading && metrics[playbookTarget.id]?.cpu === undefined">
                                         <div class="flex flex-col items-center justify-center py-16 space-y-4">
                                             <div class="relative w-16 h-16">
                                                 <div class="absolute inset-0 rounded-full border-4 border-indigo-500/20"></div>
@@ -1333,7 +1333,7 @@
                                     </template>
 
                                     <!-- No data yet -->
-                                    <template x-if="!metrics[playbookTarget.id]?.loading && !metrics[playbookTarget.id]?.cpu">
+                                    <template x-if="!metrics[playbookTarget.id]?.loading && metrics[playbookTarget.id]?.cpu === undefined">
                                         <div class="flex flex-col items-center justify-center py-16 space-y-3 text-center">
                                             <i class="fa-solid fa-chart-line text-4xl text-slate-700"></i>
                                             <p class="text-sm text-slate-400">No data yet</p>
