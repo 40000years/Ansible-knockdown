@@ -99,9 +99,10 @@ resource "aws_s3_bucket_policy" "dashboard" {
 # ── 5. Export JSON data → trigger Python script ──────────────────────────────
 resource "local_file" "infrastructure_data_json" {
   content = jsonencode({
-    ec2_running                = local.running_instances
-    ec2_stopped_ids            = data.aws_instances.stopped.ids
-    ec2_running_detail         = local.running_instances_detail
+    ec2_running                = { for id, inst in local.all_instances_detail : id => { private_ip = inst.private_ip, public_ip = inst.public_ip } if inst.instance_state == "running" }
+    ec2_stopped_ids            = [for id, inst in local.all_instances_detail : id if inst.instance_state != "running"]
+    ec2_all_detail             = local.all_instances_detail
+    ec2_running_detail         = { for id, inst in local.all_instances_detail : id => inst if inst.instance_state == "running" }
     ec2_grouped_by_environment = local.ec2_grouped_by_environment
     vpc_details                = local.vpc_summary
     subnet_details             = local.subnet_summary
@@ -112,6 +113,7 @@ resource "local_file" "infrastructure_data_json" {
     network_topology           = local.network_topology
     region                     = local.region
     updated_at                 = timestamp()
+    api_gateway_url            = aws_apigatewayv2_api.dashboard_api.api_endpoint
   })
   filename = "${path.module}/infrastructure_data.json"
 }

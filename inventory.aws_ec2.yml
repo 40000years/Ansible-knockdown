@@ -15,8 +15,13 @@ compose:
   # SSH over SSM: ใช้ SSH เป็น protocol แต่วิ่งผ่าน SSM tunnel — ไม่ต้องเปิด Port 22 สู่ Internet
   # %h ใน ProxyCommand จะใช้ instance_id (เช่น i-0abc123) เป็น target
   ansible_connection: "'ssh'"
-  ansible_user: "'ubuntu'"
+  # เครื่อง Amazon Linux Master ใช้ ec2-user, Ubuntu Workers ใช้ ubuntu
+  ansible_user: "'ec2-user' if instance_id == 'i-01e19dbfdf04a9c7a' else 'ubuntu'"
   ansible_python_interpreter: "'/usr/bin/python3'"
   ansible_become_exe: "'sudo'"
   # ต้องใช้ instance_id (i-xxx) เป็น host เพื่อให้ SSM ProxyCommand รู้ว่าจะต่อไป EC2 ตัวไหน
   ansible_host: instance_id
+  
+  # เพิ่ม Timeout สำหรับ SSH และ Sudo เพื่อป้องกัน Timeout ตอน Gathering Facts และตอนโหลด Docker Image หนักๆ
+  ansible_become_timeout: "120"
+  ansible_timeout: "120"

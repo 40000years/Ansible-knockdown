@@ -135,22 +135,7 @@ resource "null_resource" "create_nat_and_route" {
         fi
       fi
 
-      # 3. หา Route Table ของฝั่ง Private (ตัวที่ EC2 ใช้งานอยู่) เพื่อเอาไปแก้ให้ออก NAT
-      if [ -n "$OVERRIDE_RTB_ID" ]; then
-        ROUTE_TABLE_ID="$OVERRIDE_RTB_ID"
-        echo "  Using override route table: $ROUTE_TABLE_ID"
-      else
-        echo "  Auto-discovering Private Route Table of the EC2 instance..."
-        EC2_SUBNET_ID=$(aws ec2 describe-instances --instance-ids $TARGET_INSTANCE_IDS --query 'Reservations[0].Instances[0].SubnetId' --output text)
-        
-        ROUTE_TABLE_ID=$(aws ec2 describe-route-tables --filters "Name=association.subnet-id,Values=$EC2_SUBNET_ID" --query 'RouteTables[0].RouteTableId' --output text 2>/dev/null || echo "None")
-        if [ "$ROUTE_TABLE_ID" = "None" ]; then
-          ROUTE_TABLE_ID=$(aws ec2 describe-route-tables --filters "Name=vpc-id,Values=$VPC_ID" "Name=association.main,Values=true" --query 'RouteTables[0].RouteTableId' --output text)
-        fi
-        
-        echo "  Found EC2 Route Table: $ROUTE_TABLE_ID"
-      fi
-
+      # 3. หาและอัปเดต Route Table ของ EC2 ทุกเครื่อง (รองรับ multi-instance หลาย subnet)
       # ---- EIP ----
       if [ -z "$EIP_ALLOC_ID" ]; then
         echo "  ERROR: No Elastic IP found! Please allocate an EIP first."
@@ -173,28 +158,71 @@ resource "null_resource" "create_nat_and_route" {
       echo "  NAT GW $NAT_ID: AVAILABLE ✓"
 
       echo "============================================"
-      echo " STEP 3: Updating Route Table: $ROUTE_TABLE_ID"
+      echo " STEP 3: Update Route Tables for ALL EC2 instances"
       echo "============================================"
 
-      # ลบ route 0.0.0.0/0 เก่า (blackhole)
-      aws ec2 delete-route \
-        --route-table-id "$ROUTE_TABLE_ID" \
-        --destination-cidr-block "0.0.0.0/0" 2>/dev/null \
-        && echo "  Old 0.0.0.0/0 route removed." \
-        || echo "  No existing 0.0.0.0/0 route (OK)."
+      if [ -n "$OVERRIDE_RTB_ID" ]; then
+        # ถ้า override ให้อัปเดตแค่ตัวนั้น
+        echo "  Using override route table: $OVERRIDE_RTB_ID"
+        UPDATED_RTBS="$OVERRIDE_RTB_ID"
+        aws ec2 delete-route --route-table-id "$OVERRIDE_RTB_ID" --destination-cidr-block "0.0.0.0/0" 2>/dev/null \
+          && echo "  Old 0.0.0.0/0 route removed from $OVERRIDE_RTB_ID." \
+          || echo "  No existing 0.0.0.0/0 route in $OVERRIDE_RTB_ID (OK)."
+        aws ec2 create-route --route-table-id "$OVERRIDE_RTB_ID" --destination-cidr-block "0.0.0.0/0" --nat-gateway-id "$NAT_ID"
+        echo "  Route 0.0.0.0/0 → $NAT_ID updated in $OVERRIDE_RTB_ID ✓"
+      else
+        # วนลูปหา Subnet ของ EC2 ทุกเครื่อง แล้วอัปเดต Route Table ที่ไม่ซ้ำกัน
+        UPDATED_RTBS=""
+        ALL_EC2_SUBNETS=$(aws ec2 describe-instances \
+          --instance-ids $TARGET_INSTANCE_IDS \
+          --query 'Reservations[*].Instances[*].SubnetId' \
+          --output text | tr '\t' '\n' | sort -u)
 
-      # เพิ่ม route ใหม่
-      aws ec2 create-route \
-        --route-table-id "$ROUTE_TABLE_ID" \
-        --destination-cidr-block "0.0.0.0/0" \
-        --nat-gateway-id "$NAT_ID"
+        echo "  EC2 subnets found: $(echo $ALL_EC2_SUBNETS | tr '\n' ' ')"
 
-      echo "  Route 0.0.0.0/0 → $NAT_ID ✓"
+        for EC2_SUBNET_ID in $ALL_EC2_SUBNETS; do
+          # ข้าม Public Subnet ที่ใช้วาง NAT (ไม่ต้องแก้ Route ฝั่ง Public)
+          if [ "$EC2_SUBNET_ID" = "$NAT_SUBNET_ID" ]; then
+            echo "  Skipping NAT subnet $EC2_SUBNET_ID (it is the public subnet)"
+            continue
+          fi
+
+          # หา Route Table ของ Subnet นี้
+          RTB=$(aws ec2 describe-route-tables \
+            --filters "Name=association.subnet-id,Values=$EC2_SUBNET_ID" \
+            --query 'RouteTables[0].RouteTableId' \
+            --output text 2>/dev/null || echo "None")
+
+          # ถ้าไม่มี explicit association ให้ fallback ไป main route table
+          if [ "$RTB" = "None" ] || [ -z "$RTB" ]; then
+            RTB=$(aws ec2 describe-route-tables \
+              --filters "Name=vpc-id,Values=$VPC_ID" "Name=association.main,Values=true" \
+              --query 'RouteTables[0].RouteTableId' \
+              --output text)
+          fi
+
+          # เช็คว่าเคยอัปเดต Route Table นี้ไปแล้วหรือยัง (กัน duplicate)
+          if echo "$UPDATED_RTBS" | grep -qw "$RTB"; then
+            echo "  Route Table $RTB already updated (shared by multiple subnets), skipping."
+            continue
+          fi
+
+          echo "  Updating Route Table $RTB (for subnet $EC2_SUBNET_ID)..."
+          aws ec2 delete-route --route-table-id "$RTB" --destination-cidr-block "0.0.0.0/0" 2>/dev/null \
+            && echo "    Old 0.0.0.0/0 route removed." \
+            || echo "    No existing 0.0.0.0/0 route (OK)."
+          aws ec2 create-route --route-table-id "$RTB" --destination-cidr-block "0.0.0.0/0" --nat-gateway-id "$NAT_ID"
+          echo "    Route 0.0.0.0/0 → $NAT_ID ✓"
+
+          UPDATED_RTBS="$UPDATED_RTBS $RTB"
+        done
+      fi
+
       echo "============================================"
       echo " START WORKFLOW COMPLETE"
-      echo "  New NAT GW ID : $NAT_ID"
-      echo "  Public Subnet : $NAT_SUBNET_ID"
-      echo "  Route Table   : $ROUTE_TABLE_ID"
+      echo "  New NAT GW ID    : $NAT_ID"
+      echo "  Public Subnet    : $NAT_SUBNET_ID"
+      echo "  Route Tables     :$UPDATED_RTBS"
       echo "============================================"
     EOT
   }

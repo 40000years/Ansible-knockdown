@@ -2,23 +2,16 @@
 # 1. EC2 Instances
 # ============================================================================
 
-data "aws_instances" "running" {
+data "aws_instances" "all_active" {
   filter {
     name   = "instance-state-name"
-    values = ["running"]
-  }
-}
-
-data "aws_instances" "stopped" {
-  filter {
-    name   = "instance-state-name"
-    values = ["stopped"]
+    values = ["running", "stopped", "stopping", "pending"]
   }
 }
 
 # EC2 Instance Detail (Tags, Type, AZ) — สำหรับ Grouping Output
 data "aws_instance" "detail" {
-  for_each    = toset(data.aws_instances.running.ids)
+  for_each    = toset(data.aws_instances.all_active.ids)
   instance_id = each.value
 }
 
@@ -111,21 +104,7 @@ resource "terraform_data" "force_semaphore_output" {
 # ============================================================================
 
 locals {
-  # --------------------------------------------------------------------------
-  # EC2 Running instances — basic map (id → IPs)
-  # --------------------------------------------------------------------------
-  running_instances = {
-    for i, id in data.aws_instances.running.ids : id => {
-      private_ip = try(data.aws_instances.running.private_ips[i], "N/A")
-      public_ip  = try(data.aws_instances.running.public_ips[i], "No Public IP")
-    }
-  }
-
-  # --------------------------------------------------------------------------
-  # EC2 Running instances — detail map (id → full info + Tags)
-  # Used by: ansible_inventory_json, ec2_grouped_by_environment
-  # --------------------------------------------------------------------------
-  running_instances_detail = {
+  all_instances_detail = {
     for id, inst in data.aws_instance.detail : id => {
       private_ip        = inst.private_ip
       public_ip         = coalesce(inst.public_ip, "No Public IP")
@@ -135,6 +114,7 @@ locals {
       name              = try(inst.tags["Name"], id)
       environment       = try(inst.tags["Environment"], "untagged")
       role              = try(inst.tags["Role"], "untagged")
+      instance_state    = inst.instance_state
     }
   }
 
@@ -143,11 +123,11 @@ locals {
   # Output: { "production" = { instance_ids=[...], private_ips=[...] }, ... }
   # --------------------------------------------------------------------------
   ec2_grouped_by_environment = {
-    for env in distinct([for inst in local.running_instances_detail : inst.environment]) :
+    for env in distinct([for inst in local.all_instances_detail : inst.environment]) :
     env => {
-      instance_ids = [for id, inst in local.running_instances_detail : id if inst.environment == env]
-      private_ips  = [for id, inst in local.running_instances_detail : inst.private_ip if inst.environment == env]
-      public_ips   = [for id, inst in local.running_instances_detail : inst.public_ip if inst.environment == env && inst.public_ip != "No Public IP"]
+      instance_ids = [for id, inst in local.all_instances_detail : id if inst.environment == env]
+      private_ips  = [for id, inst in local.all_instances_detail : inst.private_ip if inst.environment == env]
+      public_ips   = [for id, inst in local.all_instances_detail : inst.public_ip if inst.environment == env && inst.public_ip != "No Public IP"]
     }
   }
 
@@ -157,15 +137,15 @@ locals {
   # --------------------------------------------------------------------------
   ansible_inventory = {
     all = {
-      hosts    = [for _, inst in local.running_instances_detail : inst.private_ip]
+      hosts    = [for _, inst in local.all_instances_detail : inst.private_ip if inst.instance_state == "running"]
       children = keys(local.ec2_grouped_by_environment)
     }
     _meta = {
       hostvars = {
-        for _, inst in local.running_instances_detail : inst.private_ip => {
+        for _, inst in local.all_instances_detail : inst.private_ip => {
           ansible_host          = inst.private_ip
           ansible_user          = "ubuntu"
-          instance_id           = [for id, i in local.running_instances_detail : id if i.private_ip == inst.private_ip][0]
+          instance_id           = [for id, i in local.all_instances_detail : id if i.private_ip == inst.private_ip][0]
           instance_type         = inst.instance_type
           availability_zone     = inst.availability_zone
           environment           = inst.environment

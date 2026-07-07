@@ -4,8 +4,8 @@
 
 output "summary_dashboard" {
   value = {
-    "EC2 Running Instances" = length(data.aws_instances.running.ids)
-    "EC2 Stopped Instances" = length(data.aws_instances.stopped.ids)
+    "EC2 Running Instances" = length([for id, i in local.all_instances_detail : id if i.instance_state == "running"])
+    "EC2 Stopped Instances" = length([for id, i in local.all_instances_detail : id if i.instance_state != "running"])
     "VPCs"                  = length(data.aws_vpcs.all.ids)
     "Subnets"               = length(data.aws_subnets.all.ids)
     "Internet Gateways"     = length(data.aws_internet_gateway.detail)
@@ -23,12 +23,12 @@ output "summary_dashboard" {
 # ============================================================================
 
 output "ec2_running" {
-  value       = local.running_instances
+  value       = { for id, inst in local.all_instances_detail : id => { private_ip = inst.private_ip, public_ip = inst.public_ip } if inst.instance_state == "running" }
   description = "เครื่อง EC2 ที่กำลังทำงาน: Instance ID → IP Addresses"
 }
 
 output "ec2_stopped_ids" {
-  value       = data.aws_instances.stopped.ids
+  value       = [for id, inst in local.all_instances_detail : id if inst.instance_state != "running"]
   description = "Instance IDs ที่หยุดอยู่ (Stopped)"
 }
 
@@ -37,8 +37,13 @@ output "ec2_stopped_ids" {
 # ============================================================================
 
 output "ec2_running_detail" {
-  value       = local.running_instances_detail
-  description = "EC2 Running พร้อม Tags: Name, Environment, Role, Instance Type, AZ"
+  value       = { for id, inst in local.all_instances_detail : id => inst if inst.instance_state == "running" }
+  description = "EC2 Running พร้อม Tags (เพื่อ Backward Compatibility)"
+}
+
+output "ec2_all_detail" {
+  value       = local.all_instances_detail
+  description = "EC2 ทุกสถานะ พร้อม Tags และ state"
 }
 
 output "ec2_grouped_by_environment" {
@@ -129,4 +134,19 @@ output "elastic_ips" {
 output "dashboard_url" {
   value       = "https://${aws_cloudfront_distribution.dashboard.domain_name}"
   description = "URL สำหรับเปิดดูหน้าเว็บ HTML Infrastructure Dashboard แบบ Real-time ผ่าน CloudFront"
+}
+
+output "dashboard_bucket" {
+  value       = aws_s3_bucket.dashboard.id
+  description = "S3 Bucket Name for Dashboard"
+}
+
+output "dashboard_cloudfront_id" {
+  value       = aws_cloudfront_distribution.dashboard.id
+  description = "CloudFront Distribution ID for Dashboard"
+}
+
+output "dashboard_api_url" {
+  value       = aws_apigatewayv2_api.dashboard_api.api_endpoint
+  description = "API Gateway URL for Dashboard EC2 actions"
 }
