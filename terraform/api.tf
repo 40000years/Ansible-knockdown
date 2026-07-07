@@ -14,7 +14,7 @@ data "aws_iam_policy_document" "lambda_assume_role" {
 }
 
 resource "aws_iam_role" "lambda_ec2_role" {
-  name               = "DashboardLambdaEC2Role-${data.aws_caller_identity.current.account_id}"
+  name               = "DashboardLambdaEC2Role-Radahn-${data.aws_caller_identity.current.account_id}"
   assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
 }
 
@@ -66,8 +66,8 @@ data "aws_iam_policy_document" "lambda_ec2_policy" {
 }
 
 resource "aws_iam_policy" "lambda_ec2_policy" {
-  name        = "DashboardLambdaEC2Policy-${data.aws_caller_identity.current.account_id}"
-  description = "Permissions for Lambda to start/stop EC2 instances"
+  name        = "DashboardLambdaEC2Policy-Radahn-${data.aws_caller_identity.current.account_id}"
+  description = "Permissions for Lambda to start/stop EC2 instances (Radahn)"
   policy      = data.aws_iam_policy_document.lambda_ec2_policy.json
 }
 
@@ -85,7 +85,7 @@ data "archive_file" "lambda_zip" {
 
 resource "aws_lambda_function" "ec2_handler" {
   filename         = data.archive_file.lambda_zip.output_path
-  function_name    = "DashboardEC2Manager-${data.aws_caller_identity.current.account_id}"
+  function_name    = "DashboardEC2Manager-Radahn-${data.aws_caller_identity.current.account_id}"
   role             = aws_iam_role.lambda_ec2_role.arn
   handler          = "ec2_handler.lambda_handler"
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
@@ -95,7 +95,7 @@ resource "aws_lambda_function" "ec2_handler" {
 
 # ── 3. API Gateway (HTTP API) ─────────────────────────────────────────────
 resource "aws_apigatewayv2_api" "dashboard_api" {
-  name          = "DashboardEC2API-${data.aws_caller_identity.current.account_id}"
+  name          = "DashboardEC2API-Radahn-${data.aws_caller_identity.current.account_id}"
   protocol_type = "HTTP"
 
   cors_configuration {

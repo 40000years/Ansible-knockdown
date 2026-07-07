@@ -12,7 +12,7 @@ terraform {
   # OpenTofu reads/writes the same terraform.tfstate file transparently.
   backend "s3" {
     bucket = "thanaphat-web-app-bucket-2026-858039354188-ap-southeast-1-an"
-    key    = "ec2-fetch/terraform.tfstate"
+    key    = "ec2-fetch-radahn/terraform.tfstate"
     region = "ap-southeast-1"
   }
 }

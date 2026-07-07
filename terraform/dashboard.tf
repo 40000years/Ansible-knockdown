@@ -8,7 +8,7 @@ data "aws_caller_identity" "current" {}
 
 locals {
   region        = var.AWS_DEFAULT_REGION != "" ? var.AWS_DEFAULT_REGION : var.aws_region
-  bucket_name   = "aws-infra-dashboard-${data.aws_caller_identity.current.account_id}-${local.region}"
+  bucket_name   = "aws-infra-dashboard-${data.aws_caller_identity.current.account_id}-${local.region}-radahn"
 }
 
 # ── 1. S3 Bucket (Private) ───────────────────────────────────────────────────
@@ -27,8 +27,8 @@ resource "aws_s3_bucket_public_access_block" "dashboard" {
 
 # ── 2. CloudFront Origin Access Control (OAC) ────────────────────────────────
 resource "aws_cloudfront_origin_access_control" "dashboard" {
-  name                              = "dashboard-oac-${data.aws_caller_identity.current.account_id}"
-  description                       = "OAC for Infrastructure Dashboard"
+  name                              = "dashboard-oac-${data.aws_caller_identity.current.account_id}-radahn"
+  description                       = "OAC for Infrastructure Dashboard (Radahn)"
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always"
   signing_protocol                  = "sigv4"
