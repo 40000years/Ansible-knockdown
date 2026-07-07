@@ -1753,11 +1753,13 @@
                 },
 
                 async fetchMetrics(id) {
+                    const url = this.data.api_gateway_url;
+                    if (!url) { this.addToast('API URL not configured', 'error'); return; }
                     if (!this.metrics[id]) this.metrics[id] = {};
                     this.metrics[id].loading = true;
                     try {
                         // Step 1: Send the SSM command
-                        const res = await fetch(API_URL, {
+                        const res = await fetch(`${url}/ec2`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ action: 'get_metrics', instance_ids: [id] })
@@ -1770,7 +1772,7 @@
                         // Step 2: Poll for result via playbook_status
                         for (let i = 0; i < 20; i++) {
                             await new Promise(r => setTimeout(r, 1500));
-                            const poll = await fetch(API_URL, {
+                            const poll = await fetch(`${url}/ec2`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ action: 'playbook_status', instance_ids: [id], command_id: commandId })
