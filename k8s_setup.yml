@@ -1,0 +1,542 @@
+---
+# ==============================================================
+# Kubernetes Auto-Setup Playbook
+# Architecture:
+#   - Control Plane (Master) : i-01e19dbfdf04a9c7a (Amazon Linux)
+#   - Worker Node 1          : i-01ae082d7c52e8372 (Ubuntu)
+#   - Worker Node 2          : i-0f09e5e3eb2072255 (Ubuntu)
+# ==============================================================
+
+# ============================================================
+# PLAY 1: Pre-flight Check + Install Dependencies (ทุกเครื่อง)
+# ============================================================
+- name: "Play 1: Pre-flight Check and Install K8s Dependencies"
+  hosts: all
+  become: yes
+  vars:
+    k8s_version: "1.30"
+    # ID ของเครื่องที่เป็น Master (เปลี่ยนได้ผ่าน Semaphore Extra Variables)
+    master_instance_id: "i-01e19dbfdf04a9c7a"
+    pod_network_cidr: "10.244.0.0/16"
+
+  tasks:
+    # ---- Pre-flight: ตรวจสอบก่อน ----
+    - name: "0. Show node info"
+      debug:
+        msg:
+          - "Hostname   : {{ inventory_hostname }}"
+          - "OS Family  : {{ ansible_os_family }}"
+          - "Role       : {{ 'MASTER (Control Plane)' if inventory_hostname == master_instance_id else 'WORKER Node' }}"
+          - "K8s Version: {{ k8s_version }}"
+
+    - name: "0b. Check if node already joined a cluster"
+      stat:
+        path: /etc/kubernetes/kubelet.conf
+      register: kubelet_conf
+
+    - name: "0c. Skip if already configured"
+      debug:
+        msg: "Node already has K8s configured — skipping install steps."
+      when: kubelet_conf.stat.exists
+
+    # ---- Disable Swap (K8s ต้องการ) ----
+    - name: "1. Disable swap immediately"
+      command: swapoff -a
+      when: not kubelet_conf.stat.exists
+
+    - name: "1b. Disable swap permanently in /etc/fstab"
+      replace:
+        path: /etc/fstab
+        regexp: '^([^#].*\sswap\s.*)$'
+        replace: '# \1'
+      when: not kubelet_conf.stat.exists
+
+    # ---- Kernel Modules ----
+    - name: "2. Load required kernel modules"
+      modprobe:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - overlay
+        - br_netfilter
+      when: not kubelet_conf.stat.exists
+
+    - name: "2b. Persist kernel modules on boot"
+      copy:
+        dest: /etc/modules-load.d/k8s.conf
+        content: |
+          overlay
+          br_netfilter
+      when: not kubelet_conf.stat.exists
+
+    - name: "2c. Configure sysctl for K8s networking"
+      copy:
+        dest: /etc/sysctl.d/k8s.conf
+        content: |
+          net.bridge.bridge-nf-call-iptables  = 1
+          net.bridge.bridge-nf-call-ip6tables = 1
+          net.ipv4.ip_forward                 = 1
+      when: not kubelet_conf.stat.exists
+
+    - name: "2d. Apply sysctl settings"
+      command: sysctl --system
+      when: not kubelet_conf.stat.exists
+
+    # ---- Install Containerd (Container Runtime) ----
+    - name: "3a. Install Containerd on Amazon Linux"
+      yum:
+        name: containerd
+        state: present
+      when:
+        - not kubelet_conf.stat.exists
+        - ansible_os_family == "RedHat" or ansible_distribution == "Amazon"
+
+    - name: "3b. Install Containerd on Ubuntu"
+      apt:
+        name: containerd
+        state: present
+        update_cache: yes
+      when:
+        - not kubelet_conf.stat.exists
+        - ansible_os_family == "Debian"
+
+    - name: "3c. Create containerd config directory"
+      file:
+        path: /etc/containerd
+        state: directory
+        mode: '0755'
+      when: not kubelet_conf.stat.exists
+
+    - name: "3d. Generate default containerd config"
+      shell: containerd config default > /etc/containerd/config.toml
+      when: not kubelet_conf.stat.exists
+
+    - name: "3e. Enable SystemdCgroup in containerd config"
+      replace:
+        path: /etc/containerd/config.toml
+        regexp: 'SystemdCgroup = false'
+        replace: 'SystemdCgroup = true'
+      when: not kubelet_conf.stat.exists
+
+    - name: "3f. Start and enable containerd"
+      service:
+        name: containerd
+        state: restarted
+        enabled: yes
+      when: not kubelet_conf.stat.exists
+
+    # ---- Install kubeadm, kubelet, kubectl ----
+    # --- Amazon Linux ---
+    - name: "4a. Add Kubernetes repo (Amazon Linux)"
+      copy:
+        dest: /etc/yum.repos.d/kubernetes.repo
+        content: |
+          [kubernetes]
+          name=Kubernetes
+          baseurl=https://pkgs.k8s.io/core:/stable:/v{{ k8s_version }}/rpm/
+          enabled=1
+          gpgcheck=1
+          gpgkey=https://pkgs.k8s.io/core:/stable:/v{{ k8s_version }}/rpm/repodata/repomd.xml.key
+          exclude=kubelet kubeadm kubectl cri-tools kubernetes-cni
+      when:
+        - not kubelet_conf.stat.exists
+        - ansible_os_family == "RedHat" or ansible_distribution == "Amazon"
+
+    - name: "4b. Install kubelet kubeadm kubectl (Amazon Linux)"
+      yum:
+        name:
+          - kubelet
+          - kubeadm
+          - kubectl
+        state: present
+        disable_excludes: kubernetes
+      when:
+        - not kubelet_conf.stat.exists
+        - ansible_os_family == "RedHat" or ansible_distribution == "Amazon"
+
+    # --- Ubuntu ---
+    - name: "4c. Install prerequisites for K8s apt repo (Ubuntu)"
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gpg
+        state: present
+        update_cache: yes
+      when:
+        - not kubelet_conf.stat.exists
+        - ansible_os_family == "Debian"
+
+    - name: "4d. Create keyrings directory (Ubuntu)"
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+      when:
+        - not kubelet_conf.stat.exists
+        - ansible_os_family == "Debian"
+
+    - name: "4e. Add Kubernetes GPG key (Ubuntu)"
+      shell: |
+        curl -fsSL https://pkgs.k8s.io/core:/stable:/v{{ k8s_version }}/deb/Release.key | \
+        gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+      args:
+        creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+      when:
+        - not kubelet_conf.stat.exists
+        - ansible_os_family == "Debian"
+
+    - name: "4f. Add Kubernetes apt repository (Ubuntu)"
+      copy:
+        dest: /etc/apt/sources.list.d/kubernetes.list
+        content: |
+          deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v{{ k8s_version }}/deb/ /
+      when:
+        - not kubelet_conf.stat.exists
+        - ansible_os_family == "Debian"
+
+    - name: "4g. Install kubelet kubeadm kubectl (Ubuntu)"
+      apt:
+        name:
+          - kubelet
+          - kubeadm
+          - kubectl
+        state: present
+        update_cache: yes
+      when:
+        - not kubelet_conf.stat.exists
+        - ansible_os_family == "Debian"
+
+    - name: "4h. Hold kubelet kubeadm kubectl from auto-upgrade (Ubuntu)"
+      dpkg_selections:
+        name: "{{ item }}"
+        selection: hold
+      loop:
+        - kubelet
+        - kubeadm
+        - kubectl
+      when:
+        - not kubelet_conf.stat.exists
+        - ansible_os_family == "Debian"
+
+    - name: "4i. Enable kubelet service"
+      service:
+        name: kubelet
+        state: started
+        enabled: yes
+      when: not kubelet_conf.stat.exists
+
+
+# ============================================================
+# PLAY 2: Initialize Control Plane (Master Node เท่านั้น)
+# ============================================================
+- name: "Play 2: Initialize Kubernetes Control Plane (Master)"
+  hosts: i-01e19dbfdf04a9c7a
+  become: yes
+  vars:
+    master_instance_id: "i-01e19dbfdf04a9c7a"
+    pod_network_cidr: "10.244.0.0/16"
+
+  tasks:
+    - name: "5. Check if control plane already initialized"
+      stat:
+        path: /etc/kubernetes/admin.conf
+      register: admin_conf
+
+    - name: "5b. Get private IP of master node"
+      set_fact:
+        master_private_ip: "{{ ansible_default_ipv4.address }}"
+      when: not admin_conf.stat.exists
+
+    - name: "5c. Run kubeadm init (Control Plane)"
+      command: >
+        kubeadm init
+        --pod-network-cidr={{ pod_network_cidr }}
+        --apiserver-advertise-address={{ master_private_ip }}
+        --upload-certs
+        --ignore-preflight-errors=Mem,NumCPU
+      when: not admin_conf.stat.exists
+      register: kubeadm_init_output
+
+    - name: "5d. Save kubeadm init output to file"
+      copy:
+        content: "{{ kubeadm_init_output.stdout }}"
+        dest: /tmp/kubeadm_init.log
+      when:
+        - not admin_conf.stat.exists
+        - kubeadm_init_output is defined
+
+    - name: "5e. Create .kube directory for ansible_user"
+      file:
+        path: "/home/{{ ansible_user }}/.kube"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+
+    - name: "5f. Copy admin.conf to user's kubeconfig"
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: "/home/{{ ansible_user }}/.kube/config"
+        remote_src: yes
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0600'
+
+    - name: "6. Deploy Flannel CNI plugin"
+      become: no
+      command: >
+        kubectl apply -f
+        https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+      environment:
+        KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+      register: flannel_result
+      retries: 3
+      delay: 10
+
+    - name: "6b. Wait for Control Plane pods to be ready"
+      become: no
+      command: kubectl get nodes
+      environment:
+        KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+      register: nodes_status
+      until: "'Ready' in nodes_status.stdout"
+      retries: 15
+      delay: 20
+
+    # ---- ดึง Join Command สำหรับ Worker Nodes ----
+    - name: "7. Generate join token for worker nodes"
+      command: kubeadm token create --print-join-command
+      register: join_command_raw
+
+    - name: "7b. Store join command as fact accessible from other hosts"
+      set_fact:
+        join_command: "{{ join_command_raw.stdout }}"
+      # ทำให้ Worker Nodes เข้าถึงค่านี้ผ่าน hostvars ได้
+      delegate_to: "{{ item }}"
+      delegate_facts: true
+      loop: "{{ groups['all'] | difference([master_instance_id]) }}"
+
+    - name: "7c. Show join command"
+      debug:
+        msg: "Join command generated. Workers will use this to join the cluster."
+
+
+# ============================================================
+# PLAY 3: Join Worker Nodes
+# ============================================================
+- name: "Play 3: Join Worker Nodes to Cluster"
+  hosts: "all:!i-01e19dbfdf04a9c7a"
+  become: yes
+
+  tasks:
+    - name: "8. Check if THIS worker is actually in the cluster (เช็คจากเครื่อง Worker โดยตรง)"
+      shell: |
+        # ถ้า Worker Join สำเร็จ มันจะมี kubeconfig ของ kubelet ที่คุยกับ Master ได้
+        if kubectl --kubeconfig /etc/kubernetes/kubelet.conf get nodes 2>/dev/null | grep -w "$(hostname)" | grep -qw "Ready"; then
+          echo "joined"
+        else
+          echo "not_joined"
+        fi
+      register: worker_join_check
+      changed_when: false
+      ignore_errors: yes
+
+    - name: "8b. Show worker join status"
+      debug:
+        msg: "Worker status on this node: {{ worker_join_check.stdout | default('unknown') }}"
+
+    - name: "8c. Force reset Worker"
+      shell: |
+        kubeadm reset -f
+        rm -rf /etc/kubernetes /var/lib/kubelet/config.yaml /var/lib/etcd
+        systemctl stop kubelet || true
+      when: worker_join_check.stdout is not defined or worker_join_check.stdout != "joined"
+
+    - name: "8d. Join worker to cluster"
+      # join_command ถูกเก็บไว้ใน hostvars ของ Worker เอง (ผ่าน delegate_facts ใน Play 2)
+      shell: "{{ join_command }} --ignore-preflight-errors=Mem,NumCPU"
+      register: join_result
+      when:
+        - worker_join_check.stdout is not defined or worker_join_check.stdout != "joined"
+        - join_command is defined
+
+    - name: "8e. Show join result"
+      debug:
+        msg: "{{ join_result.stdout_lines | default(['(skipped — already properly joined)']) }}"
+
+
+# ============================================================
+# PLAY 4: Verify Cluster Status (รัน verify จาก Master)
+# ============================================================
+- name: "Play 4: Verify Cluster Status"
+  hosts: i-01e19dbfdf04a9c7a
+  become: no
+  vars:
+    kubeconfig: "/home/{{ ansible_user }}/.kube/config"
+
+  tasks:
+    - name: "9. Wait 60s for nodes to register and CNI to start"
+      pause:
+        seconds: 60
+        prompt: "Waiting for nodes to come online..."
+
+    - name: "9b. Get cluster node status"
+      command: kubectl get nodes -o wide
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      register: cluster_status
+      ignore_errors: yes
+
+    - name: "9c. Show node status"
+      debug:
+        msg: "{{ cluster_status.stdout_lines | default([cluster_status.stderr]) }}"
+
+    - name: "9d. Get all pods status"
+      command: kubectl get pods --all-namespaces
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      register: pods_status
+      ignore_errors: yes
+
+    - name: "9e. Show pod status"
+      debug:
+        msg: "{{ pods_status.stdout_lines | default([pods_status.stderr]) }}"
+
+    - name: "9f. Get events (last 10 — useful for diagnosing NotReady)"
+      command: kubectl get events --all-namespaces --sort-by=.lastTimestamp
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      register: events
+      ignore_errors: yes
+
+    - name: "9g. Show events"
+      debug:
+        msg: "{{ (events.stdout_lines | default([]))[-20:] }}"
+
+    - name: "9h. Cluster summary"
+      debug:
+        msg:
+          - "======================================="
+          - "  K8s Cluster Setup Complete"
+          - "======================================="
+          - "  Master : i-01e19dbfdf04a9c7a (Amazon Linux)"
+          - "  Worker1: i-01ae082d7c52e8372 (Ubuntu)"
+          - "  Worker2: i-0f09e5e3eb2072255 (Ubuntu)"
+          - "  Kubeconfig: /home/{{ ansible_user }}/.kube/config"
+          - "======================================="
+          - "  Nodes (above): check STATUS column"
+          - "  NotReady = CNI (Flannel) still starting"
+          - "  Ready    = Node fully operational"
+          - "======================================="
+
+
+# ============================================================
+# PLAY 5: Deploy Kubernetes Dashboard (Web UI)
+# ============================================================
+- name: "Play 5: Deploy Kubernetes Dashboard"
+  hosts: i-01e19dbfdf04a9c7a
+  become: no
+  vars:
+    kubeconfig: "/home/{{ ansible_user }}/.kube/config"
+    dashboard_version: "v2.7.0"
+
+  tasks:
+    - name: "10. Untaint Master (allow pods to schedule on control-plane for lab)"
+      # ในสภาพแวดล้อม Lab — อนุญาตให้ Dashboard และ Pod อื่นๆ ทำงานบน Master ได้
+      # ถ้า Worker Nodes เข้า Cluster แล้ว Task นี้จะไม่มีผลกับ Worker
+      shell: |
+        kubectl taint nodes --all node-role.kubernetes.io/control-plane- 2>/dev/null || true
+        kubectl taint nodes --all node-role.kubernetes.io/master- 2>/dev/null || true
+        echo "Untaint done"
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      changed_when: false
+
+    - name: "10b. Check if Dashboard already deployed"
+      command: kubectl get deployment kubernetes-dashboard -n kubernetes-dashboard
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      register: dashboard_check
+      ignore_errors: yes
+      changed_when: false
+
+    - name: "10b. Deploy Kubernetes Dashboard"
+      command: >
+        kubectl apply -f
+        https://raw.githubusercontent.com/kubernetes/dashboard/{{ dashboard_version }}/aio/deploy/recommended.yaml
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      when: dashboard_check.rc != 0
+
+    - name: "10c. Patch Dashboard service to NodePort (port 30443)"
+      command: >
+        kubectl patch svc kubernetes-dashboard
+        -n kubernetes-dashboard
+        -p '{"spec":{"type":"NodePort","ports":[{"port":443,"targetPort":8443,"nodePort":30443}]}}'
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      ignore_errors: yes
+
+    - name: "10d. Create admin ServiceAccount for Dashboard"
+      command: >
+        kubectl apply -f -
+      args:
+        stdin: |
+          apiVersion: v1
+          kind: ServiceAccount
+          metadata:
+            name: dashboard-admin
+            namespace: kubernetes-dashboard
+          ---
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRoleBinding
+          metadata:
+            name: dashboard-admin
+          roleRef:
+            apiGroup: rbac.authorization.k8s.io
+            kind: ClusterRole
+            name: cluster-admin
+          subjects:
+          - kind: ServiceAccount
+            name: dashboard-admin
+            namespace: kubernetes-dashboard
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+
+    - name: "10e. Generate Dashboard login token (valid 24h)"
+      command: >
+        kubectl create token dashboard-admin
+        -n kubernetes-dashboard
+        --duration=86400s
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      register: dashboard_token
+
+    - name: "10f. Get Master Node private IP"
+      command: >
+        kubectl get nodes -l node-role.kubernetes.io/control-plane
+        -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}'
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      register: master_ip
+
+    - name: "10g. Dashboard Access Info"
+      debug:
+        msg:
+          - "╔══════════════════════════════════════════════════════╗"
+          - "║        Kubernetes Dashboard Access Info              ║"
+          - "╠══════════════════════════════════════════════════════╣"
+          - "║ URL (from inside VPC):                               ║"
+          - "║  https://{{ master_ip.stdout }}:30443                "
+          - "╠══════════════════════════════════════════════════════╣"
+          - "║ ถ้าเข้าจากนอก VPC — ใช้ SSM Port Forward:           ║"
+          - "║  aws ssm start-session --target i-01e19dbfdf04a9c7a  ║"
+          - "║    --document-name AWS-StartPortForwardingSession    ║"
+          - "║    --parameters 'portNumber=30443,localPortNumber=30443' ║"
+          - "║  แล้วเปิด: https://localhost:30443                   ║"
+          - "╠══════════════════════════════════════════════════════╣"
+          - "║  Login Token (copy ทั้งหมดด้านล่าง):                ║"
+          - "╚══════════════════════════════════════════════════════╝"
+          - "{{ dashboard_token.stdout }}"

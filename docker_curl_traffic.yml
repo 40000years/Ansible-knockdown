@@ -1,0 +1,48 @@
+---
+- name: Generate Traffic via Docker Containers
+  hosts: all
+  become: yes
+  vars:
+    # URL เริ่มต้น สามารถส่งค่ามาทับได้ตอนรัน Playbook โดยเติม -e "target_url=https://..."
+    target_url: "https://youtu.be/Yt8QRBHlnVs"
+    # จำนวน Container ที่จะรันต่อ 1 เครื่อง EC2
+    container_count: 50
+
+  tasks:
+    - name: 1. Install Docker (Amazon Linux / CentOS / RHEL)
+      yum:
+        name: docker
+        state: present
+      when: ansible_os_family == "RedHat" or ansible_distribution == "Amazon"
+      ignore_errors: yes
+
+    - name: 1. Install Docker (Ubuntu / Debian)
+      apt:
+        name: docker.io
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+      ignore_errors: yes
+
+    - name: 2. Start and enable Docker service
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: 3. Pull curl Docker Image
+      command: docker pull curlimages/curl
+      changed_when: false
+
+    - name: 4. Run {{ container_count }} containers to curl the target URL
+      command: >
+        docker run --rm curlimages/curl -s -o /dev/null -w "HTTP_CODE:%{http_code} TIME:%{time_total}s" "{{ target_url }}"
+      register: curl_results
+      loop: "{{ range(0, container_count | int) | list }}"
+      
+    - name: 5. Print curl results
+      debug:
+        msg: "Container {{ item.item + 1 }} Result -> {{ item.stdout }}"
+      loop: "{{ curl_results.results }}"
+      loop_control:
+        label: "Container {{ item.item + 1 }}"

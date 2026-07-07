@@ -1,0 +1,191 @@
+---
+# ============================================================
+# Browser Traffic Simulator (สำหรับทดสอบ Traffic ของเว็บตัวเอง)
+# ใช้ Playwright Headless Browser เพื่อจำลองการเข้าเว็บจริงๆ
+# v3: ใช้ Docker Named Volume เพื่อ cache node_modules (ไม่ต้องพึ่ง host filesystem)
+# ============================================================
+- name: Browser Traffic Simulation (Study Mode)
+  hosts: all
+  become: yes
+  vars:
+    # ===== กำหนดค่าตามต้องการ (หรือส่งผ่าน Semaphore Extra Variables) =====
+    target_url: "https://youtu.be/Yt8QRBHlnVs"
+    # จำนวน browser sessions ต่อเครื่อง
+    session_count: 2
+    # เวลาที่จะ "คาอยู่" ในเว็บ (วินาที)
+    dwell_time_seconds: 180
+    # ชื่อ Docker Named Volume สำหรับ cache node_modules
+    docker_volume: "pw_node_modules"
+    
+    # เพิ่ม Timeout ป้องกัน Error: Timeout waiting for privilege escalation prompt
+    ansible_become_timeout: 120
+    # ======================================================================
+
+  tasks:
+    # ----------------------------------------------------------------
+    # 0. Pre-check
+    # ----------------------------------------------------------------
+    - name: 0. Show target info
+      debug:
+        msg:
+          - "Target URL      : {{ target_url }}"
+          - "Sessions/EC2    : {{ session_count }}"
+          - "Dwell time      : {{ dwell_time_seconds }}s per session"
+          - "Total accesses  : {{ (session_count | int) * (ansible_play_hosts | length) }}"
+
+    # ----------------------------------------------------------------
+    # 1. Install Docker
+    # ----------------------------------------------------------------
+    - name: 1a. Install Docker (Amazon Linux / RHEL)
+      yum:
+        name: docker
+        state: present
+      when: ansible_os_family == "RedHat" or ansible_distribution == "Amazon"
+      ignore_errors: yes
+
+    - name: 1b. Install Docker (Ubuntu / Debian)
+      apt:
+        name: docker.io
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+      ignore_errors: yes
+
+    - name: 1c. Start and enable Docker service
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    # ----------------------------------------------------------------
+    # 2. Pull Playwright image
+    # ----------------------------------------------------------------
+    - name: 2. Pull Playwright Docker Image
+      command: docker pull mcr.microsoft.com/playwright:v1.44.0-jammy
+      changed_when: false
+
+    # ----------------------------------------------------------------
+    # 3. เขียน script ลงบน EC2 Host  
+    # ----------------------------------------------------------------
+    - name: 3. Write Playwright browser script to EC2
+      copy:
+        dest: /tmp/visit_page.js
+        mode: '0644'
+        content: |
+          const { chromium } = require('playwright');
+          const TARGET_URL  = process.env.TARGET_URL  || 'https://example.com';
+          const DWELL_MS    = parseInt(process.env.DWELL_MS || '10000');
+          const SESSION_NUM = process.env.SESSION_NUM || '?';
+
+          (async () => {
+            const browser = await chromium.launch({
+              headless: true,
+              executablePath: '/ms-playwright/chromium-1117/chrome-linux/chrome',
+              args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+            });
+
+            const context = await browser.newContext({
+              viewport: { width: 1280, height: 720 },
+              userAgent: `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Session/${SESSION_NUM}`,
+              extraHTTPHeaders: {
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+              }
+            });
+
+            const page = await context.newPage();
+            let requestCount = 0;
+            page.on('request', () => requestCount++);
+
+            console.log(`[Session ${SESSION_NUM}] Navigating to ${TARGET_URL}...`);
+            try {
+              const resp = await page.goto(TARGET_URL, { waitUntil: 'networkidle', timeout: 60000 });
+              const status = resp ? resp.status() : 'unknown';
+              const title  = await page.title();
+              console.log(`[Session ${SESSION_NUM}] Status: ${status} | Title: "${title}" | Requests: ${requestCount}`);
+
+              console.log(`[Session ${SESSION_NUM}] Dwelling for ${DWELL_MS / 1000}s...`);
+              await page.waitForTimeout(DWELL_MS);
+
+              await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight / 2));
+              await page.waitForTimeout(2000);
+              await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+              await page.waitForTimeout(2000);
+
+              console.log(`[Session ${SESSION_NUM}] Done.`);
+            } catch (err) {
+              console.error(`[Session ${SESSION_NUM}] Error: ${err.message}`);
+            } finally {
+              await browser.close();
+            }
+          })();
+
+    # ----------------------------------------------------------------
+    # 4. npm install ผ่าน Docker Named Volume (cache ถาวร ไม่รันซ้ำ)
+    #    ทุกอย่าง (package.json + npm install) ทำงานภายใน Container เอง
+    #    ผล node_modules เก็บไว้ใน Named Volume ชื่อ pw_node_modules
+    # ----------------------------------------------------------------
+    - name: 4. Install playwright npm package into Docker named volume
+      shell: |
+        # ตรวจสอบว่า playwright ถูก install ไปในใน volume แล้วหรือยัง
+        INSTALLED=$(docker run --rm \
+          -v {{ docker_volume }}:/mods \
+          mcr.microsoft.com/playwright:v1.44.0-jammy \
+          test -d /mods/node_modules/playwright && echo yes || echo no)
+
+        if [ "$INSTALLED" = "no" ]; then
+          echo "Installing playwright npm package into volume..."
+          docker run --rm \
+            -v {{ docker_volume }}:/mods \
+            mcr.microsoft.com/playwright:v1.44.0-jammy \
+            /bin/bash -c '
+              cd /mods
+              echo '"'"'{"name":"pw-sim","version":"1.0.0","dependencies":{"playwright":"1.44.0"}}'"'"' > package.json
+              npm install --prefer-offline
+            '
+          echo "Done."
+        else
+          echo "playwright already installed in volume, skipping."
+        fi
+
+    # ----------------------------------------------------------------
+    # 5. รัน Browser sessions (NODE_PATH ชี้ไปที่ Volume node_modules)
+    # ----------------------------------------------------------------
+    - name: 5. Run browser sessions ({{ session_count }} sessions per EC2)
+      shell: |
+        docker run --rm \
+          -e TARGET_URL="{{ target_url }}" \
+          -e DWELL_MS="{{ (dwell_time_seconds | int) * 1000 }}" \
+          -e SESSION_NUM="{{ item }}" \
+          -e NODE_PATH=/mods/node_modules \
+          -v {{ docker_volume }}:/mods \
+          -v /tmp/visit_page.js:/tmp/visit_page.js:ro \
+          mcr.microsoft.com/playwright:v1.44.0-jammy \
+          node /tmp/visit_page.js
+      loop: "{{ range(1, session_count | int + 1) | list }}"
+      register: session_results
+      async: "{{ (dwell_time_seconds | int) + 120 }}"
+      poll: 0
+
+    - name: 5b. Wait for all sessions to complete
+      async_status:
+        jid: "{{ item.ansible_job_id }}"
+      loop: "{{ session_results.results }}"
+      register: job_status
+      until: job_status.finished
+      retries: "{{ ((dwell_time_seconds | int) / 5) | int + 30 }}"
+      delay: 5
+
+    # ----------------------------------------------------------------
+    # 6. Summary Report
+    # ----------------------------------------------------------------
+    - name: 6. Print session summaries
+      debug:
+        msg: >-
+          [EC2: {{ inventory_hostname }}]
+          Session {{ item.item }} |
+          {{ (item.stdout_lines | select('match', '.*\\[Session.*\\].*') | list | join(' | ')) or 'no output' }}
+      loop: "{{ job_status.results }}"
+      when: item.stdout is defined
+      loop_control:
+        label: "Session {{ item.item }}"
