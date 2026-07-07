@@ -15,14 +15,13 @@ except ImportError:
 PORT = 8000
 DIRECTORY = os.path.dirname(os.path.abspath(__file__))
 
-region = os.environ.get('AWS_DEFAULT_REGION', 'ap-southeast-1')
 NEEDS_SETUP = False
 try:
     import botocore.exceptions
-    sts = boto3.client('sts', region_name=region)
+    sts = boto3.client('sts')
     sts.get_caller_identity()
-    ec2 = boto3.client('ec2', region_name=region)
-    ssm = boto3.client('ssm', region_name=region)
+    ec2 = boto3.client('ec2')
+    ssm = boto3.client('ssm')
 except Exception:
     NEEDS_SETUP = True
     ec2 = None
@@ -89,15 +88,14 @@ class LocalDashboardHandler(http.server.SimpleHTTPRequestHandler):
             f.write(f"[default]\nregion = {region_input}\n")
             
         # Re-initialize globals
-        global NEEDS_SETUP, ec2, ssm, region
-        region = region_input
+        global NEEDS_SETUP, ec2, ssm
         try:
             import importlib
             importlib.reload(boto3)
-            ec2 = boto3.client('ec2', region_name=region)
-            ssm = boto3.client('ssm', region_name=region)
+            ec2 = boto3.client('ec2')
+            ssm = boto3.client('ssm')
             
-            sts = boto3.client('sts', region_name=region)
+            sts = boto3.client('sts')
             sts.get_caller_identity()
             NEEDS_SETUP = False
             self.send_json_response(200, {"success": True, "message": "Credentials configured!"})

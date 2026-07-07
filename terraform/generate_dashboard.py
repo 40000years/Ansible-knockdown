@@ -32,8 +32,7 @@ def main():
     log("Fetching ALL live EC2 states and details via boto3...")
     try:
         import boto3
-        region = os.environ.get("AWS_DEFAULT_REGION", "ap-southeast-1")
-        ec2 = boto3.client('ec2', region_name=region)
+        ec2 = boto3.client('ec2')
         response = ec2.describe_instances()
         
         if "ec2_all_detail" not in data or not isinstance(data["ec2_all_detail"], dict):
