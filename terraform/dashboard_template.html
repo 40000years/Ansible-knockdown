@@ -1275,22 +1275,19 @@
                                     
                                     <!-- Terminal Output -->
                                     <div id="shell-terminal" class="p-4 flex-1 min-h-0 overflow-y-auto overflow-x-hidden font-mono text-[11px] sm:text-xs text-slate-300 leading-relaxed whitespace-pre-wrap break-words selection:bg-indigo-500/30" @click="$refs.shellInputBox.focus()">
-                                        <template x-for="(line, idx) in getShellState(playbookTarget?.id).history" :key="idx">
-                                            <div class="mb-2">
-                                                <div class="text-indigo-400 flex"><span class="mr-2">$</span><span class="text-indigo-300" x-text="line.cmd"></span></div>
-                                                <div class="text-slate-400 pl-4" x-text="line.out"></div>
-                                                <template x-if="line.err"><div class="text-rose-400 pl-4" x-text="line.err"></div></template>
+                                        <template x-for="(entry, index) in getShellState(playbookTarget?.id).history" :key="index">
+                                            <div class="mb-3">
+                                                <div class="text-indigo-400 font-bold">$ <span class="text-white" x-text="entry.cmd"></span></div>
+                                                <div x-show="entry.status === 'running'" class="text-slate-500 mt-1 flex items-center gap-1"><i class="fa-solid fa-circle-notch fa-spin text-[10px]"></i> Executing...</div>
+                                                <div x-show="entry.status !== 'running'" class="mt-1" :class="entry.status === 'error' ? 'text-rose-400' : 'text-slate-300'" x-text="entry.output"></div>
                                             </div>
                                         </template>
-                                        <div x-show="getShellState(playbookTarget?.id).status === 'running'" class="flex items-center text-slate-500 mt-2">
-                                            <i class="fa-solid fa-circle-notch fa-spin mr-2"></i> executing...
-                                        </div>
                                     </div>
-                                    
+
                                     <!-- Terminal Input -->
                                     <div class="bg-slate-900 border-t border-slate-800 p-3 flex items-center">
                                         <span class="text-indigo-400 font-mono mr-2">$</span>
-                                        <input x-ref="shellInputBox" x-model="getShellState(playbookTarget?.id).input" :disabled="getShellState(playbookTarget?.id).status === 'running'" type="text" class="flex-1 bg-transparent border-none outline-none text-white font-mono text-[11px] sm:text-xs focus:ring-0 p-0" placeholder="Type a command (e.g. ls -la) and press Enter..." autocomplete="off" spellcheck="false" @keydown.enter="executeShellCommand()">
+                                        <input x-ref="shellInputBox" x-model="getShellState(playbookTarget?.id).input" :disabled="getShellState(playbookTarget?.id).status === 'running'" type="text" class="flex-1 bg-transparent border-none outline-none text-white font-mono text-[11px] sm:text-xs focus:ring-0 p-0" placeholder="Type a command (e.g. ls -la) and press Enter..." autocomplete="off" spellcheck="false" @keydown.enter="runShellCommand()">
                                     </div>
                                 </div>
                             </template>
