@@ -14,7 +14,7 @@ terraform {
   # State แยกจาก dashboard — ป้องกัน conflict กับ workspace หลัก
   backend "s3" {
     bucket = "thanaphat-web-app-bucket-2026-858039354188-ap-southeast-1-an"
-    key    = "ec2-power/stop/terraform.tfstate"
+    key    = "ec2-power/stop-radahn/terraform.tfstate"
     region = "ap-southeast-1"
   }
 }
