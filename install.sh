@@ -11,10 +11,20 @@ if ! command -v git &> /dev/null; then
     exit 1
 fi
 
-# Check for Docker
+# Check for Docker and attempt to install if missing
 if ! command -v docker &> /dev/null; then
-    echo "❌ Error: 'docker' is not installed. Please install docker first."
-    exit 1
+    echo "📦 Docker not found. Attempting to install Docker automatically..."
+    if command -v apt-get &> /dev/null; then
+        sudo apt-get update -y
+        sudo apt-get install -y docker.io
+        sudo systemctl enable --now docker || true
+    elif command -v yum &> /dev/null; then
+        sudo yum install -y docker
+        sudo systemctl enable --now docker || true
+    else
+        echo "❌ Error: Cannot automatically install Docker on this OS. Please install Docker manually."
+        exit 1
+    fi
 fi
 
 INSTALL_DIR="$HOME/.radahn-system"
