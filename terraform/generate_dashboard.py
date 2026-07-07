@@ -23,6 +23,52 @@ def main():
     with open(json_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
+    # Workaround: Terraform's data.aws_instances has a bug where it completely misses stopped instances.
+    # We will fetch ALL true live EC2 instances via AWS CLI and fully populate the JSON before injecting.
+    log("Fetching ALL live EC2 states and details via AWS CLI...")
+    try:
+        result = subprocess.run([
+            "aws", "ec2", "describe-instances",
+            "--output", "json"
+        ], capture_output=True, text=True, check=True)
+        live_states = json.loads(result.stdout)
+        
+        if "ec2_all_detail" not in data or not isinstance(data["ec2_all_detail"], dict):
+            data["ec2_all_detail"] = {}
+            
+        patched_count = 0
+        added_count = 0
+        for res in live_states.get("Reservations", []):
+            for inst in res.get("Instances", []):
+                inst_id = inst.get("InstanceId")
+                tags = {t.get("Key"): t.get("Value") for t in inst.get("Tags", [])}
+                
+                if inst_id not in data["ec2_all_detail"]:
+                    data["ec2_all_detail"][inst_id] = {}
+                    added_count += 1
+                else:
+                    patched_count += 1
+                    
+                info = data["ec2_all_detail"][inst_id]
+                info["instance_state"] = inst.get("State", {}).get("Name", "unknown")
+                info["private_ip"] = inst.get("PrivateIpAddress", "Offline")
+                info["public_ip"] = inst.get("PublicIpAddress", "No Public IP")
+                info["instance_type"] = inst.get("InstanceType", "unknown")
+                info["availability_zone"] = inst.get("Placement", {}).get("AvailabilityZone", "unknown")
+                info["key_name"] = inst.get("KeyName", "none")
+                info["name"] = tags.get("Name", inst_id)
+                info["environment"] = tags.get("Environment", "untagged")
+                info["role"] = tags.get("Role", "untagged")
+                
+        # Also fix ec2_stopped_ids just in case
+        data["ec2_stopped_ids"] = [i for i, v in data["ec2_all_detail"].items() if v.get("instance_state") not in ["running", "pending"]]
+        
+        log(f"AWS CLI Sync: Patched {patched_count} existing, Added {added_count} missing instances.")
+    except Exception as e:
+        log(f"Warning: Could not fetch true live EC2 states: {e}")
+
+
+
     log("Injecting data into dashboard template (client-side rendered)...")
 
     # The HTML is a static template that renders itself client-side.
