@@ -4,8 +4,14 @@
 IMAGE_NAME="radahn-dashboard"
 CONTAINER_NAME="radahn-dashboard"
 PORT=8000
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
+# Resolve the real path of the script even if called via a symlink
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+while [ -L "$SCRIPT_PATH" ]; do
+    SCRIPT_DIR="$(cd -P "$(dirname "$SCRIPT_PATH")" >/dev/null 2>&1 && pwd)"
+    SCRIPT_PATH="$(readlink "$SCRIPT_PATH")"
+    [[ $SCRIPT_PATH != /* ]] && SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_PATH"
+done
+DIR="$(cd -P "$(dirname "$SCRIPT_PATH")" >/dev/null 2>&1 && pwd)"
 # Function to show usage
 show_help() {
     echo "Usage: radahn [start|stop|logs]"
