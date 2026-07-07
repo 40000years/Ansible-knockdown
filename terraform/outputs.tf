@@ -131,22 +131,22 @@ output "elastic_ips" {
 # Infrastructure Dashboard Web URL
 # ============================================================================
 
-output "dashboard_url" {
-  value       = "https://${aws_cloudfront_distribution.dashboard.domain_name}"
-  description = "URL สำหรับเปิดดูหน้าเว็บ HTML Infrastructure Dashboard แบบ Real-time ผ่าน CloudFront"
-}
-
-output "dashboard_bucket" {
-  value       = aws_s3_bucket.dashboard.id
-  description = "S3 Bucket Name for Dashboard"
-}
-
-output "dashboard_cloudfront_id" {
-  value       = aws_cloudfront_distribution.dashboard.id
-  description = "CloudFront Distribution ID for Dashboard"
-}
-
-output "dashboard_api_url" {
-  value       = aws_apigatewayv2_api.dashboard_api.api_endpoint
-  description = "API Gateway URL for Dashboard EC2 actions"
-}
+# output "dashboard_url" {
+#   value       = "https://${aws_cloudfront_distribution.dashboard.domain_name}"
+#   description = "URL สำหรับเปิดดูหน้าเว็บ HTML Infrastructure Dashboard แบบ Real-time ผ่าน CloudFront"
+# }
+# 
+# output "dashboard_bucket" {
+#   value       = aws_s3_bucket.dashboard.id
+#   description = "S3 Bucket Name for Dashboard"
+# }
+# 
+# output "dashboard_cloudfront_id" {
+#   value       = aws_cloudfront_distribution.dashboard.id
+#   description = "CloudFront Distribution ID for Dashboard"
+# }
+# 
+# output "dashboard_api_url" {
+#   value       = aws_apigatewayv2_api.dashboard_api.api_endpoint
+#   description = "API Gateway URL for Dashboard EC2 actions"
+# }

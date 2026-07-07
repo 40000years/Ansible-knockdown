@@ -2,6 +2,7 @@ import json
 import os
 import subprocess
 import sys
+import datetime
 
 def log(msg):
     print(f"[Dashboard Engine] {msg}")
@@ -22,6 +23,9 @@ def main():
     log("Loading infrastructure data...")
     with open(json_path, "r", encoding="utf-8") as f:
         data = json.load(f)
+
+    # Inject updated_at here so Terraform doesn't have to trigger a diff on every run
+    data["updated_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
     # Workaround: Terraform's data.aws_instances has a bug where it completely misses stopped instances.
     # We will fetch ALL true live EC2 instances via AWS CLI and fully populate the JSON before injecting.

@@ -95,9 +95,9 @@ data "aws_eips" "all" {}
 # ============================================================================
 # Semaphore UI hides outputs if there are 0 changes. This dummy resource 
 # changes every time, forcing Semaphore to print the outputs.
-resource "terraform_data" "force_semaphore_output" {
-  triggers_replace = timestamp()
-}
+# resource "terraform_data" "force_semaphore_output" {
+#   triggers_replace = timestamp()
+# }
 
 # ============================================================================
 # 8. Locals: Summary + Advanced Grouping

@@ -368,6 +368,15 @@
                         <p class="text-[10px] text-slate-500 mt-1 font-mono" x-text="'Updated ' + data.updatedAt"></p>
                     </div>
 
+                    <!-- Sync AWS Data Button (Local Only) -->
+                    <button @click="syncData()" x-show="window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'"
+                        class="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 text-emerald-200 text-[13px] font-medium hover:bg-emerald-500/20 transition-all duration-200 focus:outline-none"
+                        :disabled="syncing"
+                        :class="syncing ? 'opacity-50 cursor-wait' : ''">
+                        <i class="fa-solid fa-arrows-rotate text-[12px]" :class="syncing ? 'fa-spin' : ''"></i>
+                        <span x-text="syncing ? 'Syncing...' : 'Sync AWS Data'"></span>
+                    </button>
+
                     <!-- Export Button -->
                     <div class="relative">
                         <button @click="exportOpen = !exportOpen" @keydown.escape.window="exportOpen = false"
@@ -1774,6 +1783,7 @@
                 certifiedInstances: {},
                 realTimeStatus: {},
                 pollingIntervals: {},
+                syncing: false,
 
                 // Background Execution State
                 playbooks: {}, // Keyed by instance id: { selected, status, output, commandId, progress, polling, isNistCertified }
@@ -1845,13 +1855,36 @@
                             security_groups: j.security_groups || {},
                             network_topology: j.network_topology || {},
                             region: j.region || 'unknown',
-                            api_gateway_url: j.api_gateway_url || '',
+                            api_gateway_url: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? '' : (j.api_gateway_url || ''),
                             updatedAt: this.formatTime(j.updated_at || ''),
                             billing: j.billing || null,
                             free_tier: j.free_tier || null,
                         };
                     } catch (e) {
                         console.error('Failed to parse infra data', e);
+                    }
+                },
+
+                async syncData() {
+                    this.syncing = true;
+                    this.addToast('Syncing latest AWS data...', 'success');
+                    try {
+                        const res = await fetch('/refresh', {
+                            method: 'POST'
+                        });
+                        const d = await res.json();
+                        if (res.ok && !d.error) {
+                            this.addToast('Data synced successfully! Reloading...', 'success');
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1000);
+                        } else {
+                            throw new Error(d.error || 'Failed to sync');
+                        }
+                    } catch (e) {
+                        this.addToast('Sync failed: ' + e.message, 'error');
+                    } finally {
+                        this.syncing = false;
                     }
                 },
 
