@@ -40,37 +40,44 @@ else
     git clone -b Radahn https://github.com/40000years/Ansible-knockdown.git "$INSTALL_DIR"
 fi
 
-# Setup Alias
-ALIAS_CMD="alias radahn=\"$INSTALL_DIR/terraform/radahn.sh\""
-PROFILE_UPDATED=false
-
-# Update .zshrc if exists or if on macOS
-if [ -f "$HOME/.zshrc" ] || [ "$(uname)" == "Darwin" ]; then
-    if ! grep -q "alias radahn=" "$HOME/.zshrc" 2>/dev/null; then
-        echo -e "\n# Radahn Dashboard\n$ALIAS_CMD" >> "$HOME/.zshrc"
-    fi
-    PROFILE_UPDATED=true
-fi
-
-# Update .bashrc if exists or if on Linux
-if [ -f "$HOME/.bashrc" ] || [ "$(uname)" == "Linux" ]; then
-    if ! grep -q "alias radahn=" "$HOME/.bashrc" 2>/dev/null; then
-        echo -e "\n# Radahn Dashboard\n$ALIAS_CMD" >> "$HOME/.bashrc"
-    fi
-    PROFILE_UPDATED=true
-fi
-
 # Make script executable
 chmod +x "$INSTALL_DIR/terraform/radahn.sh"
+
+# Setup Global Command (Symlink)
+echo "🔗 Setting up global 'radahn' command..."
+if sudo ln -sf "$INSTALL_DIR/terraform/radahn.sh" /usr/local/bin/radahn 2>/dev/null; then
+    echo "✅ Global command 'radahn' installed successfully in /usr/local/bin!"
+    NEEDS_SOURCE=false
+else
+    # Fallback to Alias if symlink fails
+    echo "⚠️  Could not write to /usr/local/bin. Falling back to Profile Alias..."
+    ALIAS_CMD="alias radahn=\"$INSTALL_DIR/terraform/radahn.sh\""
+    NEEDS_SOURCE=true
+    
+    if [ -f "$HOME/.zshrc" ] || [ "$(uname)" == "Darwin" ]; then
+        if ! grep -q "alias radahn=" "$HOME/.zshrc" 2>/dev/null; then
+            echo -e "\n# Radahn Dashboard\n$ALIAS_CMD" >> "$HOME/.zshrc"
+        fi
+    fi
+
+    if [ -f "$HOME/.bashrc" ] || [ "$(uname)" == "Linux" ]; then
+        if ! grep -q "alias radahn=" "$HOME/.bashrc" 2>/dev/null; then
+            echo -e "\n# Radahn Dashboard\n$ALIAS_CMD" >> "$HOME/.bashrc"
+        fi
+    fi
+fi
 
 echo "=================================================="
 echo " ✅ Installation Complete!"
 echo "=================================================="
-echo " 🛠️  Please restart your terminal OR run:"
-if [ "$(uname)" == "Darwin" ]; then
-    echo "     source ~/.zshrc"
-else
-    echo "     source ~/.bashrc"
+if [ "$NEEDS_SOURCE" = true ]; then
+    echo " 🛠️  Please restart your terminal OR run:"
+    if [ "$(uname)" == "Darwin" ]; then
+        echo "     source ~/.zshrc"
+    else
+        echo "     source ~/.bashrc"
+    fi
+    echo ""
 fi
 echo ""
 echo " 🚀 Then, you can start the dashboard anytime by typing:"
