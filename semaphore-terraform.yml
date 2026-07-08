@@ -5,6 +5,12 @@
   gather_facts: false
 
   tasks:
+    - name: Debug AWS Variables from Semaphore
+      debug:
+        msg: |
+          Extra Var Access Key: "{{ AWS_ACCESS_KEY_ID | default('NOT_FOUND_IN_EXTRA_VARS') }}"
+          Env Var Access Key: "{{ lookup('env', 'AWS_ACCESS_KEY_ID') | default('NOT_FOUND_IN_ENV', true) }}"
+
     - name: Ensure Terraform is initialized
       shell: |
         cd terraform
