@@ -2069,7 +2069,7 @@
                 // --- Background State Helpers ---
                 getPlaybookState(id) {
                     if (!this.playbooks[id]) {
-                        this.playbooks[id] = { selected: 'nginx', status: null, output: '', commandId: null, progress: 0, polling: null, isNistCertified: false };
+                        this.playbooks[id] = { selected: 'nginx', nodeCount: 2, status: null, output: '', commandId: null, progress: 0, polling: null, isNistCertified: false };
                     }
                     return this.playbooks[id];
                 },
@@ -2129,7 +2129,8 @@
                                 action: 'run_playbook',
                                 instance_ids: [id],
                                 playbook_name: state.selected,
-                                playbook_url: playbooks[state.selected] || ''
+                                playbook_url: playbooks[state.selected] || '',
+                                node_count: parseInt(state.nodeCount) || 2
                             })
                         });
 
@@ -2216,6 +2217,22 @@
                                         }).then(() => {
                                             if (this.data.ec2_all_detail[id]) {
                                                 this.data.ec2_all_detail[id].is_nist_certified = isCertified;
+                                            }
+                                        }).catch(console.error);
+                                    } else if (state.selected === 'kind_cluster') {
+                                        // Persist K8s tag to EC2
+                                        this.k8sInstances[id] = true;
+                                        fetch(`${url}/ec2`, {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                                action: 'tag_instance',
+                                                instance_ids: [id],
+                                                tags: [{ Key: 'K8sRole', Value: 'control-plane' }]
+                                            })
+                                        }).then(() => {
+                                            if (this.data.ec2_all_detail[id]) {
+                                                this.data.ec2_all_detail[id].k8s_role = 'control-plane';
                                             }
                                         }).catch(console.error);
                                     }

@@ -58,6 +58,7 @@ def main():
                 info["environment"] = tags.get("Environment", "untagged")
                 info["role"] = tags.get("Role", "untagged")
                 info["is_nist_certified"] = (tags.get("NistCertified", "false").lower() == "true")
+                info["k8s_role"] = tags.get("K8sRole", "")
                 data["ec2_all_detail"][inst_id] = info
                 
         # Update derived fields
