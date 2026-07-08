@@ -139,6 +139,6 @@ resource "null_resource" "generate_and_upload_dashboard" {
       S3_BUCKET_NAME        = aws_s3_bucket.dashboard.id
       CLOUDFRONT_DIST_ID    = aws_cloudfront_distribution.dashboard.id
     }
-    command = "python3 ${path.module}/generate_dashboard.py"
+    command = "chmod +x ${path.module}/run_dashboard.sh && ${path.module}/run_dashboard.sh"
   }
 }
