@@ -81,7 +81,31 @@ def main():
                 data["internet_gateways"][attach.get('VpcId')] = {'igw_id': i['InternetGatewayId'], 'state': attach.get('State')}
                 
         nats = ec2.describe_nat_gateways().get('NatGateways', [])
-        data["nat_gateways"] = {n['NatGatewayId']: {'vpc_id': n.get('VpcId'), 'subnet_id': n.get('SubnetId'), 'state': n.get('State')} for n in nats}
+        data["nat_gateways"] = {}
+        for n in nats:
+            pub, priv = "", ""
+            for a in n.get('NatGatewayAddresses', []):
+                pub = a.get('PublicIp', '')
+                priv = a.get('PrivateIp', '')
+                break
+            data["nat_gateways"][n['NatGatewayId']] = {
+                'vpc_id': n.get('VpcId'), 'subnet_id': n.get('SubnetId'), 'state': n.get('State'),
+                'public_ip': pub, 'private_ip': priv, 'connectivity_type': n.get('ConnectivityType', 'unknown')
+            }
+            
+        rts = ec2.describe_route_tables().get('RouteTables', [])
+        data["route_table_details"] = {}
+        for rt in rts:
+            routes = []
+            for r in rt.get('Routes', []):
+                target = r.get('GatewayId') or r.get('NatGatewayId') or r.get('InstanceId') or r.get('NetworkInterfaceId') or 'local'
+                routes.append({'destination': r.get('DestinationCidrBlock', r.get('DestinationIpv6CidrBlock', '')), 'target': target})
+            data["route_table_details"][rt['RouteTableId']] = {
+                'vpc_id': rt.get('VpcId'),
+                'is_main': any(a.get('Main', False) for a in rt.get('Associations', [])),
+                'associations': len(rt.get('Associations', [])),
+                'routes': routes
+            }
         
         # Rebuild topology
         topo = {}
