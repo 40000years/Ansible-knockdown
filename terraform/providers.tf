@@ -7,6 +7,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 3.0"
+    }
   }
   # S3 Backend: shared between Terraform and OpenTofu runs.
   # OpenTofu reads/writes the same terraform.tfstate file transparently.
@@ -21,4 +25,14 @@ provider "aws" {
   region     = var.AWS_DEFAULT_REGION != "" ? var.AWS_DEFAULT_REGION : var.aws_region
   access_key = var.AWS_ACCESS_KEY_ID != "" ? var.AWS_ACCESS_KEY_ID : null
   secret_key = var.AWS_SECRET_ACCESS_KEY != "" ? var.AWS_SECRET_ACCESS_KEY : null
+}
+
+provider "azurerm" {
+  features {}
+  subscription_id = var.azure_subscription_id != "" ? var.azure_subscription_id : null
+  client_id       = var.azure_client_id != "" ? var.azure_client_id : null
+  client_secret   = var.azure_client_secret != "" ? var.azure_client_secret : null
+  tenant_id       = var.azure_tenant_id != "" ? var.azure_tenant_id : null
+  # Skip provider registration if Azure is not configured — avoids errors on AWS-only runs
+  skip_provider_registration = var.azure_subscription_id == ""
 }

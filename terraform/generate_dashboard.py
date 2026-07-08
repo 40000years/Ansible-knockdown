@@ -121,6 +121,123 @@ def main():
     except Exception as e:
         log(f"Warning: Could not fetch true live EC2 states: {e}")
 
+    # =========================================================================
+    # Azure Data Sync — only runs if Azure credentials are present
+    # =========================================================================
+    log("Checking Azure credentials for Multi-Cloud sync...")
+    azure_creds = {
+        "subscription_id": os.environ.get("AZURE_SUBSCRIPTION_ID", ""),
+        "client_id": os.environ.get("AZURE_CLIENT_ID", ""),
+        "client_secret": os.environ.get("AZURE_CLIENT_SECRET", ""),
+        "tenant_id": os.environ.get("AZURE_TENANT_ID", ""),
+    }
+
+    if all(azure_creds.values()):
+        log("Azure credentials found — fetching Azure resources...")
+        try:
+            from azure.identity import ClientSecretCredential
+            from azure.mgmt.compute import ComputeManagementClient
+            from azure.mgmt.network import NetworkManagementClient
+
+            credential = ClientSecretCredential(
+                tenant_id=azure_creds["tenant_id"],
+                client_id=azure_creds["client_id"],
+                client_secret=azure_creds["client_secret"],
+            )
+            sub_id = azure_creds["subscription_id"]
+            compute_client = ComputeManagementClient(credential, sub_id)
+            network_client = NetworkManagementClient(credential, sub_id)
+
+            # ---- VMs ----
+            azure_vms = {}
+            for vm in compute_client.virtual_machines.list_all():
+                rg = vm.id.split("/")[4]
+                try:
+                    inst_view = compute_client.virtual_machines.instance_view(rg, vm.name)
+                    statuses = inst_view.statuses or []
+                    state = "unknown"
+                    for s in statuses:
+                        if s.code and s.code.startswith("PowerState/"):
+                            state = s.code.split("/")[1]
+                    # Get private IP from NIC
+                    private_ip = ""
+                    if vm.network_profile and vm.network_profile.network_interfaces:
+                        for nic_ref in vm.network_profile.network_interfaces:
+                            nic_name = nic_ref.id.split("/")[-1]
+                            nic_rg = nic_ref.id.split("/")[4]
+                            nic = network_client.network_interfaces.get(nic_rg, nic_name)
+                            for ip_config in nic.ip_configurations or []:
+                                if ip_config.private_ip_address:
+                                    private_ip = ip_config.private_ip_address
+                                    break
+                except Exception:
+                    state = "unknown"
+                    private_ip = ""
+                tags = vm.tags or {}
+                azure_vms[vm.id] = {
+                    "name": vm.name,
+                    "resource_group": rg,
+                    "location": vm.location,
+                    "vm_size": vm.hardware_profile.vm_size if vm.hardware_profile else "unknown",
+                    "state": state,
+                    "private_ip": private_ip,
+                    "os_type": vm.storage_profile.os_disk.os_type if vm.storage_profile else "unknown",
+                    "tags": tags,
+                }
+            data["azure_vms"] = azure_vms
+            log(f"Azure: fetched {len(azure_vms)} VMs")
+
+            # ---- VNets ----
+            azure_vnets = {}
+            for vnet in network_client.virtual_networks.list_all():
+                rg = vnet.id.split("/")[4]
+                subnets_info = {}
+                for subnet in vnet.subnets or []:
+                    subnets_info[subnet.name] = {
+                        "id": subnet.id,
+                        "address_prefix": subnet.address_prefix,
+                    }
+                azure_vnets[vnet.id] = {
+                    "name": vnet.name,
+                    "resource_group": rg,
+                    "location": vnet.location,
+                    "address_space": vnet.address_space.address_prefixes if vnet.address_space else [],
+                    "subnets": subnets_info,
+                }
+            data["azure_vnets"] = azure_vnets
+            log(f"Azure: fetched {len(azure_vnets)} VNets")
+
+            # ---- VPN Connections ----
+            azure_vpn_connections = {}
+            for conn in network_client.virtual_network_gateway_connections.list_all():
+                rg = conn.id.split("/")[4]
+                azure_vpn_connections[conn.name] = {
+                    "id": conn.id,
+                    "resource_group": rg,
+                    "location": conn.location,
+                    "connection_type": conn.connection_type,
+                    "connection_status": conn.connection_status,
+                    "ingress_bytes": conn.ingress_bytes_transferred or 0,
+                    "egress_bytes": conn.egress_bytes_transferred or 0,
+                }
+            data["azure_vpn_connections"] = azure_vpn_connections
+            log(f"Azure: fetched {len(azure_vpn_connections)} VPN connections")
+
+            data["azure_configured"] = True
+            data["azure_subscription_id"] = sub_id
+
+        except ImportError:
+            log("Warning: azure-identity / azure-mgmt-compute / azure-mgmt-network not installed. Run: pip install azure-identity azure-mgmt-compute azure-mgmt-network")
+            data.setdefault("azure_configured", False)
+        except Exception as e:
+            log(f"Warning: Could not fetch Azure data: {e}")
+            data.setdefault("azure_configured", False)
+    else:
+        log("Azure credentials not set — skipping Azure sync (set AZURE_SUBSCRIPTION_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID)")
+        data.setdefault("azure_configured", False)
+        data.setdefault("azure_vms", {})
+        data.setdefault("azure_vnets", {})
+        data.setdefault("azure_vpn_connections", {})
 
 
     log("Injecting data into dashboard template (client-side rendered)...")
