@@ -3,22 +3,20 @@ set -e
 
 # ตรวจสอบและติดตั้ง aws-cli หากยังไม่มีในระบบ
 if ! command -v aws >/dev/null 2>&1; then
-    echo "[Setup] aws command not found. Attempting to install AWS CLI..."
-    if command -v apk >/dev/null 2>&1; then
-        echo "[Setup] Alpine Linux detected. Installing aws-cli via apk..."
-        sudo apk add --no-cache aws-cli || apk add --no-cache aws-cli
-    elif command -v apt-get >/dev/null 2>&1; then
-        echo "[Setup] Debian/Ubuntu detected. Installing awscli via apt-get..."
-        sudo apt-get update && sudo apt-get install -y awscli || (apt-get update && apt-get install -y awscli)
-    elif command -v pip3 >/dev/null 2>&1; then
-        echo "[Setup] pip3 detected. Installing awscli via pip3..."
-        pip3 install awscli || pip3 install --user awscli
-        export PATH=$PATH:$HOME/.local/bin
+    echo "[Setup] aws command not found. Attempting to install AWS CLI via pip3..."
+    
+    # พยายามติดตั้งผ่าน pip3 เนื่องจากเราไม่มีสิทธิ์ root (sudo)
+    # และ Python 3.11+ อาจต้องการ --break-system-packages
+    if pip3 install --user awscli --break-system-packages 2>/dev/null || pip3 install --user awscli 2>/dev/null || pip3 install awscli 2>/dev/null; then
+        echo "[Setup] Successfully installed awscli via pip3."
     else
-        echo "[Setup] Error: Cannot find a way to install aws-cli (no apk, apt-get, or pip3)."
+        echo "[Setup] Error: Failed to install awscli via pip3. Please ensure pip3 is available and has network access."
         exit 1
     fi
 fi
+
+# นำ ~/.local/bin เข้า PATH เผื่อ aws ถูกติดตั้งไว้ที่นั่น
+export PATH=$PATH:$HOME/.local/bin
 
 echo "[Setup] aws-cli is ready."
 
