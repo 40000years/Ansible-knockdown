@@ -14,7 +14,7 @@
     - name: Ensure Terraform is initialized
       shell: |
         cd terraform
-        terraform init -no-color
+        terraform init -reconfigure -no-color
       environment:
         AWS_ACCESS_KEY_ID: "{{ AWS_ACCESS_KEY_ID | default(lookup('env', 'AWS_ACCESS_KEY_ID'), true) }}"
         AWS_SECRET_ACCESS_KEY: "{{ AWS_SECRET_ACCESS_KEY | default(lookup('env', 'AWS_SECRET_ACCESS_KEY'), true) }}"
