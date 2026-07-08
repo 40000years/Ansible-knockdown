@@ -16,9 +16,6 @@ PORT = 8000
 DIRECTORY = os.path.dirname(os.path.abspath(__file__))
 
 NEEDS_SETUP = False
-AZURE_CONFIGURED = False
-azure_compute = None
-azure_network = None
 try:
     import botocore.exceptions
     sts = boto3.client('sts')
@@ -29,28 +26,6 @@ except Exception:
     NEEDS_SETUP = True
     ec2 = None
     ssm = None
-
-def _init_azure():
-    global azure_compute, azure_network, AZURE_CONFIGURED
-    sub_id = os.environ.get('AZURE_SUBSCRIPTION_ID', '')
-    client_id = os.environ.get('AZURE_CLIENT_ID', '')
-    client_secret = os.environ.get('AZURE_CLIENT_SECRET', '')
-    tenant_id = os.environ.get('AZURE_TENANT_ID', '')
-    if not all([sub_id, client_id, client_secret, tenant_id]):
-        return
-    try:
-        from azure.identity import ClientSecretCredential
-        from azure.mgmt.compute import ComputeManagementClient
-        from azure.mgmt.network import NetworkManagementClient
-        cred = ClientSecretCredential(tenant_id=tenant_id, client_id=client_id, client_secret=client_secret)
-        azure_compute = ComputeManagementClient(cred, sub_id)
-        azure_network = NetworkManagementClient(cred, sub_id)
-        AZURE_CONFIGURED = True
-        print('[Local Server] Azure SDK initialized successfully.')
-    except Exception as e:
-        print(f'[Local Server] Azure SDK init failed: {e}')
-
-_init_azure()
 
 class LocalDashboardHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
@@ -82,12 +57,8 @@ class LocalDashboardHandler(http.server.SimpleHTTPRequestHandler):
     def do_POST(self):
         if self.path == '/setup_aws':
             self.handle_setup_aws()
-        elif self.path == '/setup_azure':
-            self.handle_setup_azure()
         elif self.path == '/ec2':
             self.handle_ec2_api()
-        elif self.path == '/azure':
-            self.handle_azure_api()
         elif self.path == '/refresh':
             self.handle_refresh_api()
         else:
@@ -134,96 +105,6 @@ class LocalDashboardHandler(http.server.SimpleHTTPRequestHandler):
             self.send_json_response(200, {"success": True, "message": "Credentials configured!"})
         except Exception as e:
             self.send_json_response(400, {"error": f"Invalid credentials: {e}"})
-
-    def handle_setup_azure(self):
-        content_length = int(self.headers['Content-Length'])
-        post_data = self.rfile.read(content_length)
-        body = json.loads(post_data.decode('utf-8'))
-
-        subscription_id = body.get('subscription_id', '')
-        client_id = body.get('client_id', '')
-        client_secret = body.get('client_secret', '')
-        tenant_id = body.get('tenant_id', '')
-
-        if not all([subscription_id, client_id, client_secret, tenant_id]):
-            self.send_json_response(400, {'error': 'Missing Azure credentials'})
-            return
-
-        # Persist as environment variables for this process and child processes
-        os.environ['AZURE_SUBSCRIPTION_ID'] = subscription_id
-        os.environ['AZURE_CLIENT_ID'] = client_id
-        os.environ['AZURE_CLIENT_SECRET'] = client_secret
-        os.environ['AZURE_TENANT_ID'] = tenant_id
-
-        # Re-init Azure SDK
-        _init_azure()
-
-        if not AZURE_CONFIGURED:
-            self.send_json_response(400, {'error': 'Azure SDK init failed — check credentials and ensure azure packages are installed'})
-            return
-
-        # Rebuild dashboard to include Azure data
-        subprocess.run([sys.executable, 'generate_dashboard.py'], cwd=DIRECTORY, check=False)
-        self.send_json_response(200, {'success': True, 'message': 'Azure configured! Dashboard refreshed with Azure data.'})
-
-    def handle_azure_api(self):
-        content_length = int(self.headers['Content-Length'])
-        post_data = self.rfile.read(content_length)
-        try:
-            body = json.loads(post_data.decode('utf-8'))
-            action = body.get('action')
-            vm_ids = body.get('vm_ids', [])  # list of Azure VM resource IDs
-
-            if not AZURE_CONFIGURED or azure_compute is None:
-                self.send_json_response(503, {'error': 'Azure not configured. Please set up Azure credentials first.'})
-                return
-
-            if action == 'status':
-                status_map = {}
-                for vm_id in vm_ids:
-                    parts = vm_id.split('/')
-                    rg = parts[4]; name = parts[-1]
-                    try:
-                        iv = azure_compute.virtual_machines.instance_view(rg, name)
-                        state = 'unknown'
-                        for s in (iv.statuses or []):
-                            if s.code and s.code.startswith('PowerState/'):
-                                state = s.code.split('/')[1]
-                        status_map[vm_id] = state
-                    except Exception as e:
-                        status_map[vm_id] = f'error: {e}'
-                self.send_json_response(200, {'status_map': status_map})
-
-            elif action == 'start':
-                results = {}
-                for vm_id in vm_ids:
-                    parts = vm_id.split('/')
-                    rg = parts[4]; name = parts[-1]
-                    try:
-                        poller = azure_compute.virtual_machines.begin_start(rg, name)
-                        results[vm_id] = 'starting'
-                    except Exception as e:
-                        results[vm_id] = f'error: {e}'
-                self.send_json_response(200, {'message': 'Start initiated', 'results': results})
-
-            elif action == 'stop':
-                results = {}
-                for vm_id in vm_ids:
-                    parts = vm_id.split('/')
-                    rg = parts[4]; name = parts[-1]
-                    try:
-                        poller = azure_compute.virtual_machines.begin_deallocate(rg, name)
-                        results[vm_id] = 'stopping'
-                    except Exception as e:
-                        results[vm_id] = f'error: {e}'
-                self.send_json_response(200, {'message': 'Stop initiated', 'results': results})
-
-            else:
-                self.send_json_response(400, {'error': f'Unknown Azure action: {action}'})
-
-        except Exception as e:
-            print(f'[Local Server] Azure API Error: {e}')
-            self.send_json_response(500, {'error': str(e)})
 
     def handle_refresh_api(self):
         print("[Local Server] Refresh requested. Re-running Terraform gather & dashboard build...")
