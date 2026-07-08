@@ -36,9 +36,9 @@ def main():
         ec2 = boto3.client('ec2')
         response = ec2.describe_instances()
         
-        if "ec2_all_detail" not in data or not isinstance(data["ec2_all_detail"], dict):
-            data["ec2_all_detail"] = {}
-            
+        # Clear old mock data completely
+        data["ec2_all_detail"] = {}
+        
         patched_count = 0
         added_count = 0
         for res in response.get("Reservations", []):
@@ -46,13 +46,8 @@ def main():
                 inst_id = inst.get("InstanceId")
                 tags = {t.get("Key"): t.get("Value") for t in inst.get("Tags", [])}
                 
-                if inst_id not in data["ec2_all_detail"]:
-                    data["ec2_all_detail"][inst_id] = {}
-                    added_count += 1
-                else:
-                    patched_count += 1
-                    
-                info = data["ec2_all_detail"][inst_id]
+                added_count += 1
+                info = {}
                 info["instance_state"] = inst.get("State", {}).get("Name", "unknown")
                 info["private_ip"] = inst.get("PrivateIpAddress", "Offline")
                 info["public_ip"] = inst.get("PublicIpAddress", "No Public IP")
@@ -63,12 +58,42 @@ def main():
                 info["environment"] = tags.get("Environment", "untagged")
                 info["role"] = tags.get("Role", "untagged")
                 info["is_nist_certified"] = (tags.get("NistCertified", "false").lower() == "true")
+                data["ec2_all_detail"][inst_id] = info
                 
-        # Also fix ec2_stopped_ids and ec2_running_detail just in case
+        # Update derived fields
         data["ec2_stopped_ids"] = [i for i, v in data["ec2_all_detail"].items() if v.get("instance_state") not in ["running", "pending"]]
         data["ec2_running_detail"] = {i: v for i, v in data["ec2_all_detail"].items() if v.get("instance_state") in ["running", "pending"]}
         
-        log(f"boto3 Sync: Patched {patched_count} existing, Added {added_count} missing instances.")
+        # Fetch live network infrastructure to wipe out old cache
+        vpcs = ec2.describe_vpcs().get('Vpcs', [])
+        data["vpc_details"] = {v['VpcId']: {'cidr_block': v.get('CidrBlock'), 'is_default': v.get('IsDefault')} for v in vpcs}
+        
+        subnets = ec2.describe_subnets().get('Subnets', [])
+        data["subnet_details"] = {s['SubnetId']: {'vpc_id': s.get('VpcId'), 'cidr_block': s.get('CidrBlock'), 'availability_zone': s.get('AvailabilityZone')} for s in subnets}
+        
+        sgs = ec2.describe_security_groups().get('SecurityGroups', [])
+        data["security_groups"] = {sg['GroupId']: {'vpc_id': sg.get('VpcId'), 'name': sg.get('GroupName'), 'description': sg.get('Description')} for sg in sgs}
+        
+        igws = ec2.describe_internet_gateways().get('InternetGateways', [])
+        data["internet_gateways"] = {}
+        for i in igws:
+            for attach in i.get('Attachments', []):
+                data["internet_gateways"][attach.get('VpcId')] = {'igw_id': i['InternetGatewayId'], 'state': attach.get('State')}
+                
+        nats = ec2.describe_nat_gateways().get('NatGateways', [])
+        data["nat_gateways"] = {n['NatGatewayId']: {'vpc_id': n.get('VpcId'), 'subnet_id': n.get('SubnetId'), 'state': n.get('State')} for n in nats}
+        
+        # Rebuild topology
+        topo = {}
+        for v in vpcs:
+            topo[v['VpcId']] = {'cidr_block': v.get('CidrBlock'), 'is_default': v.get('IsDefault'), 'subnets': {}}
+        for s in subnets:
+            vid = s.get('VpcId')
+            if vid in topo:
+                topo[vid]['subnets'][s['SubnetId']] = {'availability_zone': s.get('AvailabilityZone'), 'cidr_block': s.get('CidrBlock')}
+        data["network_topology"] = topo
+        
+        log(f"boto3 Sync: Fetched {added_count} live EC2 instances and all related networking components.")
     except Exception as e:
         log(f"Warning: Could not fetch true live EC2 states: {e}")
 
