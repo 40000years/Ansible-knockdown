@@ -20,8 +20,16 @@
         AWS_SECRET_ACCESS_KEY: "{{ AWS_SECRET_ACCESS_KEY | default(lookup('env', 'AWS_SECRET_ACCESS_KEY'), true) }}"
         AWS_DEFAULT_REGION: "{{ AWS_DEFAULT_REGION | default(lookup('env', 'AWS_DEFAULT_REGION'), true) | default('ap-southeast-1', true) }}"
 
+    - name: Ensure AWS CLI is installed (required for dashboard generation)
+      shell: |
+        if ! command -v aws &> /dev/null; then
+          export PIP_BREAK_SYSTEM_PACKAGES=1
+          pip3 install awscli --user || pip install awscli --user || echo "Failed to install awscli, but continuing..."
+        fi
+
     - name: Apply Terraform configuration
       shell: |
+        export PATH="$PATH:$HOME/.local/bin"
         cd terraform
         terraform apply -auto-approve -no-color
       environment:
