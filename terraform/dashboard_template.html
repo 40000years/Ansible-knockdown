@@ -2205,18 +2205,19 @@
                                 if (data.status === 'Success') {
                                     this.addToast(`Playbook ${state.selected} completed successfully on ${shortId(id)}`, 'success');
                                     if (state.selected === 'nist_audit') {
-                                        // Persist the NIST tag to EC2
+                                        const isCertified = this.certifiedInstances[id] === true;
+                                        // Persist the NIST tag to EC2 based on score
                                         fetch(`${url}/ec2`, {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json' },
                                             body: JSON.stringify({
                                                 action: 'tag_instance',
                                                 instance_ids: [id],
-                                                tags: [{ Key: 'NistCertified', Value: 'true' }]
+                                                tags: [{ Key: 'NistCertified', Value: isCertified ? 'true' : 'false' }]
                                             })
                                         }).then(() => {
                                             if (this.data.ec2_all_detail[id]) {
-                                                this.data.ec2_all_detail[id].is_nist_certified = true;
+                                                this.data.ec2_all_detail[id].is_nist_certified = isCertified;
                                             }
                                         }).catch(console.error);
                                     }
