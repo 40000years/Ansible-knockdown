@@ -13,7 +13,7 @@ terraform {
   }
   # State แยกจาก stop workspace
   backend "s3" {
-    bucket = "thanaphat-web-app-bucket-2026-858039354188-ap-southeast-1-an"
+    bucket = "project-state-radahn-backend"
     key    = "ec2-power/start/terraform.tfstate"
     region = "ap-southeast-1"
   }
