@@ -27,17 +27,29 @@ if [ $# -eq 0 ]; then
     exit 1
 fi
 
+# Docker Permission Auto-Escalation (Semaphore-like feel)
+DOCKER_CMD="docker"
+if ! docker ps >/dev/null 2>&1; then
+    echo "[Radahn] Requesting sudo access for Docker..."
+    if sudo -n docker ps >/dev/null 2>&1 || sudo docker ps >/dev/null 2>&1; then
+        DOCKER_CMD="sudo docker"
+    else
+        echo "[Radahn] Error: Cannot run Docker. Please ensure Docker is installed and running."
+        exit 1
+    fi
+fi
+
 case "$1" in
     start)
         echo "[Radahn] Stopping any existing container..."
-        docker stop $CONTAINER_NAME 2>/dev/null || true
-        docker rm $CONTAINER_NAME 2>/dev/null || true
+        $DOCKER_CMD stop $CONTAINER_NAME 2>/dev/null || true
+        $DOCKER_CMD rm $CONTAINER_NAME 2>/dev/null || true
 
         echo "[Radahn] Building Docker image (this will be fast if already built)..."
-        docker build -t $IMAGE_NAME "$DIR"
+        $DOCKER_CMD build -t $IMAGE_NAME "$DIR"
 
         echo "[Radahn] Starting container..."
-        docker run -d --name $CONTAINER_NAME \
+        $DOCKER_CMD run -d --name $CONTAINER_NAME \
             -p $PORT:8000 \
             -v ~/.aws:/root/.aws \
             -v "$DIR":/app \
@@ -54,12 +66,12 @@ case "$1" in
         ;;
     stop)
         echo "[Radahn] Stopping container..."
-        docker stop $CONTAINER_NAME
-        docker rm $CONTAINER_NAME
+        $DOCKER_CMD stop $CONTAINER_NAME
+        $DOCKER_CMD rm $CONTAINER_NAME
         echo "[Radahn] Container stopped."
         ;;
     logs)
-        docker logs -f $CONTAINER_NAME
+        $DOCKER_CMD logs -f $CONTAINER_NAME
         ;;
     update)
         echo "[Radahn] Updating system from GitHub..."
