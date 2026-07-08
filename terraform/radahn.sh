@@ -14,12 +14,13 @@ done
 DIR="$(cd -P "$(dirname "$SCRIPT_PATH")" >/dev/null 2>&1 && pwd)"
 # Function to show usage
 show_help() {
-    echo "Usage: radahn [start|stop|logs|update]"
+    echo "Usage: radahn [start|stop|logs|update|install-deps]"
     echo "Commands:"
-    echo "  start   - Builds and starts the Radahn Local Dashboard container"
-    echo "  stop    - Stops the Radahn Local Dashboard container"
-    echo "  logs    - Shows the logs of the container"
-    echo "  update  - Pulls the latest version from GitHub"
+    echo "  start        - Builds and starts the Radahn Local Dashboard container"
+    echo "  stop         - Stops the Radahn Local Dashboard container"
+    echo "  logs         - Shows the logs of the container"
+    echo "  update       - Pulls the latest version from GitHub"
+    echo "  install-deps - Installs Python dependencies (boto3, Azure SDK) locally"
 }
 
 if [ $# -eq 0 ]; then
@@ -45,15 +46,19 @@ case "$1" in
         $DOCKER_CMD stop $CONTAINER_NAME 2>/dev/null || true
         $DOCKER_CMD rm $CONTAINER_NAME 2>/dev/null || true
 
-        echo "[Radahn] Building Docker image (this will be fast if already built)..."
+        echo "[Radahn] Building Docker image (includes AWS + Azure SDK — first build may take ~2 min)..."
         $DOCKER_CMD build -t $IMAGE_NAME "$DIR"
 
         echo "[Radahn] Starting container..."
         $DOCKER_CMD run -d --name $CONTAINER_NAME \
             -p $PORT:8000 \
-            -v ~/.aws:/root/.aws \
+            -v ~/.aws:/root/.aws:ro \
             -v "$DIR":/app \
             -w /app \
+            ${AZURE_SUBSCRIPTION_ID:+-e AZURE_SUBSCRIPTION_ID="$AZURE_SUBSCRIPTION_ID"} \
+            ${AZURE_CLIENT_ID:+-e AZURE_CLIENT_ID="$AZURE_CLIENT_ID"} \
+            ${AZURE_CLIENT_SECRET:+-e AZURE_CLIENT_SECRET="$AZURE_CLIENT_SECRET"} \
+            ${AZURE_TENANT_ID:+-e AZURE_TENANT_ID="$AZURE_TENANT_ID"} \
             $IMAGE_NAME
 
         echo ""
@@ -77,6 +82,25 @@ case "$1" in
         echo "[Radahn] Updating system from GitHub..."
         (cd "$DIR/.." && git fetch origin Radahn && git reset --hard origin/Radahn)
         echo "[Radahn] Update complete! Run 'radahn start' to apply changes."
+        ;;
+    install-deps)
+        echo "[Radahn] Installing Python dependencies (AWS + Azure SDK)..."
+        if command -v pip3 >/dev/null 2>&1; then
+            PIP=pip3
+        elif command -v pip >/dev/null 2>&1; then
+            PIP=pip
+        else
+            echo "[Radahn] Error: pip not found. Please install Python 3 and pip first."
+            exit 1
+        fi
+        $PIP install --upgrade boto3 azure-identity azure-mgmt-compute azure-mgmt-network azure-mgmt-resource
+        echo ""
+        echo "=================================================================="
+        echo " ✅ Dependencies installed successfully!"
+        echo "    boto3            — AWS SDK"
+        echo "    azure-identity   — Azure Authentication"
+        echo "    azure-mgmt-*     — Azure VMs, Networks, Resources"
+        echo "=================================================================="
         ;;
     help)
         show_help

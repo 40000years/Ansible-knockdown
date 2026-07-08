@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y curl unzip && \
     rm -rf aws awscliv2.zip && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir boto3
+RUN pip install --no-cache-dir boto3 azure-identity azure-mgmt-compute azure-mgmt-network azure-mgmt-resource
 
 WORKDIR /app
 EXPOSE 8000
