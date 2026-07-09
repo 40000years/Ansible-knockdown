@@ -676,8 +676,10 @@
                                                 <span x-text="inst.role"></span>
                                             </span>
                                         </template>
-                                        <template x-if="certifiedInstances[inst.id] || (data.ec2_all_detail[inst.id] && data.ec2_all_detail[inst.id].is_nist_certified)">
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+                                        <template
+                                            x-if="certifiedInstances[inst.id] || (data.ec2_all_detail[inst.id] && data.ec2_all_detail[inst.id].is_nist_certified)">
+                                            <span
+                                                class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
                                                 <i class="fa-solid fa-shield-halved mr-1"></i>
                                                 <span>NIST Certified</span>
                                             </span>
@@ -769,8 +771,10 @@
                                                 <span x-text="inst.role"></span>
                                             </span>
                                         </template>
-                                        <template x-if="certifiedInstances[inst.id] || (data.ec2_all_detail[inst.id] && data.ec2_all_detail[inst.id].is_nist_certified)">
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+                                        <template
+                                            x-if="certifiedInstances[inst.id] || (data.ec2_all_detail[inst.id] && data.ec2_all_detail[inst.id].is_nist_certified)">
+                                            <span
+                                                class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
                                                 <i class="fa-solid fa-shield-halved mr-1"></i>
                                                 <span>NIST Certified</span>
                                             </span>
@@ -1125,7 +1129,8 @@
                             :class="activeModalTab === 'shell' ? 'text-indigo-400 border-b-2 border-indigo-400 bg-indigo-500/5' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'"
                             class="flex-1 py-3 px-4 text-xs font-semibold uppercase tracking-wider transition-all">Remote
                             Shell</button>
-                        <button @click="activeModalTab = 'monitor'; if(getLiveStatus(playbookTarget) === 'running') fetchMetrics(playbookTarget.id);"
+                        <button
+                            @click="activeModalTab = 'monitor'; if(getLiveStatus(playbookTarget) === 'running') fetchMetrics(playbookTarget.id);"
                             :class="activeModalTab === 'monitor' ? 'text-indigo-400 border-b-2 border-indigo-400 bg-indigo-500/5' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'"
                             class="flex-1 py-3 px-4 text-xs font-semibold uppercase tracking-wider transition-all">Monitoring</button>
                     </div>
@@ -1189,58 +1194,81 @@
                         </div>
 
                         <!-- TAB: PLAYBOOK / RUN SERVICE -->
-                        <div x-show="activeModalTab === 'playbook'" class="flex flex-col flex-1 min-h-0 space-y-4 animate-fade-in" style="display: none;">
-                            <div x-show="getLiveStatus(playbookTarget) !== 'running'" class="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-xl text-sm flex items-start gap-3">
+                        <div x-show="activeModalTab === 'playbook'"
+                            class="flex flex-col flex-1 min-h-0 space-y-4 animate-fade-in" style="display: none;">
+                            <div x-show="getLiveStatus(playbookTarget) !== 'running'"
+                                class="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-xl text-sm flex items-start gap-3">
                                 <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
                                 <span>Instance must be <strong>Running</strong> to execute services via SSM.</span>
                             </div>
-                            <div class="flex flex-col sm:flex-row gap-4 items-end shrink-0" x-show="getLiveStatus(playbookTarget) === 'running'">
+                            <div class="flex flex-col sm:flex-row gap-4 items-end shrink-0"
+                                x-show="getLiveStatus(playbookTarget) === 'running'">
                                 <div class="flex-1 w-full">
-                                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Select Service to Run</label>
+                                    <label
+                                        class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Select
+                                        Service to Run</label>
                                     <div class="relative">
-                                        <select x-model="getPlaybookState(playbookTarget?.id).selected" :disabled="getPlaybookState(playbookTarget?.id).status === 'running'" class="w-full appearance-none bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-xl px-4 py-3 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all">
+                                        <select x-model="getPlaybookState(playbookTarget?.id).selected"
+                                            :disabled="getPlaybookState(playbookTarget?.id).status === 'running'"
+                                            class="w-full appearance-none bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-xl px-4 py-3 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all">
                                             <option value="nginx">Nginx Web Server (Beta)</option>
                                             <option value="apache">Apache HTTP Server</option>
                                             <option value="nist_audit">NIST Basic Security Audit</option>
                                             <option value="nist_remediate">NIST Auto-Remediation (Fix Issues)</option>
                                         </select>
-                                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
+                                        <div
+                                            class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
                                             <i class="fa-solid fa-chevron-down text-xs"></i>
                                         </div>
                                     </div>
                                 </div>
-                                <button @click="executePlaybook()" :disabled="getPlaybookState(playbookTarget?.id).status === 'running'" 
+                                <button @click="executePlaybook()"
+                                    :disabled="getPlaybookState(playbookTarget?.id).status === 'running'"
                                     class="w-full sm:w-auto px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20">
-                                    <i class="fa-solid" :class="getPlaybookState(playbookTarget?.id).status === 'running' ? 'fa-spinner fa-spin' : 'fa-play'"></i>
-                                    <span x-text="getPlaybookState(playbookTarget?.id).status === 'running' ? 'Running...' : 'Execute'"></span>
+                                    <i class="fa-solid"
+                                        :class="getPlaybookState(playbookTarget?.id).status === 'running' ? 'fa-spinner fa-spin' : 'fa-play'"></i>
+                                    <span
+                                        x-text="getPlaybookState(playbookTarget?.id).status === 'running' ? 'Running...' : 'Execute'"></span>
                                 </button>
                             </div>
 
                             <div x-show="getPlaybookState(playbookTarget?.id).status" class="space-y-2 shrink-0">
                                 <div class="flex items-center justify-between text-xs font-medium">
-                                    <span :class="{'text-amber-400': getPlaybookState(playbookTarget?.id).status==='running', 'text-emerald-400': getPlaybookState(playbookTarget?.id).status==='success', 'text-rose-400': getPlaybookState(playbookTarget?.id).status==='failed'}" class="flex items-center gap-1.5 uppercase tracking-wider font-bold">
-                                        <i class="fa-solid" :class="{'fa-gear fa-spin': getPlaybookState(playbookTarget?.id).status==='running', 'fa-check-circle': getPlaybookState(playbookTarget?.id).status==='success', 'fa-times-circle': getPlaybookState(playbookTarget?.id).status==='failed'}"></i>
-                                        <span x-text="getPlaybookState(playbookTarget?.id).status === 'running' ? 'Executing...' : (getPlaybookState(playbookTarget?.id).status === 'success' ? 'Completed Successfully' : 'Execution Failed')"></span>
+                                    <span
+                                        :class="{'text-amber-400': getPlaybookState(playbookTarget?.id).status==='running', 'text-emerald-400': getPlaybookState(playbookTarget?.id).status==='success', 'text-rose-400': getPlaybookState(playbookTarget?.id).status==='failed'}"
+                                        class="flex items-center gap-1.5 uppercase tracking-wider font-bold">
+                                        <i class="fa-solid"
+                                            :class="{'fa-gear fa-spin': getPlaybookState(playbookTarget?.id).status==='running', 'fa-check-circle': getPlaybookState(playbookTarget?.id).status==='success', 'fa-times-circle': getPlaybookState(playbookTarget?.id).status==='failed'}"></i>
+                                        <span
+                                            x-text="getPlaybookState(playbookTarget?.id).status === 'running' ? 'Executing...' : (getPlaybookState(playbookTarget?.id).status === 'success' ? 'Completed Successfully' : 'Execution Failed')"></span>
                                     </span>
-                                    <span class="text-slate-400 font-mono" x-text="getPlaybookState(playbookTarget?.id).progress + '%'"></span>
+                                    <span class="text-slate-400 font-mono"
+                                        x-text="getPlaybookState(playbookTarget?.id).progress + '%'"></span>
                                 </div>
                                 <div class="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-                                    <div class="h-full rounded-full transition-all duration-500 ease-out" 
+                                    <div class="h-full rounded-full transition-all duration-500 ease-out"
                                         :class="{'bg-amber-400': getPlaybookState(playbookTarget?.id).status==='running', 'bg-emerald-400': getPlaybookState(playbookTarget?.id).status==='success', 'bg-rose-400': getPlaybookState(playbookTarget?.id).status==='failed'}"
                                         :style="`width: ${getPlaybookState(playbookTarget?.id).progress}%`"></div>
                                 </div>
                             </div>
 
-                            <div class="flex-1 min-h-0 bg-[#0d1117] border border-slate-800 rounded-xl overflow-hidden flex flex-col shadow-inner">
-                                <div class="bg-slate-900/80 px-4 py-2 border-b border-slate-800 flex items-center justify-between">
-                                    <span class="text-[10px] text-slate-500 font-mono uppercase tracking-widest flex items-center gap-2">
+                            <div
+                                class="flex-1 min-h-0 bg-[#0d1117] border border-slate-800 rounded-xl overflow-hidden flex flex-col shadow-inner">
+                                <div
+                                    class="bg-slate-900/80 px-4 py-2 border-b border-slate-800 flex items-center justify-between">
+                                    <span
+                                        class="text-[10px] text-slate-500 font-mono uppercase tracking-widest flex items-center gap-2">
                                         <i class="fa-solid fa-terminal"></i> Playbook Output
                                     </span>
-                                    <span class="text-[10px] text-slate-500 font-mono" x-text="getPlaybookState(playbookTarget?.id).commandId ? 'ID: ' + getPlaybookState(playbookTarget?.id).commandId.split('-')[0] + '...' : ''"></span>
+                                    <span class="text-[10px] text-slate-500 font-mono"
+                                        x-text="getPlaybookState(playbookTarget?.id).commandId ? 'ID: ' + getPlaybookState(playbookTarget?.id).commandId.split('-')[0] + '...' : ''"></span>
                                 </div>
-                                <div id="playbook-terminal" class="p-4 flex-1 min-h-0 overflow-y-auto overflow-x-hidden font-mono text-[11px] sm:text-xs text-slate-300 leading-relaxed whitespace-pre-wrap break-words selection:bg-indigo-500/30">
-                                    <template x-if="!getPlaybookState(playbookTarget?.id).output && !getPlaybookState(playbookTarget?.id).status">
-                                        <div class="h-full flex flex-col items-center justify-center text-slate-600 opacity-50 space-y-3">
+                                <div id="playbook-terminal"
+                                    class="p-4 flex-1 min-h-0 overflow-y-auto overflow-x-hidden font-mono text-[11px] sm:text-xs text-slate-300 leading-relaxed whitespace-pre-wrap break-words selection:bg-indigo-500/30">
+                                    <template
+                                        x-if="!getPlaybookState(playbookTarget?.id).output && !getPlaybookState(playbookTarget?.id).status">
+                                        <div
+                                            class="h-full flex flex-col items-center justify-center text-slate-600 opacity-50 space-y-3">
                                             <i class="fa-solid fa-code text-3xl"></i>
                                             <span>Ready to execute playbooks</span>
                                         </div>
@@ -1254,17 +1282,22 @@
                         </div>
 
                         <!-- TAB: SHELL -->
-                        <div x-show="activeModalTab === 'shell'" class="flex flex-col flex-1 min-h-0 space-y-4 animate-fade-in" style="display: none;">
+                        <div x-show="activeModalTab === 'shell'"
+                            class="flex flex-col flex-1 min-h-0 space-y-4 animate-fade-in" style="display: none;">
                             <template x-if="getLiveStatus(playbookTarget) !== 'running'">
-                                <div class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-start gap-3">
+                                <div
+                                    class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-start gap-3">
                                     <i class="fa-solid fa-triangle-exclamation text-amber-400 mt-0.5"></i>
-                                    <span class="text-sm text-amber-200">Instance must be <strong>Running</strong> to execute shell commands via SSM.</span>
+                                    <span class="text-sm text-amber-200">Instance must be <strong>Running</strong> to
+                                        execute shell commands via SSM.</span>
                                 </div>
                             </template>
                             <template x-if="getLiveStatus(playbookTarget) === 'running'">
-                                <div class="flex-1 flex flex-col bg-slate-950/80 rounded-xl border border-slate-700/50 shadow-inner overflow-hidden">
+                                <div
+                                    class="flex-1 flex flex-col bg-slate-950/80 rounded-xl border border-slate-700/50 shadow-inner overflow-hidden">
                                     <!-- Terminal Header -->
-                                    <div class="bg-slate-900 px-4 py-2 border-b border-slate-800 flex justify-between items-center text-xs text-slate-400">
+                                    <div
+                                        class="bg-slate-900 px-4 py-2 border-b border-slate-800 flex justify-between items-center text-xs text-slate-400">
                                         <div class="flex space-x-1.5">
                                             <div class="w-2.5 h-2.5 rounded-full bg-rose-500/50"></div>
                                             <div class="w-2.5 h-2.5 rounded-full bg-amber-500/50"></div>
@@ -1272,14 +1305,23 @@
                                         </div>
                                         <span>AWS SSM (Remote Shell)</span>
                                     </div>
-                                    
+
                                     <!-- Terminal Output -->
-                                    <div id="shell-terminal" class="p-4 flex-1 min-h-0 overflow-y-auto overflow-x-hidden font-mono text-[11px] sm:text-xs text-slate-300 leading-relaxed whitespace-pre-wrap break-words selection:bg-indigo-500/30" @click="$refs.shellInputBox.focus()">
-                                        <template x-for="(entry, index) in getShellState(playbookTarget?.id).history" :key="index">
+                                    <div id="shell-terminal"
+                                        class="p-4 flex-1 min-h-0 overflow-y-auto overflow-x-hidden font-mono text-[11px] sm:text-xs text-slate-300 leading-relaxed whitespace-pre-wrap break-words selection:bg-indigo-500/30"
+                                        @click="$refs.shellInputBox.focus()">
+                                        <template x-for="(entry, index) in getShellState(playbookTarget?.id).history"
+                                            :key="index">
                                             <div class="mb-3">
-                                                <div class="text-indigo-400 font-bold">$ <span class="text-white" x-text="entry.cmd"></span></div>
-                                                <div x-show="entry.status === 'running'" class="text-slate-500 mt-1 flex items-center gap-1"><i class="fa-solid fa-circle-notch fa-spin text-[10px]"></i> Executing...</div>
-                                                <div x-show="entry.status !== 'running'" class="mt-1" :class="entry.status === 'error' ? 'text-rose-400' : 'text-slate-300'" x-text="entry.output"></div>
+                                                <div class="text-indigo-400 font-bold">$ <span class="text-white"
+                                                        x-text="entry.cmd"></span></div>
+                                                <div x-show="entry.status === 'running'"
+                                                    class="text-slate-500 mt-1 flex items-center gap-1"><i
+                                                        class="fa-solid fa-circle-notch fa-spin text-[10px]"></i>
+                                                    Executing...</div>
+                                                <div x-show="entry.status !== 'running'" class="mt-1"
+                                                    :class="entry.status === 'error' ? 'text-rose-400' : 'text-slate-300'"
+                                                    x-text="entry.output"></div>
                                             </div>
                                         </template>
                                     </div>
@@ -1287,18 +1329,26 @@
                                     <!-- Terminal Input -->
                                     <div class="bg-slate-900 border-t border-slate-800 p-3 flex items-center">
                                         <span class="text-indigo-400 font-mono mr-2">$</span>
-                                        <input x-ref="shellInputBox" x-model="getShellState(playbookTarget?.id).input" :disabled="getShellState(playbookTarget?.id).status === 'running'" type="text" class="flex-1 bg-transparent border-none outline-none text-white font-mono text-[11px] sm:text-xs focus:ring-0 p-0" placeholder="Type a command (e.g. ls -la) and press Enter..." autocomplete="off" spellcheck="false" @keydown.enter="runShellCommand()">
+                                        <input x-ref="shellInputBox" x-model="getShellState(playbookTarget?.id).input"
+                                            :disabled="getShellState(playbookTarget?.id).status === 'running'"
+                                            type="text"
+                                            class="flex-1 bg-transparent border-none outline-none text-white font-mono text-[11px] sm:text-xs focus:ring-0 p-0"
+                                            placeholder="Type a command (e.g. ls -la) and press Enter..."
+                                            autocomplete="off" spellcheck="false" @keydown.enter="runShellCommand()">
                                     </div>
                                 </div>
                             </template>
                         </div>
-                        
+
                         <!-- TAB: MONITORING -->
-                        <div x-show="activeModalTab === 'monitor'" class="flex flex-col flex-1 min-h-0 animate-fade-in" style="display: none;">
+                        <div x-show="activeModalTab === 'monitor'" class="flex flex-col flex-1 min-h-0 animate-fade-in"
+                            style="display: none;">
                             <template x-if="getLiveStatus(playbookTarget) !== 'running'">
-                                <div class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-start gap-3">
+                                <div
+                                    class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-start gap-3">
                                     <i class="fa-solid fa-triangle-exclamation text-amber-400 mt-0.5"></i>
-                                    <span class="text-sm text-amber-200">Instance must be <strong>Running</strong> to view live OS metrics.</span>
+                                    <span class="text-sm text-amber-200">Instance must be <strong>Running</strong> to
+                                        view live OS metrics.</span>
                                 </div>
                             </template>
 
@@ -1307,8 +1357,10 @@
                                     <!-- Header row -->
                                     <div class="flex justify-between items-center">
                                         <div>
-                                            <h3 class="text-sm font-bold text-white tracking-wide">System Health Monitor</h3>
-                                            <p class="text-[10px] text-slate-500 mt-0.5">Live OS metrics collected via AWS SSM</p>
+                                            <h3 class="text-sm font-bold text-white tracking-wide">System Health Monitor
+                                            </h3>
+                                            <p class="text-[10px] text-slate-500 mt-0.5">Live OS metrics collected via
+                                                AWS SSM</p>
                                         </div>
                                         <button @click="fetchMetrics(playbookTarget.id)"
                                             class="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all border"
@@ -1316,28 +1368,39 @@
                                                 ? 'bg-slate-800 border-slate-700 text-slate-400 cursor-wait'
                                                 : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20'"
                                             :disabled="metrics[playbookTarget.id]?.loading">
-                                            <i class="fa-solid fa-arrows-rotate text-[11px]" :class="metrics[playbookTarget.id]?.loading ? 'fa-spin' : ''"></i>
-                                            <span x-text="metrics[playbookTarget.id]?.loading ? 'Fetching...' : 'Refresh'"></span>
+                                            <i class="fa-solid fa-arrows-rotate text-[11px]"
+                                                :class="metrics[playbookTarget.id]?.loading ? 'fa-spin' : ''"></i>
+                                            <span
+                                                x-text="metrics[playbookTarget.id]?.loading ? 'Fetching...' : 'Refresh'"></span>
                                         </button>
                                     </div>
 
                                     <!-- Loading State -->
-                                    <template x-if="metrics[playbookTarget.id]?.loading && metrics[playbookTarget.id]?.cpu === undefined">
+                                    <template
+                                        x-if="metrics[playbookTarget.id]?.loading && metrics[playbookTarget.id]?.cpu === undefined">
                                         <div class="flex flex-col items-center justify-center py-16 space-y-4">
                                             <div class="relative w-16 h-16">
-                                                <div class="absolute inset-0 rounded-full border-4 border-indigo-500/20"></div>
-                                                <div class="absolute inset-0 rounded-full border-4 border-transparent border-t-indigo-500 animate-spin"></div>
+                                                <div
+                                                    class="absolute inset-0 rounded-full border-4 border-indigo-500/20">
+                                                </div>
+                                                <div
+                                                    class="absolute inset-0 rounded-full border-4 border-transparent border-t-indigo-500 animate-spin">
+                                                </div>
                                             </div>
-                                            <p class="text-sm text-slate-400 animate-pulse">Sending SSM command to OS...</p>
+                                            <p class="text-sm text-slate-400 animate-pulse">Sending SSM command to OS...
+                                            </p>
                                         </div>
                                     </template>
 
                                     <!-- No data yet -->
-                                    <template x-if="!metrics[playbookTarget.id]?.loading && metrics[playbookTarget.id]?.cpu === undefined">
-                                        <div class="flex flex-col items-center justify-center py-16 space-y-3 text-center">
+                                    <template
+                                        x-if="!metrics[playbookTarget.id]?.loading && metrics[playbookTarget.id]?.cpu === undefined">
+                                        <div
+                                            class="flex flex-col items-center justify-center py-16 space-y-3 text-center">
                                             <i class="fa-solid fa-chart-line text-4xl text-slate-700"></i>
                                             <p class="text-sm text-slate-400">No data yet</p>
-                                            <p class="text-xs text-slate-600">Click Refresh to fetch live metrics from the OS</p>
+                                            <p class="text-xs text-slate-600">Click Refresh to fetch live metrics from
+                                                the OS</p>
                                         </div>
                                     </template>
 
@@ -1345,8 +1408,7 @@
                                     <template x-if="metrics[playbookTarget.id]?.cpu !== undefined">
                                         <div class="flex-1 overflow-y-auto space-y-4">
                                             <!-- Health Score Banner -->
-                                            <div class="relative rounded-2xl overflow-hidden border p-4"
-                                                :class="(metrics[playbookTarget.id].cpu > 80 || metrics[playbookTarget.id].mem_percent > 85 || metrics[playbookTarget.id].disk > 85)
+                                            <div class="relative rounded-2xl overflow-hidden border p-4" :class="(metrics[playbookTarget.id].cpu > 80 || metrics[playbookTarget.id].mem_percent > 85 || metrics[playbookTarget.id].disk > 85)
                                                     ? 'bg-rose-500/5 border-rose-500/20'
                                                     : 'bg-emerald-500/5 border-emerald-500/20'">
                                                 <div class="absolute inset-0 opacity-5"
@@ -1364,20 +1426,24 @@
                                                             : 'fa-solid fa-circle-check'"></i>
                                                     </div>
                                                     <div>
-                                                        <div class="text-sm font-bold"
-                                                            :class="(metrics[playbookTarget.id].cpu > 80 || metrics[playbookTarget.id].mem_percent > 85 || metrics[playbookTarget.id].disk > 85)
+                                                        <div class="text-sm font-bold" :class="(metrics[playbookTarget.id].cpu > 80 || metrics[playbookTarget.id].mem_percent > 85 || metrics[playbookTarget.id].disk > 85)
                                                                 ? 'text-rose-300' : 'text-emerald-300'"
                                                             x-text="(metrics[playbookTarget.id].cpu > 80 || metrics[playbookTarget.id].mem_percent > 85 || metrics[playbookTarget.id].disk > 85) ? 'High Resource Usage Detected' : 'System Healthy'">
                                                         </div>
                                                         <div class="text-xs text-slate-500 mt-0.5">
-                                                            CPU <span class="font-mono" x-text="metrics[playbookTarget.id].cpu + '%'"></span>
-                                                            &nbsp;·&nbsp; RAM <span class="font-mono" x-text="metrics[playbookTarget.id].mem_percent + '%'"></span>
-                                                            &nbsp;·&nbsp; Disk <span class="font-mono" x-text="metrics[playbookTarget.id].disk + '%'"></span>
+                                                            CPU <span class="font-mono"
+                                                                x-text="metrics[playbookTarget.id].cpu + '%'"></span>
+                                                            &nbsp;·&nbsp; RAM <span class="font-mono"
+                                                                x-text="metrics[playbookTarget.id].mem_percent + '%'"></span>
+                                                            &nbsp;·&nbsp; Disk <span class="font-mono"
+                                                                x-text="metrics[playbookTarget.id].disk + '%'"></span>
                                                         </div>
                                                     </div>
                                                     <div class="ml-auto text-right">
-                                                        <span class="text-[10px] text-slate-600 font-mono">Last refreshed</span>
-                                                        <div class="text-xs text-slate-400 font-mono" x-text="new Date().toLocaleTimeString()"></div>
+                                                        <span class="text-[10px] text-slate-600 font-mono">Last
+                                                            refreshed</span>
+                                                        <div class="text-xs text-slate-400 font-mono"
+                                                            x-text="new Date().toLocaleTimeString()"></div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1385,21 +1451,25 @@
                                             <!-- 3 metric cards: CPU, RAM, Disk -->
                                             <div class="grid grid-cols-3 gap-3">
                                                 <!-- CPU Card -->
-                                                <div class="relative bg-slate-900/60 border border-slate-800 rounded-2xl p-4 overflow-hidden group hover:border-indigo-500/40 transition-all duration-300">
+                                                <div
+                                                    class="relative bg-slate-900/60 border border-slate-800 rounded-2xl p-4 overflow-hidden group hover:border-indigo-500/40 transition-all duration-300">
                                                     <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                                                        style="background: radial-gradient(circle at 50% 0%, rgba(99,102,241,0.05) 0%, transparent 70%)"></div>
+                                                        style="background: radial-gradient(circle at 50% 0%, rgba(99,102,241,0.05) 0%, transparent 70%)">
+                                                    </div>
                                                     <!-- Radial gauge SVG -->
                                                     <div class="flex justify-center mb-3">
                                                         <div class="relative w-20 h-20">
                                                             <svg viewBox="0 0 80 80" class="w-full h-full -rotate-90">
-                                                                <circle cx="40" cy="40" r="32" fill="none" stroke="rgba(99,102,241,0.1)" stroke-width="7"/>
+                                                                <circle cx="40" cy="40" r="32" fill="none"
+                                                                    stroke="rgba(99,102,241,0.1)" stroke-width="7" />
                                                                 <circle cx="40" cy="40" r="32" fill="none"
                                                                     :stroke="metrics[playbookTarget.id].cpu > 80 ? '#f87171' : metrics[playbookTarget.id].cpu > 50 ? '#fbbf24' : '#818cf8'"
                                                                     stroke-width="7" stroke-linecap="round"
                                                                     :stroke-dasharray="`${metrics[playbookTarget.id].cpu * 2.01} 201`"
-                                                                    style="transition: stroke-dasharray 1s ease"/>
+                                                                    style="transition: stroke-dasharray 1s ease" />
                                                             </svg>
-                                                            <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                                            <div
+                                                                class="absolute inset-0 flex flex-col items-center justify-center">
                                                                 <span class="text-sm font-bold font-mono leading-none"
                                                                     :class="metrics[playbookTarget.id].cpu > 80 ? 'text-rose-400' : 'text-indigo-300'"
                                                                     x-text="metrics[playbookTarget.id].cpu + '%'"></span>
@@ -1407,30 +1477,38 @@
                                                         </div>
                                                     </div>
                                                     <div class="text-center">
-                                                        <div class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-1">CPU</div>
-                                                        <div class="h-1 w-full bg-slate-800 rounded-full overflow-hidden">
+                                                        <div
+                                                            class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-1">
+                                                            CPU</div>
+                                                        <div
+                                                            class="h-1 w-full bg-slate-800 rounded-full overflow-hidden">
                                                             <div class="h-full rounded-full transition-all duration-1000"
                                                                 :class="metrics[playbookTarget.id].cpu > 80 ? 'bg-rose-500' : metrics[playbookTarget.id].cpu > 50 ? 'bg-amber-400' : 'bg-indigo-500'"
-                                                                :style="`width: ${metrics[playbookTarget.id].cpu}%`"></div>
+                                                                :style="`width: ${metrics[playbookTarget.id].cpu}%`">
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
 
                                                 <!-- RAM Card -->
-                                                <div class="relative bg-slate-900/60 border border-slate-800 rounded-2xl p-4 overflow-hidden group hover:border-cyan-500/40 transition-all duration-300">
+                                                <div
+                                                    class="relative bg-slate-900/60 border border-slate-800 rounded-2xl p-4 overflow-hidden group hover:border-cyan-500/40 transition-all duration-300">
                                                     <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                                                        style="background: radial-gradient(circle at 50% 0%, rgba(6,182,212,0.05) 0%, transparent 70%)"></div>
+                                                        style="background: radial-gradient(circle at 50% 0%, rgba(6,182,212,0.05) 0%, transparent 70%)">
+                                                    </div>
                                                     <div class="flex justify-center mb-3">
                                                         <div class="relative w-20 h-20">
                                                             <svg viewBox="0 0 80 80" class="w-full h-full -rotate-90">
-                                                                <circle cx="40" cy="40" r="32" fill="none" stroke="rgba(6,182,212,0.1)" stroke-width="7"/>
+                                                                <circle cx="40" cy="40" r="32" fill="none"
+                                                                    stroke="rgba(6,182,212,0.1)" stroke-width="7" />
                                                                 <circle cx="40" cy="40" r="32" fill="none"
                                                                     :stroke="metrics[playbookTarget.id].mem_percent > 85 ? '#f87171' : '#22d3ee'"
                                                                     stroke-width="7" stroke-linecap="round"
                                                                     :stroke-dasharray="`${metrics[playbookTarget.id].mem_percent * 2.01} 201`"
-                                                                    style="transition: stroke-dasharray 1s ease"/>
+                                                                    style="transition: stroke-dasharray 1s ease" />
                                                             </svg>
-                                                            <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                                            <div
+                                                                class="absolute inset-0 flex flex-col items-center justify-center">
                                                                 <span class="text-sm font-bold font-mono leading-none"
                                                                     :class="metrics[playbookTarget.id].mem_percent > 85 ? 'text-rose-400' : 'text-cyan-300'"
                                                                     x-text="metrics[playbookTarget.id].mem_percent + '%'"></span>
@@ -1438,32 +1516,41 @@
                                                         </div>
                                                     </div>
                                                     <div class="text-center">
-                                                        <div class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-1">Memory</div>
+                                                        <div
+                                                            class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-1">
+                                                            Memory</div>
                                                         <div class="text-[10px] text-slate-600 font-mono mb-1"
-                                                            x-text="`${(metrics[playbookTarget.id].mem_total * metrics[playbookTarget.id].mem_percent / 100 / 1024).toFixed(1)}GB / ${(metrics[playbookTarget.id].mem_total/1024).toFixed(1)}GB`"></div>
-                                                        <div class="h-1 w-full bg-slate-800 rounded-full overflow-hidden">
+                                                            x-text="`${(metrics[playbookTarget.id].mem_total * metrics[playbookTarget.id].mem_percent / 100 / 1024).toFixed(1)}GB / ${(metrics[playbookTarget.id].mem_total/1024).toFixed(1)}GB`">
+                                                        </div>
+                                                        <div
+                                                            class="h-1 w-full bg-slate-800 rounded-full overflow-hidden">
                                                             <div class="h-full rounded-full transition-all duration-1000"
                                                                 :class="metrics[playbookTarget.id].mem_percent > 85 ? 'bg-rose-500' : 'bg-cyan-500'"
-                                                                :style="`width: ${metrics[playbookTarget.id].mem_percent}%`"></div>
+                                                                :style="`width: ${metrics[playbookTarget.id].mem_percent}%`">
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
 
                                                 <!-- Disk Card -->
-                                                <div class="relative bg-slate-900/60 border border-slate-800 rounded-2xl p-4 overflow-hidden group hover:border-emerald-500/40 transition-all duration-300">
+                                                <div
+                                                    class="relative bg-slate-900/60 border border-slate-800 rounded-2xl p-4 overflow-hidden group hover:border-emerald-500/40 transition-all duration-300">
                                                     <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                                                        style="background: radial-gradient(circle at 50% 0%, rgba(16,185,129,0.05) 0%, transparent 70%)"></div>
+                                                        style="background: radial-gradient(circle at 50% 0%, rgba(16,185,129,0.05) 0%, transparent 70%)">
+                                                    </div>
                                                     <div class="flex justify-center mb-3">
                                                         <div class="relative w-20 h-20">
                                                             <svg viewBox="0 0 80 80" class="w-full h-full -rotate-90">
-                                                                <circle cx="40" cy="40" r="32" fill="none" stroke="rgba(16,185,129,0.1)" stroke-width="7"/>
+                                                                <circle cx="40" cy="40" r="32" fill="none"
+                                                                    stroke="rgba(16,185,129,0.1)" stroke-width="7" />
                                                                 <circle cx="40" cy="40" r="32" fill="none"
                                                                     :stroke="metrics[playbookTarget.id].disk > 85 ? '#f87171' : '#34d399'"
                                                                     stroke-width="7" stroke-linecap="round"
                                                                     :stroke-dasharray="`${metrics[playbookTarget.id].disk * 2.01} 201`"
-                                                                    style="transition: stroke-dasharray 1s ease"/>
+                                                                    style="transition: stroke-dasharray 1s ease" />
                                                             </svg>
-                                                            <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                                            <div
+                                                                class="absolute inset-0 flex flex-col items-center justify-center">
                                                                 <span class="text-sm font-bold font-mono leading-none"
                                                                     :class="metrics[playbookTarget.id].disk > 85 ? 'text-rose-400' : 'text-emerald-300'"
                                                                     x-text="metrics[playbookTarget.id].disk + '%'"></span>
@@ -1471,11 +1558,15 @@
                                                         </div>
                                                     </div>
                                                     <div class="text-center">
-                                                        <div class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-1">Root Disk</div>
-                                                        <div class="h-1 w-full bg-slate-800 rounded-full overflow-hidden">
+                                                        <div
+                                                            class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-1">
+                                                            Root Disk</div>
+                                                        <div
+                                                            class="h-1 w-full bg-slate-800 rounded-full overflow-hidden">
                                                             <div class="h-full rounded-full transition-all duration-1000"
                                                                 :class="metrics[playbookTarget.id].disk > 85 ? 'bg-rose-500' : 'bg-emerald-500'"
-                                                                :style="`width: ${metrics[playbookTarget.id].disk}%`"></div>
+                                                                :style="`width: ${metrics[playbookTarget.id].disk}%`">
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1484,31 +1575,47 @@
                                             <!-- Network + SSM Status row -->
                                             <div class="grid grid-cols-2 gap-3">
                                                 <!-- Network Card -->
-                                                <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex items-center gap-4 hover:border-violet-500/30 transition-all">
-                                                    <div class="w-11 h-11 rounded-xl bg-violet-500/10 flex items-center justify-center flex-shrink-0">
-                                                        <i class="fa-solid fa-network-wired text-violet-400 text-lg"></i>
+                                                <div
+                                                    class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex items-center gap-4 hover:border-violet-500/30 transition-all">
+                                                    <div
+                                                        class="w-11 h-11 rounded-xl bg-violet-500/10 flex items-center justify-center flex-shrink-0">
+                                                        <i
+                                                            class="fa-solid fa-network-wired text-violet-400 text-lg"></i>
                                                     </div>
                                                     <div>
-                                                        <div class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">Network</div>
-                                                        <div class="text-sm font-bold text-violet-300 mt-0.5">Connected</div>
+                                                        <div
+                                                            class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">
+                                                            Network</div>
+                                                        <div class="text-sm font-bold text-violet-300 mt-0.5">Connected
+                                                        </div>
                                                         <div class="flex items-center gap-1 mt-1">
-                                                            <span class="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse"></span>
-                                                            <span class="text-[10px] text-slate-600">SSM tunnel active</span>
+                                                            <span
+                                                                class="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse"></span>
+                                                            <span class="text-[10px] text-slate-600">SSM tunnel
+                                                                active</span>
                                                         </div>
                                                     </div>
                                                 </div>
 
                                                 <!-- Agent Card -->
-                                                <div class="bg-slate-900/60 border border-emerald-500/20 rounded-2xl p-4 flex items-center gap-4 hover:border-emerald-500/40 transition-all">
-                                                    <div class="w-11 h-11 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
-                                                        <i class="fa-solid fa-shield-halved text-emerald-400 text-lg"></i>
+                                                <div
+                                                    class="bg-slate-900/60 border border-emerald-500/20 rounded-2xl p-4 flex items-center gap-4 hover:border-emerald-500/40 transition-all">
+                                                    <div
+                                                        class="w-11 h-11 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+                                                        <i
+                                                            class="fa-solid fa-shield-halved text-emerald-400 text-lg"></i>
                                                     </div>
                                                     <div>
-                                                        <div class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">SSM Agent</div>
-                                                        <div class="text-sm font-bold text-emerald-300 mt-0.5">Healthy</div>
+                                                        <div
+                                                            class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">
+                                                            SSM Agent</div>
+                                                        <div class="text-sm font-bold text-emerald-300 mt-0.5">Healthy
+                                                        </div>
                                                         <div class="flex items-center gap-1 mt-1">
-                                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                                                            <span class="text-[10px] text-slate-600">Metrics available</span>
+                                                            <span
+                                                                class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                                                            <span class="text-[10px] text-slate-600">Metrics
+                                                                available</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1527,17 +1634,17 @@
         <div class="fixed bottom-6 right-6 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none">
             <template x-for="toast in toasts" :key="toast.id">
                 <div class="pointer-events-auto transform transition-all duration-300 ease-out"
-                     x-transition:enter="translate-y-10 opacity-0"
-                     x-transition:enter-start="translate-y-10 opacity-0"
-                     x-transition:enter-end="translate-y-0 opacity-100"
-                     x-transition:leave="transition ease-in duration-200"
-                     x-transition:leave-start="opacity-100"
-                     x-transition:leave-end="opacity-0 translate-x-10">
+                    x-transition:enter="translate-y-10 opacity-0" x-transition:enter-start="translate-y-10 opacity-0"
+                    x-transition:enter-end="translate-y-0 opacity-100"
+                    x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100"
+                    x-transition:leave-end="opacity-0 translate-x-10">
                     <div class="flex items-start gap-3 p-4 rounded-xl shadow-xl border backdrop-blur-md"
-                         :class="toast.type === 'error' ? 'bg-rose-500/10 border-rose-500/20 text-rose-400' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'">
-                        <i class="fa-solid mt-0.5 text-lg" :class="toast.type === 'error' ? 'fa-circle-exclamation' : 'fa-circle-check'"></i>
+                        :class="toast.type === 'error' ? 'bg-rose-500/10 border-rose-500/20 text-rose-400' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'">
+                        <i class="fa-solid mt-0.5 text-lg"
+                            :class="toast.type === 'error' ? 'fa-circle-exclamation' : 'fa-circle-check'"></i>
                         <div class="flex-1 text-sm font-medium" x-text="toast.msg"></div>
-                        <button @click="toasts = toasts.filter(t => t.id !== toast.id)" class="text-slate-400 hover:text-white transition-colors">
+                        <button @click="toasts = toasts.filter(t => t.id !== toast.id)"
+                            class="text-slate-400 hover:text-white transition-colors">
                             <i class="fa-solid fa-xmark"></i>
                         </button>
                     </div>
@@ -1672,12 +1779,12 @@
                 playbooks: {}, // Keyed by instance id: { selected, status, output, commandId, progress, polling, isNistCertified }
                 shells: {},    // Keyed by instance id: { history: [], status, commandId, polling, input }
                 metrics: {},   // Keyed by instance id: { loading, cpu, mem_percent, mem_total, disk }
-                
+
                 // Modal UI State
                 playbookModal: false,
                 activeModalTab: 'overview',
                 playbookTarget: null,
-                
+
                 // Toast Notifications
                 toasts: [],
 
@@ -1719,7 +1826,7 @@
                     const raw = document.getElementById('infra-data').textContent.trim();
                     try {
                         const j = JSON.parse(raw);
-                        
+
                         // Initialize isNistCertified for reactivity
                         const running_detail = j.ec2_running_detail || {};
                         for (const id in running_detail) {
@@ -1890,9 +1997,9 @@
                         });
                         const d = await res.json();
                         if (!res.ok || d.error) throw new Error(d.error || 'Failed to start metrics command');
-                        
+
                         const commandId = d.command_id;
-                        
+
                         // Step 2: Poll for result via playbook_status
                         for (let i = 0; i < 20; i++) {
                             await new Promise(r => setTimeout(r, 1500));
@@ -1906,12 +2013,12 @@
                                 try {
                                     const m = JSON.parse(pr.output.trim());
                                     this.metrics[id] = { loading: false, cpu: m.cpu, mem_percent: m.mem_percent, mem_total: m.mem_total, disk: m.disk };
-                                } catch(e) {
+                                } catch (e) {
                                     this.metrics[id].loading = false;
                                     this.addToast('Could not parse metrics: ' + pr.output.substring(0, 100), 'error');
                                 }
                                 return;
-                            } else if (['Failed','Cancelled','TimedOut'].includes(pr.status)) {
+                            } else if (['Failed', 'Cancelled', 'TimedOut'].includes(pr.status)) {
                                 this.metrics[id].loading = false;
                                 this.addToast('Metrics SSM failed: ' + (pr.error || pr.status), 'error');
                                 return;
@@ -1952,13 +2059,13 @@
                 openPlaybookModal(inst) {
                     this.playbookTarget = inst;
                     this.activeModalTab = 'overview';
-                    
+
                     // Initialize background states if they don't exist
                     this.getPlaybookState(inst.id);
                     this.getShellState(inst.id);
-                    
+
                     this.playbookModal = true;
-                    
+
                     // Auto-scroll terminals if they are already populated
                     this.$nextTick(() => {
                         const pt = document.getElementById('playbook-terminal');
@@ -1975,7 +2082,7 @@
                     if (!this.playbookTarget) return;
                     const id = this.playbookTarget.id;
                     const state = this.getPlaybookState(id);
-                    
+
                     state.status = 'running';
                     state.output = 'Initializing execution environment...\n';
                     state.progress = 10;
@@ -2025,7 +2132,7 @@
                 async pollPlaybookStatus(id) {
                     const state = this.getPlaybookState(id);
                     if (!state.commandId) return;
-                    
+
                     const url = this.data.api_gateway_url;
 
                     try {
@@ -2044,7 +2151,7 @@
 
                             if (data.output && data.output.trim() !== '') {
                                 state.output = data.output;
-                                
+
                                 // Check for NIST 100% score
                                 if (state.output.includes("Compliance Score: 100%")) {
                                     this.certifiedInstances[id] = true;
@@ -2072,7 +2179,7 @@
                                 state.status = data.status === 'Success' ? 'success' : 'failed';
                                 state.progress = 100;
                                 state.output += `\n\n--- Execution Finished with status: ${data.status} ---`;
-                                
+
                                 if (data.status === 'Success') {
                                     this.addToast(`Playbook ${state.selected} completed successfully on ${shortId(id)}`, 'success');
                                     if (state.selected === 'nist_audit') {
@@ -2105,7 +2212,7 @@
                     if (!this.playbookTarget) return;
                     const id = this.playbookTarget.id;
                     const state = this.getShellState(id);
-                    
+
                     if (!state.input.trim()) return;
 
                     const cmdToRun = state.input.trim();
@@ -2191,7 +2298,7 @@
                                 state.polling = null;
                                 state.status = 'idle';
                                 state.history[historyIndex].status = data.status === 'Success' ? 'success' : 'error';
-                                
+
                                 // Only toast if it failed or if we're not currently looking at it
                                 if (data.status !== 'Success' || !this.playbookModal || this.playbookTarget?.id !== id) {
                                     this.addToast(`Shell command ${data.status === 'Success' ? 'finished' : 'failed'} on ${shortId(id)}`, data.status === 'Success' ? 'success' : 'error');
@@ -2474,8 +2581,8 @@
 
                 get environments() {
                     const set = new Set();
-                    const dataSource = Object.keys(this.data.ec2_all_detail || {}).length > 0 
-                        ? this.data.ec2_all_detail 
+                    const dataSource = Object.keys(this.data.ec2_all_detail || {}).length > 0
+                        ? this.data.ec2_all_detail
                         : this.data.ec2_running_detail;
                     Object.values(dataSource).forEach(i => set.add(i.environment || 'untagged'));
                     return [...set].sort();
@@ -2484,13 +2591,13 @@
                 get instances() {
                     if (Object.keys(this.data.ec2_all_detail || {}).length > 0) {
                         return Object.entries(this.data.ec2_all_detail).map(([id, i]) => ({
-                            id, 
+                            id,
                             running: i.instance_state === 'running' || i.instance_state === 'pending',
-                            name: i.name || id, 
+                            name: i.name || id,
                             environment: i.environment || 'untagged',
-                            role: i.role || 'untagged', 
+                            role: i.role || 'untagged',
                             private_ip: i.private_ip || 'Offline',
-                            public_ip: i.public_ip || 'No Public IP', 
+                            public_ip: i.public_ip || 'No Public IP',
                             instance_type: i.instance_type || 'unknown',
                             availability_zone: i.availability_zone || 'unknown',
                             isNistCertified: i.isNistCertified || false,

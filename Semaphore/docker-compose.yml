@@ -26,7 +26,8 @@ services:
     restart: unless-stopped
     ports:
       - 3000:3000
-    image: semaphoreui/semaphore:latest
+    build: .
+    image: semaphore-custom
     environment:
       SEMAPHORE_DB_USER: semaphore
       SEMAPHORE_DB_PASS: semaphore
