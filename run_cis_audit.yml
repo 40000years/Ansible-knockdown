@@ -1,0 +1,40 @@
+---
+- name: Install Goss and Run CIS Audit
+  hosts: ubuntu
+  become: true
+  
+  tasks:
+    - name: Install git (required for cloning audit repo)
+      ansible.builtin.apt:
+        name: git
+        state: present
+        update_cache: yes
+
+    - name: Download Goss binary
+      ansible.builtin.get_url:
+        # เลือกโหลดเวอร์ชัน x86_64 (amd64) หรือ aarch64 (arm64) ตามสถาปัตยกรรมของเครื่อง
+        url: "https://github.com/goss-org/goss/releases/latest/download/goss-linux-{{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' if ansible_architecture == 'aarch64' else ansible_architecture }}"
+        dest: /usr/local/bin/goss
+        mode: '0755'
+
+    - name: Clone UBUNTU24-CIS-Audit repository
+      ansible.builtin.git:
+        repo: https://github.com/ansible-lockdown/UBUNTU24-CIS-Audit.git
+        dest: /opt/UBUNTU24-CIS-Audit
+        # ดึงเวอร์ชันล่าสุด (ถ้ามีอัปเดตก็จะโหลดมาใหม่)
+        update: yes
+
+    - name: Ensure run_audit.sh is executable
+      ansible.builtin.file:
+        path: /opt/UBUNTU24-CIS-Audit/run_audit.sh
+        mode: '0755'
+
+    - name: Run CIS Audit
+      ansible.builtin.command: /opt/UBUNTU24-CIS-Audit/run_audit.sh
+      register: audit_result
+      # ignore_errors เพื่อไม่ให้ Task พังในกรณีที่ Goss ตรวจเจอข้อบกพร่อง (Exit code != 0)
+      ignore_errors: true
+
+    - name: Show Audit Results Summary
+      ansible.builtin.debug:
+        var: audit_result.stdout_lines
