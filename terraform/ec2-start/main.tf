@@ -158,7 +158,7 @@ resource "null_resource" "create_nat_and_route" {
       echo "  NAT GW $NAT_ID: AVAILABLE ✓"
 
       echo "============================================"
-      echo " STEP 3: Update Route Tables for ALL EC2 instances"
+      echo " STEP 3: Update ALL Private Route Tables in VPC → NAT GW"
       echo "============================================"
 
       if [ -n "$OVERRIDE_RTB_ID" ]; then
@@ -171,48 +171,43 @@ resource "null_resource" "create_nat_and_route" {
         aws ec2 create-route --route-table-id "$OVERRIDE_RTB_ID" --destination-cidr-block "0.0.0.0/0" --nat-gateway-id "$NAT_ID"
         echo "  Route 0.0.0.0/0 → $NAT_ID updated in $OVERRIDE_RTB_ID ✓"
       else
-        # วนลูปหา Subnet ของ EC2 ทุกเครื่อง แล้วอัปเดต Route Table ที่ไม่ซ้ำกัน
-        UPDATED_RTBS=""
-        ALL_EC2_SUBNETS=$(aws ec2 describe-instances \
-          --instance-ids $TARGET_INSTANCE_IDS \
-          --query 'Reservations[*].Instances[*].SubnetId' \
+        # ดึง Route Table ทุกอันใน VPC
+        echo "  Scanning ALL route tables in VPC $VPC_ID..."
+        ALL_VPC_RTBS=$(aws ec2 describe-route-tables \
+          --filters "Name=vpc-id,Values=$VPC_ID" \
+          --query 'RouteTables[*].RouteTableId' \
           --output text | tr '\t' '\n' | sort -u)
 
-        echo "  EC2 subnets found: $(echo $ALL_EC2_SUBNETS | tr '\n' ' ')"
+        echo "  All route tables in VPC: $(echo $ALL_VPC_RTBS | tr '\n' ' ')"
 
-        for EC2_SUBNET_ID in $ALL_EC2_SUBNETS; do
-          # ข้าม Public Subnet ที่ใช้วาง NAT (ไม่ต้องแก้ Route ฝั่ง Public)
-          if [ "$EC2_SUBNET_ID" = "$NAT_SUBNET_ID" ]; then
-            echo "  Skipping NAT subnet $EC2_SUBNET_ID (it is the public subnet)"
-            continue
+        # หา IGW ของ VPC นี้ (เพื่อแยก public RTB ออก)
+        VPC_IGW=$(aws ec2 describe-internet-gateways \
+          --filters "Name=attachment.vpc-id,Values=$VPC_ID" \
+          --query 'InternetGateways[0].InternetGatewayId' \
+          --output text 2>/dev/null || echo "None")
+        echo "  VPC Internet Gateway: $VPC_IGW"
+
+        UPDATED_RTBS=""
+        for RTB in $ALL_VPC_RTBS; do
+          # เช็คว่า Route Table นี้มี IGW route หรือไม่ (= public RTB → ข้าม)
+          if [ -n "$VPC_IGW" ] && [ "$VPC_IGW" != "None" ]; then
+            HAS_IGW_ROUTE=$(aws ec2 describe-route-tables \
+              --route-table-ids "$RTB" \
+              --query "RouteTables[0].Routes[?GatewayId=='$VPC_IGW'].GatewayId" \
+              --output text 2>/dev/null)
+            if [ -n "$HAS_IGW_ROUTE" ]; then
+              echo "  Skipping public route table $RTB (has IGW route: $HAS_IGW_ROUTE)"
+              continue
+            fi
           fi
 
-          # หา Route Table ของ Subnet นี้
-          RTB=$(aws ec2 describe-route-tables \
-            --filters "Name=association.subnet-id,Values=$EC2_SUBNET_ID" \
-            --query 'RouteTables[0].RouteTableId' \
-            --output text 2>/dev/null || echo "None")
-
-          # ถ้าไม่มี explicit association ให้ fallback ไป main route table
-          if [ "$RTB" = "None" ] || [ -z "$RTB" ]; then
-            RTB=$(aws ec2 describe-route-tables \
-              --filters "Name=vpc-id,Values=$VPC_ID" "Name=association.main,Values=true" \
-              --query 'RouteTables[0].RouteTableId' \
-              --output text)
-          fi
-
-          # เช็คว่าเคยอัปเดต Route Table นี้ไปแล้วหรือยัง (กัน duplicate)
-          if echo "$UPDATED_RTBS" | grep -qw "$RTB"; then
-            echo "  Route Table $RTB already updated (shared by multiple subnets), skipping."
-            continue
-          fi
-
-          echo "  Updating Route Table $RTB (for subnet $EC2_SUBNET_ID)..."
+          echo "  Updating private Route Table $RTB..."
           aws ec2 delete-route --route-table-id "$RTB" --destination-cidr-block "0.0.0.0/0" 2>/dev/null \
             && echo "    Old 0.0.0.0/0 route removed." \
             || echo "    No existing 0.0.0.0/0 route (OK)."
-          aws ec2 create-route --route-table-id "$RTB" --destination-cidr-block "0.0.0.0/0" --nat-gateway-id "$NAT_ID"
-          echo "    Route 0.0.0.0/0 → $NAT_ID ✓"
+          aws ec2 create-route --route-table-id "$RTB" --destination-cidr-block "0.0.0.0/0" --nat-gateway-id "$NAT_ID" \
+            && echo "    Route 0.0.0.0/0 → $NAT_ID ✓" \
+            || echo "    WARNING: Failed to create route in $RTB"
 
           UPDATED_RTBS="$UPDATED_RTBS $RTB"
         done
