@@ -1,0 +1,65 @@
+---
+- name: "Install and Configure Amazon CloudWatch Agent"
+  hosts: all
+  become: yes
+  vars:
+    # Basic CloudWatch Agent configuration for Memory, Disk, and CPU metrics
+    cw_config: |
+      {
+        "agent": {
+          "metrics_collection_interval": 60,
+          "run_as_user": "root"
+        },
+        "metrics": {
+          "metrics_collected": {
+            "mem": {
+              "measurement": ["mem_used_percent"],
+              "metrics_collection_interval": 60
+            },
+            "disk": {
+              "measurement": ["used_percent"],
+              "metrics_collection_interval": 60,
+              "resources": ["/"]
+            },
+            "cpu": {
+              "measurement": ["cpu_usage_idle", "cpu_usage_user", "cpu_usage_system"],
+              "metrics_collection_interval": 60,
+              "totalcpu": true
+            }
+          }
+        }
+      }
+
+  tasks:
+    - name: "Install Amazon CloudWatch Agent (using dnf)"
+      ansible.builtin.dnf:
+        name: amazon-cloudwatch-agent
+        state: present
+
+    - name: "Ensure configuration directory exists"
+      ansible.builtin.file:
+        path: /opt/aws/amazon-cloudwatch-agent/etc
+        state: directory
+        mode: '0755'
+
+    - name: "Deploy CloudWatch Agent configuration file"
+      ansible.builtin.copy:
+        content: "{{ cw_config }}"
+        dest: /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+        mode: '0644'
+
+    - name: "Apply configuration and Start CloudWatch Agent"
+      ansible.builtin.command: >
+        /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl
+        -a fetch-config
+        -m ec2
+        -s
+        -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+      register: cw_start
+      changed_when: true
+
+    - name: "Ensure CloudWatch Agent service is enabled on boot"
+      ansible.builtin.systemd:
+        name: amazon-cloudwatch-agent
+        enabled: yes
+        state: started
