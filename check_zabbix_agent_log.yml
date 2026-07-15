@@ -1,24 +1,17 @@
 ---
-- name: "Test Zabbix Agent config"
+- name: "Test Zabbix Agent config syntax"
   hosts: all
   become: yes
   gather_facts: false
   tasks:
-    - name: "Get Zabbix Agent service status"
-      shell: "systemctl status zabbix-agent2.service"
-      register: agent_status
+    - name: "Test config syntax with capital T"
+      shell: "zabbix_agent2 -T -c /etc/zabbix/zabbix_agent2.conf"
+      register: config_test
       ignore_errors: true
 
-    - name: "Get Zabbix Agent log"
-      shell: "tail -n 30 /var/log/zabbix/zabbix_agent2.log"
-      register: agent_log
-      ignore_errors: true
-
-    - name: "Show status and log"
+    - name: "Show exact syntax error"
       debug:
         msg: 
-          - "--- SERVICE STATUS ---"
-          - "{{ agent_status.stdout }}"
-          - "{{ agent_status.stderr }}"
-          - "--- AGENT LOG ---"
-          - "{{ agent_log.stdout }}"
+          - "--- CONFIG TEST OUTPUT ---"
+          - "{{ config_test.stdout }}"
+          - "{{ config_test.stderr }}"
