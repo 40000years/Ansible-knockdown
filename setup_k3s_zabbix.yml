@@ -174,19 +174,25 @@
         update_cache: yes
       when: ansible_os_family == "Debian"
 
-    - name: "Ensure Docker and python3-pip are installed (Amazon Linux)"
+    - name: "Ensure Docker is installed (Amazon Linux)"
       dnf:
         name:
           - docker
-          - python3-pip
         state: present
       when: ansible_os_family == "RedHat" or ansible_distribution == "Amazon"
 
-    - name: "Install docker-compose (Amazon Linux via pip)"
-      pip:
-        name: docker-compose
-        state: present
-        break_system_packages: yes
+    - name: "Create Docker CLI plugins directory (Amazon Linux)"
+      file:
+        path: /usr/libexec/docker/cli-plugins
+        state: directory
+        mode: '0755'
+      when: ansible_os_family == "RedHat" or ansible_distribution == "Amazon"
+
+    - name: "Download docker-compose binary (Amazon Linux)"
+      get_url:
+        url: "https://github.com/docker/compose/releases/download/v2.28.1/docker-compose-linux-{{ ansible_architecture }}"
+        dest: /usr/libexec/docker/cli-plugins/docker-compose
+        mode: '0755'
       when: ansible_os_family == "RedHat" or ansible_distribution == "Amazon"
 
     - name: "Ensure Docker service is running"
