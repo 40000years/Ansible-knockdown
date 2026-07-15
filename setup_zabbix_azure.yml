@@ -75,7 +75,7 @@
               mem_limit: 512m
 
             zabbix-server:
-              image: zabbix/zabbix-server-mysql:ubuntu-latest
+              image: zabbix/zabbix-server-mysql:7.0-ubuntu-latest
               container_name: zabbix-server
               restart: unless-stopped
               ports:
@@ -91,7 +91,7 @@
               mem_limit: 512m
 
             zabbix-web:
-              image: zabbix/zabbix-web-nginx-mysql:ubuntu-latest
+              image: zabbix/zabbix-web-nginx-mysql:7.0-ubuntu-latest
               container_name: zabbix-web
               restart: unless-stopped
               ports:
