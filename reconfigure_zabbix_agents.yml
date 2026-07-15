@@ -35,8 +35,8 @@
           PidFile=/run/zabbix/zabbix_agent2.pid
           LogFile=/var/log/zabbix/zabbix_agent2.log
           LogFileSize=0
-          Server={{ zabbix_server_ip }}
-          ServerActive={{ zabbix_server_ip }}
+          Server={{ zabbix_server_ip | regex_replace('\"', '') | regex_replace('\'', '') }}
+          ServerActive={{ zabbix_server_ip | regex_replace('\"', '') | regex_replace('\'', '') }}
           Hostname={{ inventory_hostname }}
           Include=/etc/zabbix/zabbix_agent2.d/*.conf
           ControlSocket=/run/zabbix/agent.sock
