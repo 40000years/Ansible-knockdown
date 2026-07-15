@@ -53,13 +53,6 @@
         k3s_token: "{{ k3s_token_raw.content | b64decode | trim }}"
         k3s_master_ip: "{{ ansible_default_ipv4.address }}"
 
-    # Expose facts ไปยัง dummy host เพื่อให้ Play 2 เรียกใช้ได้
-    - name: "Share master facts to dummy host"
-      add_host:
-        name: "k3s_master_facts"
-        k3s_token: "{{ k3s_token }}"
-        k3s_master_ip: "{{ ansible_default_ipv4.address }}"
-
 # ==============================================================
 # PLAY 2: ติดตั้ง K3s บน Worker Nodes
 # ==============================================================
@@ -79,8 +72,8 @@
     - name: "Join K3s Cluster as Agent"
       shell: |
         curl -sfL https://get.k3s.io | \
-          K3S_URL="https://{{ hostvars['k3s_master_facts']['k3s_master_ip'] }}:6443" \
-          K3S_TOKEN="{{ hostvars['k3s_master_facts']['k3s_token'] }}" \
+          K3S_URL="https://{{ hostvars[k3s_master_id]['k3s_master_ip'] }}:6443" \
+          K3S_TOKEN="{{ hostvars[k3s_master_id]['k3s_token'] }}" \
           INSTALL_K3S_EXEC="agent --node-name $(hostname -s)" \
           sh -
       when: not k3s_binary.stat.exists

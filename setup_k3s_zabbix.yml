@@ -48,9 +48,8 @@
         src: /var/lib/rancher/k3s/server/node-token
       register: k3s_token_raw
 
-    - name: "Share master facts to dummy host"
-      add_host:
-        name: "k3s_master_facts"
+    - name: "Set k3s_token fact for workers to use"
+      set_fact:
         k3s_token: "{{ k3s_token_raw.content | b64decode | trim }}"
         k3s_master_ip: "{{ ansible_default_ipv4.address }}"
 
@@ -73,8 +72,8 @@
     - name: "Join K3s Cluster as Agent"
       shell: |
         curl -sfL https://get.k3s.io | \
-          K3S_URL="https://{{ hostvars['k3s_master_facts']['k3s_master_ip'] }}:6443" \
-          K3S_TOKEN="{{ hostvars['k3s_master_facts']['k3s_token'] }}" \
+          K3S_URL="https://{{ hostvars[k3s_master_id]['k3s_master_ip'] }}:6443" \
+          K3S_TOKEN="{{ hostvars[k3s_master_id]['k3s_token'] }}" \
           INSTALL_K3S_EXEC="agent --node-name $(hostname -s)" \
           sh -
       when: not k3s_binary.stat.exists
@@ -132,8 +131,8 @@
       blockinfile:
         path: /etc/zabbix/zabbix_agent2.conf
         block: |
-          Server={{ hostvars['k3s_master_facts']['k3s_master_ip'] }}
-          ServerActive={{ hostvars['k3s_master_facts']['k3s_master_ip'] }}
+          Server={{ hostvars[k3s_master_id]['k3s_master_ip'] }}
+          ServerActive={{ hostvars[k3s_master_id]['k3s_master_ip'] }}
           Hostname={{ inventory_hostname }}
           # Enable K3s/Docker monitoring plugins
           Plugins.Docker.Endpoint=unix:///var/run/docker.sock
@@ -283,7 +282,7 @@
           - "  Password: zabbix  (เปลี่ยนทันทีหลัง login)"
           - "============================================"
           - "  Agents registered from:"
-          - "  - Master : {{ hostvars['k3s_master_facts']['k3s_master_ip'] }}"
+          - "  Master : {{ hostvars[k3s_master_id]['k3s_master_ip'] }}"
           - "  - Workers: (ดูได้ใน Configuration > Hosts)"
           - "============================================"
           - "  Tips:"
