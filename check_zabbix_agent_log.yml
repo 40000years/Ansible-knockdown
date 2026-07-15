@@ -4,15 +4,21 @@
   become: yes
   gather_facts: false
   tasks:
-    - name: "Test config"
-      shell: "zabbix_agent2 -c /etc/zabbix/zabbix_agent2.conf -t"
-      register: config_test
+    - name: "Get Zabbix Agent service status"
+      shell: "systemctl status zabbix-agent2.service"
+      register: agent_status
       ignore_errors: true
 
-    - name: "Show config error"
-      debug:
-        msg: "{{ config_test.stderr }}"
+    - name: "Get Zabbix Agent log"
+      shell: "tail -n 30 /var/log/zabbix/zabbix_agent2.log"
+      register: agent_log
+      ignore_errors: true
 
-    - name: "Show config output"
+    - name: "Show status and log"
       debug:
-        msg: "{{ config_test.stdout_lines[:5] }}"
+        msg: 
+          - "--- SERVICE STATUS ---"
+          - "{{ agent_status.stdout }}"
+          - "{{ agent_status.stderr }}"
+          - "--- AGENT LOG ---"
+          - "{{ agent_log.stdout }}"
