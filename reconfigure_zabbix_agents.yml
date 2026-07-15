@@ -1,0 +1,59 @@
+---
+# ==============================================================
+# Reconfigure Zabbix Agents บน AWS ให้ชี้หา Zabbix Server บน Azure
+#
+# วิธีใช้ใน Semaphore:
+#   - Inventory : inventory.aws_ec2.yml
+#   - SSH Key   : AWS Key
+#   - Playbook  : reconfigure_zabbix_agents.yml
+#   - Extra Variables:
+#       zabbix_server_ip: "4.230.18.31"
+# ==============================================================
+
+- name: "Reconfigure Zabbix Agents to point to Azure Zabbix Server"
+  hosts: all
+  become: yes
+  gather_facts: true
+  vars:
+    zabbix_server_ip: "CHANGE_ME"  # ใส่ Public IP ของ Azure
+
+  tasks:
+    - name: "Check if Zabbix Agent 2 is installed"
+      stat:
+        path: /etc/zabbix/zabbix_agent2.conf
+      register: zabbix_conf
+
+    - name: "Skip if Zabbix Agent not installed"
+      debug:
+        msg: "⚠️ Zabbix Agent not installed on {{ inventory_hostname }}, skipping..."
+      when: not zabbix_conf.stat.exists
+
+    - name: "Update Zabbix Agent config to point to Azure Server"
+      blockinfile:
+        path: /etc/zabbix/zabbix_agent2.conf
+        block: |
+          Server={{ zabbix_server_ip }}
+          ServerActive={{ zabbix_server_ip }}
+          Hostname={{ inventory_hostname }}
+          Plugins.Docker.Endpoint=unix:///var/run/docker.sock
+        marker: "# {mark} ANSIBLE MANAGED BLOCK"
+      when: zabbix_conf.stat.exists
+      notify: Restart Zabbix Agent
+
+    - name: "Ensure Zabbix Agent 2 is running"
+      service:
+        name: zabbix-agent2
+        state: started
+        enabled: yes
+      when: zabbix_conf.stat.exists
+
+    - name: "Show status"
+      debug:
+        msg: "✅ {{ inventory_hostname }} → Zabbix Server: {{ zabbix_server_ip }}"
+      when: zabbix_conf.stat.exists
+
+  handlers:
+    - name: Restart Zabbix Agent
+      service:
+        name: zabbix-agent2
+        state: restarted

@@ -1,0 +1,152 @@
+---
+# ==============================================================
+# Deploy Zabbix Server บน Azure VM
+#
+# วิธีใช้ใน Semaphore:
+#   - Inventory : inventory.azure.yml
+#   - SSH Key   : Azure Key
+#   - Playbook  : setup_zabbix_azure.yml
+#
+# หลังรันเสร็จ เข้าใช้งานผ่าน SSH Tunnel:
+#   ssh -i <azure-key> azureuser@4.230.18.31 -N -L 8088:localhost:8088
+#   แล้วเปิด: http://localhost:8088
+#   Username: Admin / Password: zabbix (เปลี่ยนหลัง Login)
+# ==============================================================
+
+- name: "Deploy Zabbix Server on Azure VM"
+  hosts: azure-master
+  become: yes
+  gather_facts: true
+  vars:
+    azure_public_ip: "4.230.18.31"
+    zabbix_db_password: "Zabbix@Secure123"
+    zabbix_web_port: 8088
+
+  tasks:
+    - name: "Install Docker (Ubuntu)"
+      apt:
+        name:
+          - docker.io
+          - docker-compose-v2
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    - name: "Ensure Docker service is running"
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: "Create Zabbix directory"
+      file:
+        path: /opt/zabbix
+        state: directory
+        mode: '0755'
+
+    - name: "Stop existing Zabbix stack (if any)"
+      shell: |
+        cd /opt/zabbix
+        docker compose down -v 2>/dev/null || true
+      args:
+        executable: /bin/bash
+
+    - name: "Deploy Zabbix Docker Compose (MariaDB + correct charset)"
+      copy:
+        dest: /opt/zabbix/docker-compose.yml
+        content: |
+          version: '3.8'
+          services:
+            zabbix-db:
+              image: mariadb:10.11
+              container_name: zabbix-db
+              restart: unless-stopped
+              environment:
+                MYSQL_ROOT_PASSWORD: "rootpass"
+                MYSQL_DATABASE: "zabbix"
+                MYSQL_USER: "zabbix"
+                MYSQL_PASSWORD: "{{ zabbix_db_password }}"
+              command: >
+                --character-set-server=utf8mb4
+                --collation-server=utf8mb4_bin
+                --default-authentication-plugin=mysql_native_password
+              volumes:
+                - zabbix-db-data:/var/lib/mysql
+              mem_limit: 512m
+
+            zabbix-server:
+              image: zabbix/zabbix-server-mysql:ubuntu-latest
+              container_name: zabbix-server
+              restart: unless-stopped
+              ports:
+                - "10051:10051"
+              environment:
+                DB_SERVER_HOST: zabbix-db
+                MYSQL_DATABASE: "zabbix"
+                MYSQL_USER: "zabbix"
+                MYSQL_PASSWORD: "{{ zabbix_db_password }}"
+                ZBX_JAVAGATEWAY_ENABLE: "false"
+              depends_on:
+                - zabbix-db
+              mem_limit: 512m
+
+            zabbix-web:
+              image: zabbix/zabbix-web-nginx-mysql:ubuntu-latest
+              container_name: zabbix-web
+              restart: unless-stopped
+              ports:
+                - "{{ zabbix_web_port }}:8080"
+              environment:
+                ZBX_SERVER_HOST: zabbix-server
+                DB_SERVER_HOST: zabbix-db
+                MYSQL_DATABASE: "zabbix"
+                MYSQL_USER: "zabbix"
+                MYSQL_PASSWORD: "{{ zabbix_db_password }}"
+                PHP_TZ: "Asia/Bangkok"
+              depends_on:
+                - zabbix-server
+              mem_limit: 256m
+
+          volumes:
+            zabbix-db-data:
+
+    - name: "Start Zabbix Stack"
+      shell: |
+        cd /opt/zabbix
+        docker compose up -d
+      args:
+        executable: /bin/bash
+
+    - name: "Wait for Zabbix DB to initialize (90 seconds)"
+      pause:
+        seconds: 90
+
+    - name: "Check Zabbix Server logs"
+      shell: "docker logs zabbix-server 2>&1 | tail -5"
+      args:
+        executable: /bin/bash
+      register: zabbix_log
+      changed_when: false
+
+    - name: "Show Zabbix Access Information"
+      debug:
+        msg:
+          - "============================================"
+          - "  Zabbix Stack is deployed!"
+          - "============================================"
+          - "  Server Log (last 5 lines):"
+          - "{{ zabbix_log.stdout }}"
+          - "============================================"
+          - "  เข้าใช้งาน Zabbix ผ่าน SSH Tunnel บน Mac:"
+          - "  ssh -i <azure-key> azureuser@{{ azure_public_ip }} -N -L 8088:localhost:{{ zabbix_web_port }}"
+          - "  แล้วเปิด: http://localhost:8088"
+          - "============================================"
+          - "  Username: Admin"
+          - "  Password: zabbix"
+          - "  (เปลี่ยน Password ทันทีหลัง Login)"
+          - "============================================"
+          - "  NEXT STEP: รัน reconfigure_zabbix_agents.yml"
+          - "  เพื่อให้ AWS Agents ชี้มาหา Azure Server"
+          - "  Extra Variables:"
+          - "    zabbix_server_ip: \"{{ azure_public_ip }}\""
+          - "============================================"
