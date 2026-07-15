@@ -1,0 +1,44 @@
+---
+- name: Deploy 10 lightweight containers for Micro instances
+  hosts: all
+  become: yes
+  gather_facts: false
+  tasks:
+    # เตรียมความพร้อมเผื่อยังไม่มี Docker library สำหรับรันโมดูล Ansible
+    - name: Ensure python3-pip is installed (Debian/Ubuntu)
+      apt:
+        name: python3-pip
+        state: present
+        update_cache: yes
+      ignore_errors: yes
+
+    - name: Ensure docker python module is installed
+      pip:
+        name: docker
+        state: present
+        break_system_packages: yes
+      ignore_errors: yes
+
+    # ใช้ nginx:alpine เพราะเบามาก กินแรมน้อย และรันได้อย่างสเถียร
+    # ทำการลูป 10 รอบ และตั้ง Memory/CPU limit ไว้เพื่อป้องกันเครื่อง Micro ค้าง
+    - name: Start 10 lightweight Nginx (Alpine) containers
+      community.docker.docker_container:
+        name: "micro_nginx_{{ item }}"
+        image: "nginx:alpine"
+        state: started
+        restart_policy: unless-stopped
+        memory: "32m"          # จำกัดหน่วยความจำเพียง 32MB ต่อคอนเทนเนอร์ (รวม 10 ตัวแค่ ~320MB)
+        cpu_shares: 128        # กำหนด priority การใช้ CPU ให้ต่ำกว่าปกติ
+        ports:
+          - "808{{ item }}:80" # Map พอร์ต 8080 ถึง 8089 
+      loop:
+        - 0
+        - 1
+        - 2
+        - 3
+        - 4
+        - 5
+        - 6
+        - 7
+        - 8
+        - 9
