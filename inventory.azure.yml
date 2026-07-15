@@ -3,5 +3,6 @@ all:
     azure-master:
       ansible_host: "4.230.18.31"
       ansible_user: "azureuser"
-      # ยกเลิก AWS SSM ProxyCommand → ใช้ Direct SSH ผ่าน Port 22 แทน
-      ansible_ssh_common_args: "-o StrictHostKeyChecking=accept-new -o ProxyCommand=none"
+      # บังคับล้างค่า ProxyCommand เพื่อไม่ให้ใช้ aws ssm ของ AWS และยกเลิก ControlMaster ชั่วคราวป้องกันการจดจำ session เก่า
+      ansible_ssh_common_args: "-o ProxyCommand=none -o ControlMaster=no"
+
