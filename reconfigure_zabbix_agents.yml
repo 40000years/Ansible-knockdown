@@ -28,6 +28,14 @@
         msg: "⚠️ Zabbix Agent not installed on {{ inventory_hostname }}, skipping..."
       when: not zabbix_conf.stat.exists
 
+    - name: "Remove leftover ANSIBLE MANAGED BLOCK (if exists)"
+      blockinfile:
+        path: /etc/zabbix/zabbix_agent2.conf
+        marker: "# {mark} ANSIBLE MANAGED BLOCK"
+        block: ""
+        state: absent
+      when: zabbix_conf.stat.exists
+
     - name: "Update Server= in Zabbix Agent config"
       lineinfile:
         path: /etc/zabbix/zabbix_agent2.conf
@@ -51,14 +59,6 @@
         line: "Hostname={{ inventory_hostname }}"
       when: zabbix_conf.stat.exists
       notify: Restart Zabbix Agent
-
-    - name: "Remove leftover ANSIBLE MANAGED BLOCK (if exists)"
-      blockinfile:
-        path: /etc/zabbix/zabbix_agent2.conf
-        marker: "# {mark} ANSIBLE MANAGED BLOCK"
-        block: ""
-        state: absent
-      when: zabbix_conf.stat.exists
 
     - name: "Ensure Zabbix Agent 2 is running"
       service:
