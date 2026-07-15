@@ -1,26 +1,87 @@
 ---
-- name: "Fix Zabbix MySQL Connection Error"
+- name: "Fix Zabbix MySQL Connection Error (Switch to MariaDB)"
   hosts: "{{ k3s_master_id }}"
   become: yes
   gather_facts: false
   vars:
     k3s_master_id: "CHANGE_ME"
+    zabbix_db_password: "Zabbix@Secure123"
+    zabbix_web_port: 8088
 
   tasks:
-    - name: "Wipe Zabbix DB Volume and Restart Stack"
+    - name: "Stop current stack and wipe broken MySQL volume"
       shell: |
         cd /opt/zabbix
-        # ปิด stack และลบ volume ฐานข้อมูลที่มีปัญหาทิ้ง
         docker compose down -v
-        # สั่งเปิดใหม่ ซึ่งมันจะเริ่ม Initialize DB แบบคลีนๆ อีกครั้ง
+      args:
+        executable: /bin/bash
+
+    - name: "Deploy updated Zabbix Docker Compose (using MariaDB 10.11)"
+      copy:
+        dest: /opt/zabbix/docker-compose.yml
+        content: |
+          version: '3.8'
+          services:
+            zabbix-db:
+              image: mariadb:10.11
+              container_name: zabbix-db
+              restart: unless-stopped
+              environment:
+                MYSQL_ROOT_PASSWORD: "rootpass"
+                MYSQL_DATABASE: "zabbix"
+                MYSQL_USER: "zabbix"
+                MYSQL_PASSWORD: "{{ zabbix_db_password }}"
+              volumes:
+                - zabbix-db-data:/var/lib/mysql
+              mem_limit: 512m
+
+            zabbix-server:
+              image: zabbix/zabbix-server-mysql:ubuntu-latest
+              container_name: zabbix-server
+              restart: unless-stopped
+              ports:
+                - "10051:10051"
+              environment:
+                DB_SERVER_HOST: zabbix-db
+                MYSQL_DATABASE: "zabbix"
+                MYSQL_USER: "zabbix"
+                MYSQL_PASSWORD: "{{ zabbix_db_password }}"
+                ZBX_JAVAGATEWAY_ENABLE: "false"
+              depends_on:
+                - zabbix-db
+              mem_limit: 512m
+
+            zabbix-web:
+              image: zabbix/zabbix-web-nginx-mysql:ubuntu-latest
+              container_name: zabbix-web
+              restart: unless-stopped
+              ports:
+                - "{{ zabbix_web_port }}:8080"
+              environment:
+                ZBX_SERVER_HOST: zabbix-server
+                DB_SERVER_HOST: zabbix-db
+                MYSQL_DATABASE: "zabbix"
+                MYSQL_USER: "zabbix"
+                MYSQL_PASSWORD: "{{ zabbix_db_password }}"
+                PHP_TZ: "Asia/Bangkok"
+              depends_on:
+                - zabbix-server
+              mem_limit: 256m
+
+          volumes:
+            zabbix-db-data:
+
+    - name: "Start Zabbix Stack with MariaDB"
+      shell: |
+        cd /opt/zabbix
         docker compose up -d
       args:
         executable: /bin/bash
 
-    - name: "Wait for MySQL to fully initialize (60 seconds)"
+    - name: "Wait for MariaDB to fully initialize (60 seconds)"
       pause:
         seconds: 60
 
     - name: "Show success message"
       debug:
-        msg: "✅ Database has been reset. Please refresh your Zabbix Web UI."
+        msg: "✅ Database has been switched to MariaDB and reset. Please refresh your Zabbix Web UI."

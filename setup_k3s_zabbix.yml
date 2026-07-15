@@ -214,7 +214,7 @@
           version: '3.8'
           services:
             zabbix-db:
-              image: mysql:8.0
+              image: mariadb:10.11
               container_name: zabbix-db
               restart: unless-stopped
               environment:
@@ -225,7 +225,6 @@
               volumes:
                 - zabbix-db-data:/var/lib/mysql
               mem_limit: 512m
-              command: --character-set-server=utf8 --collation-server=utf8_bin
 
             zabbix-server:
               image: zabbix/zabbix-server-mysql:ubuntu-latest
