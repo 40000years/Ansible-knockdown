@@ -9,7 +9,7 @@
 
   tasks:
     - name: "Kill existing port-forward on port {{ grafana_local_port }} (if any)"
-      shell: "pkill -f 'kubectl port-forward.*monitoring-grafana' || true"
+      shell: "pkill -f '[k]ubectl port-forward.*monitoring-grafana' || true"
       args:
         executable: /bin/bash
 
