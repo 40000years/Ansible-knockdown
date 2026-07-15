@@ -28,35 +28,22 @@
         msg: "⚠️ Zabbix Agent not installed on {{ inventory_hostname }}, skipping..."
       when: not zabbix_conf.stat.exists
 
-    - name: "Remove leftover ANSIBLE MANAGED BLOCK (if exists)"
-      blockinfile:
-        path: /etc/zabbix/zabbix_agent2.conf
-        marker: "# {mark} ANSIBLE MANAGED BLOCK"
-        block: ""
-        state: absent
-      when: zabbix_conf.stat.exists
-
-    - name: "Update Server= in Zabbix Agent config"
-      lineinfile:
-        path: /etc/zabbix/zabbix_agent2.conf
-        regexp: '^Server='
-        line: "Server={{ zabbix_server_ip }}"
-      when: zabbix_conf.stat.exists
-      notify: Restart Zabbix Agent
-
-    - name: "Update ServerActive= in Zabbix Agent config"
-      lineinfile:
-        path: /etc/zabbix/zabbix_agent2.conf
-        regexp: '^ServerActive='
-        line: "ServerActive={{ zabbix_server_ip }}"
-      when: zabbix_conf.stat.exists
-      notify: Restart Zabbix Agent
-
-    - name: "Update Hostname= in Zabbix Agent config"
-      lineinfile:
-        path: /etc/zabbix/zabbix_agent2.conf
-        regexp: '^Hostname='
-        line: "Hostname={{ inventory_hostname }}"
+    - name: "Deploy clean Zabbix Agent 2 configuration"
+      copy:
+        dest: /etc/zabbix/zabbix_agent2.conf
+        content: |
+          PidFile=/run/zabbix/zabbix_agent2.pid
+          LogFile=/var/log/zabbix/zabbix_agent2.log
+          LogFileSize=0
+          Server={{ zabbix_server_ip }}
+          ServerActive={{ zabbix_server_ip }}
+          Hostname={{ inventory_hostname }}
+          Include=/etc/zabbix/zabbix_agent2.d/*.conf
+          ControlSocket=/run/zabbix/agent.sock
+          Plugins.Docker.Endpoint=unix:///var/run/docker.sock
+        owner: zabbix
+        group: zabbix
+        mode: '0644'
       when: zabbix_conf.stat.exists
       notify: Restart Zabbix Agent
 
