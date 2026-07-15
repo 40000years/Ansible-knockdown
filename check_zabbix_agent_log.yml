@@ -1,0 +1,14 @@
+---
+- name: "Check Zabbix Agent logs"
+  hosts: all
+  become: yes
+  gather_facts: false
+  tasks:
+    - name: "Get Zabbix Agent 2 logs"
+      shell: "tail -n 20 /var/log/zabbix/zabbix_agent2.log"
+      register: agent_logs
+      ignore_errors: true
+
+    - name: "Show logs"
+      debug:
+        msg: "{{ agent_logs.stdout_lines }}"
