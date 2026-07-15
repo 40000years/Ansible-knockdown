@@ -1,0 +1,26 @@
+---
+- name: "Fix Zabbix MySQL Connection Error"
+  hosts: "{{ k3s_master_id }}"
+  become: yes
+  gather_facts: false
+  vars:
+    k3s_master_id: "CHANGE_ME"
+
+  tasks:
+    - name: "Wipe Zabbix DB Volume and Restart Stack"
+      shell: |
+        cd /opt/zabbix
+        # ปิด stack และลบ volume ฐานข้อมูลที่มีปัญหาทิ้ง
+        docker compose down -v
+        # สั่งเปิดใหม่ ซึ่งมันจะเริ่ม Initialize DB แบบคลีนๆ อีกครั้ง
+        docker compose up -d
+      args:
+        executable: /bin/bash
+
+    - name: "Wait for MySQL to fully initialize (60 seconds)"
+      pause:
+        seconds: 60
+
+    - name: "Show success message"
+      debug:
+        msg: "✅ Database has been reset. Please refresh your Zabbix Web UI."
