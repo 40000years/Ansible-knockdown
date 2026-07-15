@@ -47,14 +47,13 @@
           2. K3s Master บน Azure ทำงานอยู่หรือเปล่า?
       when: connectivity_check.failed
 
-    - name: "Join K3s Cluster as Worker"
+    - name: "Join K3s Cluster as Worker (or update Master IP)"
       shell: |
         curl -sfL https://get.k3s.io | \
           K3S_URL="https://{{ k3s_master_ip }}:6443" \
           K3S_TOKEN="{{ k3s_token }}" \
           INSTALL_K3S_EXEC="agent --node-name {{ inventory_hostname }}" \
           sh -
-      when: not k3s_binary.stat.exists
       args:
         executable: /bin/bash
 
