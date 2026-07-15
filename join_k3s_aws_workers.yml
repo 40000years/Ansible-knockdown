@@ -1,0 +1,72 @@
+---
+# ==============================================================
+# PHASE 2: Join AWS EC2 Workers เข้า K3s Cluster บน Azure
+#
+# วิธีใช้ใน Semaphore:
+#   - Inventory : inventory.aws_ec2.yml (ตัวเดิมของ AWS)
+#   - SSH Key   : AWS Key (NIST.pem)
+#   - Playbook  : join_k3s_aws_workers.yml
+#   - Extra Variables (บังคับต้องใส่):
+#       k3s_master_ip: "4.230.18.31"
+#       k3s_token: "<token-from-phase-1-output>"
+#       k3s_master_id: "azure-master"  ← ใส่ค่านี้เพื่อยกเว้นตัว master
+#
+# ⚠️  ต้องรัน Phase 1 ให้เสร็จก่อน แล้วก๊อปปี้ token มาใส่ด้านบน
+# ==============================================================
+
+- name: "Phase 2: Join AWS EC2 Instances as K3s Workers"
+  hosts: all
+  become: yes
+  gather_facts: true
+  vars:
+    # กำหนดค่านี้ผ่าน Semaphore Extra Variables
+    k3s_master_ip: "CHANGE_ME"   # Public IP ของ Azure Master
+    k3s_token: "CHANGE_ME"       # Token จาก Output ของ Phase 1
+    k3s_master_id: "azure-master" # ไม่ต้องเปลี่ยน
+
+  tasks:
+    - name: "Check if K3s agent is already installed"
+      stat:
+        path: /usr/local/bin/k3s
+      register: k3s_binary
+
+    - name: "Test connectivity to Azure Master (port 6443)"
+      wait_for:
+        host: "{{ k3s_master_ip }}"
+        port: 6443
+        timeout: 15
+      register: connectivity_check
+      ignore_errors: true
+
+    - name: "Fail early if Azure Master is unreachable"
+      fail:
+        msg: |
+          ❌ ไม่สามารถเชื่อมต่อ Azure Master ที่ {{ k3s_master_ip }}:6443 ได้!
+          กรุณาตรวจสอบ:
+          1. Azure NSG: เปิด Inbound Port 6443 จาก 0.0.0.0/0 หรือเปล่า?
+          2. K3s Master บน Azure ทำงานอยู่หรือเปล่า?
+      when: connectivity_check.failed
+
+    - name: "Join K3s Cluster as Worker"
+      shell: |
+        curl -sfL https://get.k3s.io | \
+          K3S_URL="https://{{ k3s_master_ip }}:6443" \
+          K3S_TOKEN="{{ k3s_token }}" \
+          INSTALL_K3S_EXEC="agent --node-name {{ inventory_hostname }}" \
+          sh -
+      when: not k3s_binary.stat.exists
+      args:
+        executable: /bin/bash
+
+    - name: "Verify K3s Agent is running"
+      systemd:
+        name: k3s-agent
+        state: started
+        enabled: yes
+
+    - name: "Show Worker Join Status"
+      debug:
+        msg:
+          - "✅ {{ inventory_hostname }} joined K3s cluster successfully!"
+          - "   Master: https://{{ k3s_master_ip }}:6443"
+          - "   To verify: run 'kubectl get nodes' on Azure Master"

@@ -1,12 +1,7 @@
 all:
   hosts:
     azure-master:
-      # เปลี่ยนเป็น Public IP ของเครื่อง Azure VM
-      ansible_host: "1.2.3.4" 
-      
-      # เปลี่ยนเป็นชื่อ Username ของเครื่อง Azure (ค่าเริ่มต้นมักจะเป็น azureuser หรือ ubuntu)
+      ansible_host: "4.230.18.31"
       ansible_user: "azureuser"
-      
-      # สำคัญมาก: คำสั่งนี้จะไปยกเลิก AWS SSM ProxyCommand ใน ansible.cfg 
-      # เพื่อให้ Ansible ยิง SSH ตรงๆ ผ่าน Port 22 ไปที่ Azure ได้เลย
+      # ยกเลิก AWS SSM ProxyCommand → ใช้ Direct SSH ผ่าน Port 22 แทน
       ansible_ssh_common_args: "-o StrictHostKeyChecking=accept-new -o ProxyCommand=none"

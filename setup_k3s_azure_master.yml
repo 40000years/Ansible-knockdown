@@ -1,0 +1,84 @@
+---
+# ==============================================================
+# PHASE 1: ติดตั้ง K3s Server บน Azure VM (Master Node)
+#
+# วิธีใช้ใน Semaphore:
+#   - Inventory : inventory.azure.yml
+#   - SSH Key   : Azure Key (ตัวใหม่)
+#   - Playbook  : setup_k3s_azure_master.yml
+#
+# หลังรันเสร็จ ให้ก๊อปปี้ค่า k3s_token ที่ขึ้นใน Output
+# แล้วนำไปใส่ใน Phase 2 (Extra Variables)
+# ==============================================================
+
+- name: "Phase 1: Install K3s Master on Azure VM"
+  hosts: azure-master
+  become: yes
+  gather_facts: true
+  vars:
+    azure_master_public_ip: "4.230.18.31"
+
+  tasks:
+    - name: "Update apt cache"
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+    - name: "Check if K3s is already installed"
+      stat:
+        path: /usr/local/bin/k3s
+      register: k3s_binary
+
+    - name: "Install K3s Server with Public IP TLS SAN"
+      shell: |
+        curl -sfL https://get.k3s.io | \
+          INSTALL_K3S_EXEC="server \
+            --disable traefik \
+            --write-kubeconfig-mode 644 \
+            --tls-san {{ azure_master_public_ip }} \
+            --node-name azure-master" \
+          sh -
+      when: not k3s_binary.stat.exists
+      args:
+        executable: /bin/bash
+
+    - name: "Wait for K3s node-token to be ready"
+      wait_for:
+        path: /var/lib/rancher/k3s/server/node-token
+        timeout: 120
+
+    - name: "Read K3s node-token"
+      slurp:
+        src: /var/lib/rancher/k3s/server/node-token
+      register: k3s_token_raw
+
+    - name: "Check K3s node status"
+      shell: kubectl get nodes -o wide
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      register: nodes_output
+      changed_when: false
+
+    - name: "Show Phase 1 Results"
+      debug:
+        msg:
+          - "============================================"
+          - "  K3s Master is READY on Azure!"
+          - "============================================"
+          - "  Master Public IP : {{ azure_master_public_ip }}"
+          - "  K3s API Endpoint : https://{{ azure_master_public_ip }}:6443"
+          - "============================================"
+          - "  >>> COPY THIS TOKEN for Phase 2 <<<"
+          - ""
+          - "  {{ k3s_token_raw.content | b64decode | trim }}"
+          - ""
+          - "============================================"
+          - "  Current Nodes:"
+          - "{{ nodes_output.stdout }}"
+          - "============================================"
+          - "  NEXT STEP: Run 'join_k3s_aws_workers.yml'"
+          - "  Extra Variables:"
+          - "    k3s_master_ip: \"{{ azure_master_public_ip }}\""
+          - "    k3s_token: \"<paste-token-here>\""
+          - "============================================"
