@@ -1,0 +1,82 @@
+---
+# ==============================================================
+# Deploy Prometheus + Grafana บน Azure K3s Master (ไม่ต้องเข้าเครื่อง AWS)
+#
+# วิธีใช้ใน Semaphore:
+#   - Inventory : inventory.azure.yml
+#   - SSH Key   : Azure Key
+#   - Playbook  : deploy_prometheus_grafana_azure.yml
+# ==============================================================
+
+- name: "Deploy Prometheus + Grafana on Azure K3s Master"
+  hosts: azure-master
+  become: yes
+  gather_facts: true
+  vars:
+    azure_master_public_ip: "4.230.18.31"
+    grafana_admin_password: "Admin@Monitor123"
+    grafana_nodeport: 32000
+    prometheus_nodeport: 32001
+
+  tasks:
+    - name: "Install Helm"
+      shell: |
+        if ! command -v helm &>/dev/null; then
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+        fi
+      args:
+        executable: /bin/bash
+
+    - name: "Add Prometheus Helm repo"
+      shell: |
+        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+        helm repo update
+      args:
+        executable: /bin/bash
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+    - name: "Wait for all K3s nodes to be Ready"
+      shell: |
+        kubectl wait --for=condition=Ready nodes --all --timeout=180s
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      register: nodes_ready
+      until: nodes_ready.rc == 0
+      retries: 5
+      delay: 15
+
+    - name: "Deploy kube-prometheus-stack (Prometheus + Grafana)"
+      shell: |
+        helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
+          --namespace monitoring \
+          --create-namespace \
+          --set grafana.adminPassword="{{ grafana_admin_password }}" \
+          --set grafana.service.type=NodePort \
+          --set grafana.service.nodePort={{ grafana_nodeport }} \
+          --set prometheus.service.type=NodePort \
+          --set prometheus.service.nodePort={{ prometheus_nodeport }} \
+          --set prometheus.prometheusSpec.scrapeInterval=15s \
+          --set prometheus.prometheusSpec.evaluationInterval=15s \
+          --wait \
+          --timeout 10m
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      args:
+        executable: /bin/bash
+
+    - name: "Show Monitoring Endpoints"
+      debug:
+        msg:
+          - "============================================"
+          - "  Monitoring Stack is LIVE on Azure K3s Cluster!"
+          - "============================================"
+          - "  Grafana   : http://{{ azure_master_public_ip }}:{{ grafana_nodeport }}"
+          - "  Prometheus: http://{{ azure_master_public_ip }}:{{ prometheus_nodeport }}"
+          - "  Username  : admin"
+          - "  Password  : {{ grafana_admin_password }}"
+          - "============================================"
+          - "  To access safely without opening public ports, run SSH tunnel on Mac:"
+          - "  ssh -i <path-to-azure-key> azureuser@{{ azure_master_public_ip }} -N -L 8080:localhost:{{ grafana_nodeport }}"
+          - "  Then open: http://localhost:8080"
+          - "============================================"
