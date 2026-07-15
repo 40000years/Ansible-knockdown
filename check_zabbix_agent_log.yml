@@ -1,14 +1,18 @@
 ---
-- name: "Check Zabbix Agent logs"
+- name: "Test Zabbix Agent config"
   hosts: all
   become: yes
   gather_facts: false
   tasks:
-    - name: "Get Zabbix Agent 2 logs"
-      shell: "tail -n 20 /var/log/zabbix/zabbix_agent2.log"
-      register: agent_logs
+    - name: "Test config"
+      shell: "zabbix_agent2 -c /etc/zabbix/zabbix_agent2.conf -t"
+      register: config_test
       ignore_errors: true
 
-    - name: "Show logs"
+    - name: "Show config error"
       debug:
-        msg: "{{ agent_logs.stdout_lines }}"
+        msg: "{{ config_test.stderr }}"
+
+    - name: "Show config output"
+      debug:
+        msg: "{{ config_test.stdout_lines[:5] }}"
