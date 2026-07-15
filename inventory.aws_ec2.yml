@@ -25,3 +25,5 @@ compose:
   # เพิ่ม Timeout สำหรับ SSH และ Sudo เพื่อป้องกัน Timeout ตอน Gathering Facts และตอนโหลด Docker Image หนักๆ
   ansible_become_timeout: "120"
   ansible_timeout: "120"
+  # โยก ProxyCommand มาไว้ที่นี่ เพื่อให้มีผลเฉพาะเครื่อง AWS เท่านั้น ไม่ไปรบกวน Azure
+  ansible_ssh_common_args: "'-o ProxyCommand=\"aws ssm start-session --target %h --document-name AWS-StartSSHSession --parameters portNumber=%p\"'"
