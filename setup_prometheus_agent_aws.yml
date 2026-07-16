@@ -66,10 +66,7 @@
       when: not node_exporter_binary.stat.exists
 
     - name: "Extract node_exporter"
-      unarchive:
-        src: "/tmp/node_exporter.tar.gz"
-        dest: "/tmp/"
-        remote_src: yes
+      shell: "tar -xzf /tmp/node_exporter.tar.gz -C /tmp/"
       when: not node_exporter_binary.stat.exists
 
     - name: "Install node_exporter binary"
@@ -130,10 +127,7 @@
       when: not prometheus_binary.stat.exists
 
     - name: "Extract Prometheus"
-      unarchive:
-        src: "/tmp/prometheus.tar.gz"
-        dest: "/tmp/"
-        remote_src: yes
+      shell: "tar -xzf /tmp/prometheus.tar.gz -C /tmp/"
       when: not prometheus_binary.stat.exists
 
     - name: "Install Prometheus binary"
