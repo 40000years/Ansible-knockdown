@@ -1,0 +1,267 @@
+---
+# ==============================================================
+# Phase 2: ติดตั้ง Node Exporter + Prometheus Agent บน AWS
+#
+# วิธีใช้ใน Semaphore:
+#   - Inventory    : inventory.aws_ec2.yml
+#   - SSH Key      : AWS Key
+#   - Playbook     : setup_prometheus_agent_aws.yml
+#   - Extra Variables:
+#       prometheus_server_ip: "4.230.18.31"
+#       prometheus_server_port: "32090"
+#
+# สิ่งที่ Playbook นี้ทำ:
+#   1. ติดตั้ง node_exporter v1.8.1
+#      -> เก็บ Metrics ระดับ OS เช่น CPU, RAM, Disk, Network
+#      -> รันบน localhost:9100 (ไม่ expose ออก Public)
+#   2. ติดตั้ง Prometheus ในโหมด Agent (--enable-feature=agent)
+#      -> ดูดข้อมูลจาก node_exporter ที่ localhost:9100
+#      -> ยิง Remote Write ไปหา Prometheus Server บน Azure
+#      -> ใช้ RAM น้อยกว่า Full Prometheus มาก (~50MB)
+# ==============================================================
+- name: "Install Prometheus Agent + Node Exporter on AWS EC2"
+  hosts: all
+  become: yes
+  gather_facts: true
+  vars:
+    # -------------------------------------------------------
+    # ค่าที่ต้องกรอกผ่าน Extra Variables ใน Semaphore
+    # -------------------------------------------------------
+    # IP ของ Azure Prometheus Server ที่จะยิง Remote Write ไปหา
+    prometheus_server_ip: "CHANGE_ME"
+    # NodePort ที่เปิดไว้บน Azure สำหรับรับ Remote Write
+    prometheus_server_port: "32090"
+
+    # -------------------------------------------------------
+    # ค่าคงที่ (ไม่ต้องเปลี่ยน)
+    # -------------------------------------------------------
+    # เวอร์ชันของ node_exporter (ตัวเก็บ Metrics OS)
+    node_exporter_version: "1.8.1"
+    # เวอร์ชันของ Prometheus Agent
+    prometheus_version: "2.53.1"
+    # พอร์ตที่ node_exporter รับฟัง (localhost only)
+    node_exporter_port: "9100"
+
+  tasks:
+    # ==========================================================
+    # ส่วนที่ 1: ติดตั้ง Node Exporter
+    # ==========================================================
+    - name: "Create prometheus system user"
+      user:
+        name: prometheus
+        system: yes
+        shell: /sbin/nologin
+        create_home: no
+
+    - name: "Check if node_exporter is already installed"
+      stat:
+        path: /usr/local/bin/node_exporter
+      register: node_exporter_binary
+
+    - name: "Download node_exporter v{{ node_exporter_version }}"
+      get_url:
+        url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+        dest: "/tmp/node_exporter.tar.gz"
+        mode: '0644'
+      when: not node_exporter_binary.stat.exists
+
+    - name: "Extract node_exporter"
+      unarchive:
+        src: "/tmp/node_exporter.tar.gz"
+        dest: "/tmp/"
+        remote_src: yes
+      when: not node_exporter_binary.stat.exists
+
+    - name: "Install node_exporter binary"
+      copy:
+        src: "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter"
+        dest: /usr/local/bin/node_exporter
+        owner: prometheus
+        group: prometheus
+        mode: '0755'
+        remote_src: yes
+      when: not node_exporter_binary.stat.exists
+
+    - name: "Create node_exporter systemd service"
+      copy:
+        dest: /etc/systemd/system/node_exporter.service
+        content: |
+          [Unit]
+          Description=Node Exporter - Prometheus OS Metrics Collector
+          After=network.target
+
+          [Service]
+          User=prometheus
+          Group=prometheus
+          Type=simple
+          ExecStart=/usr/local/bin/node_exporter \
+            --web.listen-address="127.0.0.1:{{ node_exporter_port }}" \
+            --collector.systemd \
+            --collector.processes
+          # ฟัง localhost เท่านั้น ไม่เปิด Public
+          # เก็บ Metrics เพิ่ม: systemd service states + process stats
+
+          Restart=always
+          RestartSec=3
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: "Enable and start node_exporter"
+      systemd:
+        name: node_exporter
+        state: started
+        enabled: yes
+        daemon_reload: yes
+
+    # ==========================================================
+    # ส่วนที่ 2: ติดตั้ง Prometheus Agent
+    # ==========================================================
+    - name: "Check if prometheus is already installed"
+      stat:
+        path: /usr/local/bin/prometheus
+      register: prometheus_binary
+
+    - name: "Download Prometheus v{{ prometheus_version }}"
+      get_url:
+        url: "https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_version }}/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
+        dest: "/tmp/prometheus.tar.gz"
+        mode: '0644'
+      when: not prometheus_binary.stat.exists
+
+    - name: "Extract Prometheus"
+      unarchive:
+        src: "/tmp/prometheus.tar.gz"
+        dest: "/tmp/"
+        remote_src: yes
+      when: not prometheus_binary.stat.exists
+
+    - name: "Install Prometheus binary"
+      copy:
+        src: "/tmp/prometheus-{{ prometheus_version }}.linux-amd64/prometheus"
+        dest: /usr/local/bin/prometheus
+        owner: prometheus
+        group: prometheus
+        mode: '0755'
+        remote_src: yes
+      when: not prometheus_binary.stat.exists
+
+    - name: "Create Prometheus config directory"
+      file:
+        path: /etc/prometheus
+        state: directory
+        owner: prometheus
+        group: prometheus
+        mode: '0755'
+
+    - name: "Create Prometheus Agent config file"
+      copy:
+        dest: /etc/prometheus/prometheus-agent.yml
+        owner: prometheus
+        group: prometheus
+        mode: '0644'
+        content: |
+          # ==========================================
+          # Prometheus Agent Mode Configuration
+          # ==========================================
+          # ชื่อ Job ที่ใช้ระบุว่า Metric นี้มาจากที่ไหน
+          # จะปรากฏใน Grafana ในรูป label job="aws-node"
+          global:
+            scrape_interval: 60s      # ดูด Metrics ทุก 60 วินาที (ไม่บ่อยไป ประหยัด RAM)
+            evaluation_interval: 60s  # Agent Mode ไม่มี Alerting Rule แต่ต้องใส่ไว้
+
+          # ==========================================
+          # Remote Write: ยิงข้อมูลไปหา Azure
+          # ==========================================
+          remote_write:
+            - url: "http://{{ prometheus_server_ip | regex_replace('\"', '') }}:{{ prometheus_server_port }}/api/v1/write"
+              # ส่งข้อมูลทุก 30 วินาที (batch)
+              queue_config:
+                max_samples_per_send: 1000
+                max_shards: 2
+                capacity: 2500
+              # ถ้า Azure ชั่วคราวไม่ตอบ ให้ retry (ไม่ทิ้งข้อมูล)
+              metadata_config:
+                send: true
+                send_interval: 1m
+
+          # ==========================================
+          # Scrape Config: ดูดข้อมูลจาก Node Exporter
+          # ==========================================
+          scrape_configs:
+            - job_name: "aws-node-{{ inventory_hostname }}"
+              static_configs:
+                - targets:
+                    - "localhost:{{ node_exporter_port }}"
+                  # ป้ายกำกับที่จะติดกับ Metrics ทุกตัวจากเครื่องนี้
+                  labels:
+                    instance: "{{ inventory_hostname }}"
+                    cloud: "aws"
+                    environment: "production"
+
+            # ดู Metrics ของ Prometheus Agent ตัวเอง (ไว้ debug)
+            - job_name: "prometheus-agent-self"
+              static_configs:
+                - targets: ["localhost:9091"]
+      notify: Restart Prometheus Agent
+
+    - name: "Create Prometheus Agent systemd service"
+      copy:
+        dest: /etc/systemd/system/prometheus-agent.service
+        content: |
+          [Unit]
+          Description=Prometheus Agent - Remote Write to Azure
+          After=network.target node_exporter.service
+
+          [Service]
+          User=prometheus
+          Group=prometheus
+          Type=simple
+
+          # --enable-feature=agent = รันแบบ Agent Mode
+          # ไม่มี Storage ไม่มี Query Engine ไม่มี Dashboard
+          # หน้าที่เดียวคือ Scrape + Remote Write เท่านั้น
+          # ทำให้ใช้ RAM แค่ ~50-100MB แทนที่จะเป็น 500MB+
+          ExecStart=/usr/local/bin/prometheus \
+            --enable-feature=agent \
+            --config.file=/etc/prometheus/prometheus-agent.yml \
+            --web.listen-address="127.0.0.1:9091" \
+            --storage.agent.path=/tmp/prometheus-agent-data \
+            --log.level=warn
+
+          Restart=always
+          RestartSec=5
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: "Enable and start Prometheus Agent"
+      systemd:
+        name: prometheus-agent
+        state: started
+        enabled: yes
+        daemon_reload: yes
+
+    - name: "Wait 10s for agent to connect"
+      pause:
+        seconds: 10
+
+    - name: "Verify node_exporter is running"
+      shell: "curl -s -o /dev/null -w '%{http_code}' http://localhost:{{ node_exporter_port }}/metrics"
+      register: node_exporter_check
+      changed_when: false
+
+    - name: "Show installation status"
+      debug:
+        msg:
+          - "✅ {{ inventory_hostname }}"
+          - "   node_exporter  : HTTP {{ node_exporter_check.stdout }} (200 = OK)"
+          - "   Prometheus Agent: Remote Write → http://{{ prometheus_server_ip }}:{{ prometheus_server_port }}/api/v1/write"
+          - "   Labels: cloud=aws, instance={{ inventory_hostname }}"
+
+  handlers:
+    - name: Restart Prometheus Agent
+      systemd:
+        name: prometheus-agent
+        state: restarted
+        daemon_reload: yes

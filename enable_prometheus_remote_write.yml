@@ -1,0 +1,126 @@
+---
+# ==============================================================
+# Phase 1: เปิดให้ Prometheus บน Azure รับ Remote Write ได้
+#
+# วิธีใช้ใน Semaphore:
+#   - Inventory : inventory.azure.yml
+#   - SSH Key   : Azure Key
+#   - Playbook  : enable_prometheus_remote_write.yml
+#
+# สิ่งที่ Playbook นี้ทำ:
+#   1. อัปเดต Helm Values ของ kube-prometheus-stack
+#      เพื่อเปิด Flag --web.enable-remote-write-receiver
+#   2. เพิ่ม NodePort Service บนพอร์ต 32090 (แยกจาก Grafana)
+#      เพื่อให้ AWS Agent ยิง Remote Write เข้ามาได้
+# ==============================================================
+- name: "Enable Prometheus Remote Write Receiver on Azure"
+  hosts: azure-master
+  become: yes
+  gather_facts: false
+  vars:
+    # Public IP ของ Azure VM
+    azure_public_ip: "4.230.18.31"
+    # NodePort ที่ AWS Agent จะยิง Remote Write มาที่นี่
+    prometheus_remote_write_port: 32090
+
+  tasks:
+    - name: "Create Helm values file to enable Remote Write Receiver"
+      copy:
+        dest: /tmp/prometheus-remote-write-values.yaml
+        content: |
+          prometheus:
+            prometheusSpec:
+              # เปิดให้ Prometheus รับ Remote Write จากภายนอกได้
+              # เมื่อเปิด Flag นี้ จะมี Endpoint /api/v1/write พร้อมใช้งาน
+              enableRemoteWriteReceiver: true
+
+              # เพิ่มหน่วยความจำนิดนึงเพื่อรองรับ Remote Write stream
+              resources:
+                requests:
+                  memory: "512Mi"
+                limits:
+                  memory: "1Gi"
+
+            # เพิ่ม NodePort Service สำหรับรับ Remote Write
+            # แยกออกมาจาก Service ปกติเพื่อความชัดเจน
+            service:
+              type: NodePort
+              nodePort: 32001  # ใช้พอร์ตเดิมของ Prometheus
+
+    - name: "Apply updated Prometheus Helm chart"
+      shell: |
+        export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+        helm upgrade monitoring prometheus-community/kube-prometheus-stack \
+          --namespace monitoring \
+          --reuse-values \
+          -f /tmp/prometheus-remote-write-values.yaml
+      args:
+        executable: /bin/bash
+      register: helm_upgrade
+      changed_when: "'has been upgraded' in helm_upgrade.stdout"
+
+    - name: "Create dedicated NodePort Service for Remote Write"
+      copy:
+        dest: /tmp/prometheus-remote-write-svc.yaml
+        content: |
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: prometheus-remote-write
+            namespace: monitoring
+            labels:
+              app: prometheus-remote-write
+          spec:
+            type: NodePort
+            selector:
+              # ชี้ไปที่ Pod ของ Prometheus Server ตัวจริง
+              app.kubernetes.io/name: prometheus
+              operator.prometheus.io/name: monitoring-kube-prometheus-prometheus
+            ports:
+              - name: remote-write
+                protocol: TCP
+                port: 9090
+                targetPort: 9090
+                # พอร์ตที่ AWS Agent จะส่งมาหา (ต้องเปิดใน Azure NSG ด้วย)
+                nodePort: {{ prometheus_remote_write_port }}
+
+    - name: "Apply Remote Write Service"
+      shell: |
+        export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+        kubectl apply -f /tmp/prometheus-remote-write-svc.yaml
+      args:
+        executable: /bin/bash
+
+    - name: "Wait for Prometheus to restart with new config (60s)"
+      pause:
+        seconds: 60
+
+    - name: "Verify Remote Write endpoint is accessible"
+      shell: |
+        curl -s -o /dev/null -w "%{http_code}" \
+          http://localhost:{{ prometheus_remote_write_port }}/api/v1/write \
+          -X POST \
+          --data-binary ""
+      args:
+        executable: /bin/bash
+      register: endpoint_check
+      ignore_errors: true
+
+    - name: "Show setup results"
+      debug:
+        msg:
+          - "============================================"
+          - "  Prometheus Remote Write Receiver Ready!"
+          - "============================================"
+          - "  Remote Write Endpoint:"
+          - "  http://{{ azure_public_ip }}:{{ prometheus_remote_write_port }}/api/v1/write"
+          - "============================================"
+          - "  HTTP Status Check: {{ endpoint_check.stdout }}"
+          - "  (204 หรือ 200 = ใช้งานได้, 404 = ยังไม่พร้อม)"
+          - "============================================"
+          - "  NEXT STEP: เปิดพอร์ต {{ prometheus_remote_write_port }} ใน Azure NSG"
+          - "  แล้วรัน setup_prometheus_agent_aws.yml บน AWS"
+          - "  Extra Variables:"
+          - "    prometheus_server_ip: \"{{ azure_public_ip }}\""
+          - "    prometheus_server_port: \"{{ prometheus_remote_write_port }}\""
+          - "============================================"
