@@ -24,40 +24,14 @@
     prometheus_remote_write_port: 32090
 
   tasks:
-    - name: "Create Helm values file to enable Remote Write Receiver"
-      copy:
-        dest: /tmp/prometheus-remote-write-values.yaml
-        content: |
-          prometheus:
-            prometheusSpec:
-              # เปิดให้ Prometheus รับ Remote Write จากภายนอกได้
-              # เมื่อเปิด Flag นี้ จะมี Endpoint /api/v1/write พร้อมใช้งาน
-              enableRemoteWriteReceiver: true
-
-              # เพิ่มหน่วยความจำนิดนึงเพื่อรองรับ Remote Write stream
-              resources:
-                requests:
-                  memory: "512Mi"
-                limits:
-                  memory: "1Gi"
-
-            # เพิ่ม NodePort Service สำหรับรับ Remote Write
-            # แยกออกมาจาก Service ปกติเพื่อความชัดเจน
-            service:
-              type: NodePort
-              nodePort: 32001  # ใช้พอร์ตเดิมของ Prometheus
-
-    - name: "Apply updated Prometheus Helm chart"
+    - name: "Patch Prometheus Custom Resource to enable Remote Write"
       shell: |
         export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
-        helm upgrade monitoring prometheus-community/kube-prometheus-stack \
-          --namespace monitoring \
-          --reuse-values \
-          -f /tmp/prometheus-remote-write-values.yaml
+        kubectl patch prometheus monitoring-kube-prometheus-prometheus -n monitoring \
+          --type='merge' \
+          -p '{"spec":{"enableRemoteWriteReceiver":true}}'
       args:
         executable: /bin/bash
-      register: helm_upgrade
-      changed_when: "'has been upgraded' in helm_upgrade.stdout"
 
     - name: "Create dedicated NodePort Service for Remote Write"
       copy:
