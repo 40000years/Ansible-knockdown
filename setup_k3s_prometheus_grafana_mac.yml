@@ -36,17 +36,28 @@
         path: /usr/local/bin/k3s
       register: k3s_binary
 
-    - name: "Install K3s Server"
+    - name: "Install K3s Server binary"
       shell: |
         curl -sfL https://get.k3s.io | \
-          INSTALL_K3S_EXEC="server \
+          INSTALL_K3S_SKIP_ENABLE=true \
+          INSTALL_K3S_SKIP_START=true \
+          sh -
+      when: not k3s_binary.stat.exists
+      args:
+        executable: /bin/bash
+
+    - name: "Ensure K3s Server process is running"
+      shell: |
+        if ! pgrep -f '[k]3s server' > /dev/null; then
+          nohup k3s server \
             --disable traefik \
             --write-kubeconfig-mode 644 \
             --tls-san {{ mac_master_ip }} \
             --tls-san 127.0.0.1 \
-            --node-name mac-master" \
-          sh -
-      when: not k3s_binary.stat.exists
+            --node-name mac-master \
+            > /tmp/k3s.log 2>&1 &
+          sleep 5
+        fi
       args:
         executable: /bin/bash
 
