@@ -23,3 +23,33 @@ variable "AWS_SECRET_ACCESS_KEY" {
   sensitive   = true
   description = "AWS Secret Access Key (ส่งผ่านมาจาก Semaphore)"
 }
+
+variable "k3s_master_id" {
+  type        = string
+  default     = ""
+  description = "k3s_master_id (ส่งผ่านมาจาก Semaphore สำหรับ Ansible แต่ Terraform รับมาด้วย)"
+}
+
+variable "zabbix_server_ip" {
+  type        = string
+  default     = ""
+  description = "zabbix_server_ip (ส่งผ่านมาจาก Semaphore สำหรับ Ansible)"
+}
+
+variable "prometheus_server_ip" {
+  type        = string
+  default     = ""
+  description = "prometheus_server_ip (ส่งผ่านมาจาก Semaphore สำหรับ Ansible)"
+}
+
+variable "k3s_master_ip" {
+  type        = string
+  default     = ""
+  description = "k3s_master_ip (ส่งผ่านมาจาก Semaphore สำหรับ Ansible)"
+}
+
+variable "k3s_token" {
+  type        = string
+  default     = ""
+  description = "k3s_token (ส่งผ่านมาจาก Semaphore สำหรับ Ansible)"
+}
