@@ -52,20 +52,20 @@
 
     - name: "Create Zabbix directory"
       file:
-        path: /opt/zabbix
+        path: /tmp/zabbix
         state: directory
         mode: '0755'
 
     - name: "Stop existing Zabbix stack (if any)"
       shell: |
-        cd /opt/zabbix
+        cd /tmp/zabbix
         docker compose down -v 2>/dev/null || true
       args:
         executable: /bin/bash
 
     - name: "Deploy Zabbix Docker Compose (MariaDB + correct charset)"
       copy:
-        dest: /opt/zabbix/docker-compose.yml
+        dest: /tmp/zabbix/docker-compose.yml
         content: |
           version: '3.8'
           services:
@@ -124,7 +124,7 @@
 
     - name: "Start Zabbix Stack"
       shell: |
-        cd /opt/zabbix
+        cd /tmp/zabbix
         docker compose up -d
       args:
         executable: /bin/bash
