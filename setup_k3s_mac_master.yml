@@ -35,13 +35,13 @@
       when: docker_running.rc != 0
 
     - name: "Check if K3s container is already running"
-      shell: "docker inspect -f '{{.State.Running}}' k3s-server 2>/dev/null || echo 'false'"
+      shell: "docker ps -q -f name=^/k3s-server$ -f status=running"
       register: k3s_container_status
       changed_when: false
 
     - name: "Remove existing stopped K3s container (if any)"
       shell: "docker rm -f k3s-server 2>/dev/null || true"
-      when: k3s_container_status.stdout != "true"
+      when: k3s_container_status.stdout == ""
       changed_when: false
 
     - name: "Start K3s Server Docker container"
@@ -62,7 +62,7 @@
           --tls-san {{ mac_master_ip }} \
           --tls-san 127.0.0.1 \
           --node-name mac-master
-      when: k3s_container_status.stdout != "true"
+      when: k3s_container_status.stdout == ""
 
     - name: "Wait for K3s node-token to be ready"
       shell: "docker exec k3s-server cat /var/lib/rancher/k3s/server/node-token"
