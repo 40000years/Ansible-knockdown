@@ -13,7 +13,7 @@
 
 - name: "Deploy Prometheus + Grafana on Mac K3s Master"
   hosts: mac-master
-  become: yes
+  become: no
   gather_facts: true
   vars:
     mac_master_ip: "127.0.0.1"

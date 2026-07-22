@@ -14,7 +14,7 @@
 
 - name: "Start kubectl port-forward for Grafana (Mac Local)"
   hosts: mac-master
-  become: yes
+  become: no
   gather_facts: false
   vars:
     grafana_local_port: 3000

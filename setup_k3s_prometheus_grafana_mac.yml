@@ -25,7 +25,7 @@
 # ==============================================================
 - name: "Play 1: Install K3s Server (Mac Master)"
   hosts: mac-master
-  become: yes
+  become: no
   gather_facts: true
   vars:
     mac_master_ip: "CHANGE_ME"
@@ -97,7 +97,7 @@
 # ==============================================================
 - name: "Play 3: Deploy Prometheus + Grafana Monitoring Stack"
   hosts: mac-master
-  become: yes
+  become: no
   gather_facts: true
   vars:
     mac_master_ip: "CHANGE_ME"

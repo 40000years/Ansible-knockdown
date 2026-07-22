@@ -1,7 +1,7 @@
 ---
 - name: "Fix Zabbix MySQL Connection Error (Switch to MariaDB)"
   hosts: "{{ k3s_master_id | default('mac-master') }}"
-  become: yes
+  become: no
   gather_facts: false
   vars:
     # ค่า default เป็น mac-master (local Mac)

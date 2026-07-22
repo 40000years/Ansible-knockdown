@@ -18,7 +18,7 @@
 # ==============================================================
 - name: "Enable Prometheus Remote Write Receiver on Mac"
   hosts: mac-master
-  become: yes
+  become: no
   gather_facts: false
   vars:
     # IP ของ Mac ที่ AWS เข้าถึงได้ (เช่น Tailscale IP)
