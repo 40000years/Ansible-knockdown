@@ -47,10 +47,13 @@
 
     - name: "Install K3s Server binary"
       shell: |
-        curl -sfL https://get.k3s.io | \
-          INSTALL_K3S_SKIP_ENABLE=true \
-          INSTALL_K3S_SKIP_START=true \
-          sh -
+        mkdir -p /run/systemd/system /usr/local/bin 2>/dev/null || true
+        if ! curl -sfL https://get.k3s.io | INSTALL_K3S_SKIP_ENABLE=true INSTALL_K3S_SKIP_START=true sh -; then
+          echo "get.k3s.io script failed, downloading release binary directly..."
+          curl -sfL "https://github.com/k3s-io/k3s/releases/download/v1.30.2%2Bk3s1/k3s" -o /usr/local/bin/k3s
+          chmod +x /usr/local/bin/k3s
+          ln -sf /usr/local/bin/k3s /usr/local/bin/kubectl 2>/dev/null || true
+        fi
       when: not k3s_binary.stat.exists
       args:
         executable: /bin/bash
