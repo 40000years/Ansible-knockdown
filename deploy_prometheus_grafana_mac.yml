@@ -22,6 +22,15 @@
     prometheus_nodeport: 32001
 
   tasks:
+    - name: "Export K3s Kubeconfig locally"
+      shell: |
+        mkdir -p /etc/rancher/k3s /tmp 2>/dev/null || true
+        docker exec k3s-server cat /etc/rancher/k3s/k3s.yaml > /etc/rancher/k3s/k3s.yaml 2>/dev/null || \
+        docker exec k3s-server cat /etc/rancher/k3s/k3s.yaml > /tmp/k3s.yaml
+        chmod 644 /etc/rancher/k3s/k3s.yaml 2>/dev/null || chmod 644 /tmp/k3s.yaml
+      changed_when: false
+      ignore_errors: true
+
     - name: "Check if Helm is installed"
       shell: "command -v helm"
       register: helm_check
@@ -39,8 +48,9 @@
 
     - name: "Add Prometheus Helm repo"
       shell: |
+        docker exec k3s-server helm repo add prometheus-community https://prometheus-community.github.io/helm-charts 2>/dev/null || \
         helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-        helm repo update
+        docker exec k3s-server helm repo update 2>/dev/null || helm repo update
       args:
         executable: /bin/bash
       environment:
@@ -48,6 +58,7 @@
 
     - name: "Wait for all K3s nodes to be Ready"
       shell: |
+        docker exec k3s-server kubectl wait --for=condition=Ready nodes --all --timeout=180s 2>/dev/null || \
         kubectl wait --for=condition=Ready nodes --all --timeout=180s
       environment:
         KUBECONFIG: /etc/rancher/k3s/k3s.yaml
@@ -58,6 +69,18 @@
 
     - name: "Deploy kube-prometheus-stack (Prometheus + Grafana)"
       shell: |
+        docker exec k3s-server kubectl create namespace monitoring 2>/dev/null || true
+        docker exec k3s-server helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
+          --namespace monitoring \
+          --set grafana.adminPassword="{{ grafana_admin_password }}" \
+          --set grafana.service.type=NodePort \
+          --set grafana.service.nodePort={{ grafana_nodeport }} \
+          --set prometheus.service.type=NodePort \
+          --set prometheus.service.nodePort={{ prometheus_nodeport }} \
+          --set prometheus.prometheusSpec.scrapeInterval=15s \
+          --set prometheus.prometheusSpec.evaluationInterval=15s \
+          --wait \
+          --timeout 10m 2>/dev/null || \
         helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
           --namespace monitoring \
           --create-namespace \

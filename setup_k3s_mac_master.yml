@@ -1,6 +1,6 @@
 ---
 # ==============================================================
-# PHASE 1: ติดตั้ง K3s Server บน Mac Local (Master Node)
+# PHASE 1: ติดตั้ง K3s Server บน Mac Local (Master Node via Docker)
 #
 # ใช้แทน setup_k3s_azure_master.yml
 #
@@ -23,61 +23,65 @@
     mac_master_ip: "CHANGE_ME"
 
   tasks:
-    - name: "Update Homebrew (macOS)"
-      shell: brew update
-      args:
-        executable: /bin/bash
-      become: no
+    - name: "Check if Docker is running"
+      shell: "docker info > /dev/null 2>&1"
+      register: docker_running
       ignore_errors: true
-      when: ansible_os_family == "Darwin"
+      changed_when: false
 
-    - name: "Check if K3s is already installed"
-      stat:
-        path: /usr/local/bin/k3s
-      register: k3s_binary
+    - name: "Fail if Docker is not running"
+      fail:
+        msg: "❌ Docker is not running! กรุณาเปิด Docker Desktop ก่อนรัน Playbook นี้"
+      when: docker_running.rc != 0
 
-    - name: "Install K3s Server binary"
+    - name: "Check if K3s container is already running"
+      shell: "docker inspect -f '{{.State.Running}}' k3s-server 2>/dev/null || echo 'false'"
+      register: k3s_container_status
+      changed_when: false
+
+    - name: "Remove existing stopped K3s container (if any)"
+      shell: "docker rm -f k3s-server 2>/dev/null || true"
+      when: k3s_container_status.stdout != "true"
+      changed_when: false
+
+    - name: "Start K3s Server Docker container"
       shell: |
-        mkdir -p /run/systemd/system /usr/local/bin 2>/dev/null || true
-        if ! curl -sfL https://get.k3s.io | INSTALL_K3S_SKIP_ENABLE=true INSTALL_K3S_SKIP_START=true sh -; then
-          echo "get.k3s.io script failed, downloading release binary directly..."
-          curl -sfL "https://github.com/k3s-io/k3s/releases/download/v1.30.2%2Bk3s1/k3s" -o /usr/local/bin/k3s
-          chmod +x /usr/local/bin/k3s
-          ln -sf /usr/local/bin/k3s /usr/local/bin/kubectl 2>/dev/null || true
-        fi
-      when: not k3s_binary.stat.exists
-      args:
-        executable: /bin/bash
-
-    - name: "Ensure K3s Server process is running"
-      shell: |
-        if ! pgrep -f '[k]3s server' > /dev/null; then
-          nohup k3s server \
-            --disable traefik \
-            --write-kubeconfig-mode 644 \
-            --tls-san {{ mac_master_ip }} \
-            --tls-san 127.0.0.1 \
-            --node-name mac-master \
-            > /tmp/k3s.log 2>&1 &
-          sleep 5
-        fi
-      args:
-        executable: /bin/bash
+        docker run -d \
+          --name k3s-server \
+          --privileged \
+          --restart unless-stopped \
+          -p 6443:6443 \
+          -p 32000:32000 \
+          -p 32001:32001 \
+          -p 32090:32090 \
+          -v k3s-server-data:/var/lib/rancher/k3s \
+          rancher/k3s:v1.30.2-k3s1 \
+          server \
+          --disable traefik \
+          --write-kubeconfig-mode 644 \
+          --tls-san {{ mac_master_ip }} \
+          --tls-san 127.0.0.1 \
+          --node-name mac-master
+      when: k3s_container_status.stdout != "true"
 
     - name: "Wait for K3s node-token to be ready"
-      wait_for:
-        path: /var/lib/rancher/k3s/server/node-token
-        timeout: 120
+      shell: "docker exec k3s-server cat /var/lib/rancher/k3s/server/node-token"
+      register: k3s_token_cmd
+      until: k3s_token_cmd.rc == 0 and (k3s_token_cmd.stdout | trim != "")
+      retries: 30
+      delay: 3
+      changed_when: false
 
-    - name: "Read K3s node-token"
-      slurp:
-        src: /var/lib/rancher/k3s/server/node-token
-      register: k3s_token_raw
+    - name: "Export K3s Kubeconfig locally"
+      shell: |
+        mkdir -p /etc/rancher/k3s /tmp 2>/dev/null || true
+        docker exec k3s-server cat /etc/rancher/k3s/k3s.yaml > /etc/rancher/k3s/k3s.yaml 2>/dev/null || \
+        docker exec k3s-server cat /etc/rancher/k3s/k3s.yaml > /tmp/k3s.yaml
+        chmod 644 /etc/rancher/k3s/k3s.yaml 2>/dev/null || chmod 644 /tmp/k3s.yaml
+      changed_when: false
 
     - name: "Check K3s node status"
-      shell: kubectl get nodes -o wide
-      environment:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      shell: "docker exec k3s-server kubectl get nodes -o wide"
       register: nodes_output
       changed_when: false
 
@@ -85,14 +89,14 @@
       debug:
         msg:
           - "============================================"
-          - "  K3s Master is READY on Mac!"
+          - "  K3s Master is READY on Mac (Docker Container)!"
           - "============================================"
           - "  Master IP (for AWS)  : {{ mac_master_ip }}"
           - "  K3s API Endpoint     : https://{{ mac_master_ip }}:6443"
           - "============================================"
           - "  >>> COPY THIS TOKEN for Phase 2 <<<"
           - ""
-          - "  {{ k3s_token_raw.content | b64decode | trim }}"
+          - "  {{ k3s_token_cmd.stdout | trim }}"
           - ""
           - "============================================"
           - "  Current Nodes:"

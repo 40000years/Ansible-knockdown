@@ -5,7 +5,7 @@
 # ใช้แทน setup_k3s_zabbix.yml
 #
 # Architecture:
-#   - K3s Server (Master)     : Mac Local
+#   - K3s Server (Master)     : Mac Local (Docker Container)
 #   - K3s Agent (Workers)     : AWS EC2 Instances
 #   - Zabbix Server+Frontend  : Docker Compose บน Mac
 #   - Zabbix Agent            : ติดตั้งบน AWS Workers
@@ -21,16 +21,13 @@
 #     Task 3: setup_zabbix_mac.yml     (inventory.local_mac.yml)
 #     Task 4: reconfigure_zabbix_agents.yml (inventory.aws_ec2.yml)
 #
-#   หรือรัน playbook นี้กับ inventory.local_mac.yml แล้วเพิ่ม
-#   AWS inventory ด้วย -i ถ้ารันจาก CLI
-#
 #   Extra Variables:
 #     mac_master_ip: "<IP-ที่-AWS-เข้าถึงได้>"
 #     k3s_token: "<token-from-phase-1>"  (ถ้ารันแยก Phase)
 # ==============================================================
 
 # ==============================================================
-# PLAY 1: ติดตั้ง K3s Server บน Mac (Master Node)
+# PLAY 1: ติดตั้ง K3s Server บน Mac (Master Node via Docker)
 # ==============================================================
 - name: "Play 1: Install K3s Server (Mac Master)"
   hosts: mac-master
@@ -40,58 +37,59 @@
     mac_master_ip: "CHANGE_ME"
 
   tasks:
-    - name: "Check if k3s is already installed"
-      stat:
-        path: /usr/local/bin/k3s
-      register: k3s_binary
+    - name: "Check if Docker is running"
+      shell: "docker info > /dev/null 2>&1"
+      register: docker_running
+      ignore_errors: true
+      changed_when: false
 
-    - name: "Install K3s Server binary"
+    - name: "Fail if Docker is not running"
+      fail:
+        msg: "❌ Docker is not running! กรุณาเปิด Docker Desktop ก่อน"
+      when: docker_running.rc != 0
+
+    - name: "Check if K3s container is already running"
+      shell: "docker inspect -f '{{.State.Running}}' k3s-server 2>/dev/null || echo 'false'"
+      register: k3s_container_status
+      changed_when: false
+
+    - name: "Start K3s Server Docker container"
       shell: |
-        mkdir -p /run/systemd/system /usr/local/bin 2>/dev/null || true
-        if ! curl -sfL https://get.k3s.io | INSTALL_K3S_SKIP_ENABLE=true INSTALL_K3S_SKIP_START=true sh -; then
-          echo "get.k3s.io script failed, downloading release binary directly..."
-          curl -sfL "https://github.com/k3s-io/k3s/releases/download/v1.30.2%2Bk3s1/k3s" -o /usr/local/bin/k3s
-          chmod +x /usr/local/bin/k3s
-          ln -sf /usr/local/bin/k3s /usr/local/bin/kubectl 2>/dev/null || true
-        fi
-      when: not k3s_binary.stat.exists
-      args:
-        executable: /bin/bash
+        docker run -d \
+          --name k3s-server \
+          --privileged \
+          --restart unless-stopped \
+          -p 6443:6443 \
+          -p 32000:32000 \
+          -p 32001:32001 \
+          -p 32090:32090 \
+          -v k3s-server-data:/var/lib/rancher/k3s \
+          rancher/k3s:v1.30.2-k3s1 \
+          server \
+          --disable traefik \
+          --write-kubeconfig-mode 644 \
+          --tls-san {{ mac_master_ip }} \
+          --tls-san 127.0.0.1 \
+          --node-name mac-master
+      when: k3s_container_status.stdout != "true"
 
-    - name: "Ensure K3s Server process is running"
-      shell: |
-        if ! pgrep -f '[k]3s server' > /dev/null; then
-          nohup k3s server \
-            --disable traefik \
-            --write-kubeconfig-mode 644 \
-            --tls-san {{ mac_master_ip }} \
-            --tls-san 127.0.0.1 \
-            --node-name mac-master \
-            > /tmp/k3s.log 2>&1 &
-          sleep 5
-        fi
-      args:
-        executable: /bin/bash
-
-    - name: "Wait for K3s node-token"
-      wait_for:
-        path: /var/lib/rancher/k3s/server/node-token
-        timeout: 120
-
-    - name: "Read K3s node-token"
-      slurp:
-        src: /var/lib/rancher/k3s/server/node-token
-      register: k3s_token_raw
+    - name: "Wait for K3s node-token to be ready"
+      shell: "docker exec k3s-server cat /var/lib/rancher/k3s/server/node-token"
+      register: k3s_token_cmd
+      until: k3s_token_cmd.rc == 0 and (k3s_token_cmd.stdout | trim != "")
+      retries: 30
+      delay: 3
+      changed_when: false
 
     - name: "Set k3s_token fact for workers to use"
       set_fact:
-        k3s_token: "{{ k3s_token_raw.content | b64decode | trim }}"
+        k3s_token: "{{ k3s_token_cmd.stdout | trim }}"
         k3s_master_ip: "{{ mac_master_ip }}"
 
     - name: "Show K3s Master Info"
       debug:
         msg:
-          - "K3s Master on Mac is READY"
+          - "K3s Master on Mac (Docker) is READY"
           - "Token: {{ k3s_token }}"
           - "API: https://{{ mac_master_ip }}:6443"
 
@@ -188,9 +186,7 @@
 
     - name: "Fail if Docker is not installed"
       fail:
-        msg: |
-          ❌ Docker is not installed on this Mac!
-          กรุณาติดตั้ง Docker Desktop for Mac ก่อน
+        msg: "❌ Docker is not installed on this Mac!"
       when: docker_check.rc != 0
 
     - name: "Ensure Docker is running"

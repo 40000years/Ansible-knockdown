@@ -29,10 +29,14 @@
   tasks:
     - name: "Patch Prometheus Custom Resource to enable Remote Write"
       shell: |
-        export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+        docker exec k3s-server kubectl patch prometheus monitoring-kube-prometheus-prometheus -n monitoring \
+          --type='merge' \
+          -p '{"spec":{"enableRemoteWriteReceiver":true}}' 2>/dev/null || \
         kubectl patch prometheus monitoring-kube-prometheus-prometheus -n monitoring \
           --type='merge' \
           -p '{"spec":{"enableRemoteWriteReceiver":true}}'
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       args:
         executable: /bin/bash
 
@@ -63,8 +67,10 @@
 
     - name: "Apply Remote Write Service"
       shell: |
-        export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+        docker exec -i k3s-server kubectl apply -f - < /tmp/prometheus-remote-write-svc.yaml 2>/dev/null || \
         kubectl apply -f /tmp/prometheus-remote-write-svc.yaml
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       args:
         executable: /bin/bash
 
