@@ -83,6 +83,9 @@
     - name: "Check K3s node status"
       shell: "docker exec k3s-server kubectl get nodes -o wide"
       register: nodes_output
+      until: nodes_output.rc == 0
+      retries: 20
+      delay: 3
       changed_when: false
 
     - name: "Show Phase 1 Results"
