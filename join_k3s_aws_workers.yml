@@ -26,6 +26,17 @@
     k3s_master_id: "mac-master"  # ไม่ต้องเปลี่ยน
 
   tasks:
+    - name: "Validate required Extra Variables"
+      fail:
+        msg: |
+          ❌ ยังไม่ได้ใส่ค่า k3s_master_ip หรือ k3s_token ใน Extra Variables!
+          กรุณากำหนดใน Semaphore UI (Extra Variables) เช่น:
+          {
+            "k3s_master_ip": "<IP-ของ-Mac-เช่น-100.102.177.44>",
+            "k3s_token": "<Token-ที่ได้จาก-Phase-1>"
+          }
+      when: k3s_master_ip == "CHANGE_ME" or k3s_token == "CHANGE_ME"
+
     - name: "Check if K3s agent is already installed"
       stat:
         path: /usr/local/bin/k3s
