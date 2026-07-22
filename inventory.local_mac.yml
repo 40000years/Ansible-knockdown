@@ -1,0 +1,14 @@
+# ==============================================================
+# Mac Local Master Inventory
+# ใช้แทน inventory.azure.yml
+#
+# วิธีใช้ใน Semaphore:
+#   เลือก Inventory นี้สำหรับ Task ที่รันบน Mac Master
+#   (แทนที่ inventory.azure.yml)
+# ==============================================================
+all:
+  hosts:
+    mac-master:
+      ansible_host: "127.0.0.1"
+      ansible_connection: "local"
+

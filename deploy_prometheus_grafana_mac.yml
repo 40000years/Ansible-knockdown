@@ -1,0 +1,93 @@
+---
+# ==============================================================
+# Deploy Prometheus + Grafana บน Mac K3s Master (ไม่ต้องเข้าเครื่อง AWS)
+#
+# ใช้แทน deploy_prometheus_grafana_azure.yml
+#
+# วิธีใช้ใน Semaphore:
+#   - Inventory : inventory.local_mac.yml
+#   - Playbook  : deploy_prometheus_grafana_mac.yml
+#   - Extra Variables:
+#       mac_master_ip: "<IP-ที่-AWS-เข้าถึงได้>"
+# ==============================================================
+
+- name: "Deploy Prometheus + Grafana on Mac K3s Master"
+  hosts: mac-master
+  become: yes
+  gather_facts: true
+  vars:
+    mac_master_ip: "127.0.0.1"
+    grafana_admin_password: "Admin@Monitor123"
+    grafana_nodeport: 32000
+    prometheus_nodeport: 32001
+
+  tasks:
+    - name: "Check if Helm is installed"
+      shell: "command -v helm"
+      register: helm_check
+      ignore_errors: true
+      changed_when: false
+
+    - name: "Install Helm"
+      shell: |
+        if ! command -v helm &>/dev/null; then
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+        fi
+      args:
+        executable: /bin/bash
+      when: helm_check.rc != 0
+
+    - name: "Add Prometheus Helm repo"
+      shell: |
+        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+        helm repo update
+      args:
+        executable: /bin/bash
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+    - name: "Wait for all K3s nodes to be Ready"
+      shell: |
+        kubectl wait --for=condition=Ready nodes --all --timeout=180s
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      register: nodes_ready
+      until: nodes_ready.rc == 0
+      retries: 5
+      delay: 15
+
+    - name: "Deploy kube-prometheus-stack (Prometheus + Grafana)"
+      shell: |
+        helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
+          --namespace monitoring \
+          --create-namespace \
+          --set grafana.adminPassword="{{ grafana_admin_password }}" \
+          --set grafana.service.type=NodePort \
+          --set grafana.service.nodePort={{ grafana_nodeport }} \
+          --set prometheus.service.type=NodePort \
+          --set prometheus.service.nodePort={{ prometheus_nodeport }} \
+          --set prometheus.prometheusSpec.scrapeInterval=15s \
+          --set prometheus.prometheusSpec.evaluationInterval=15s \
+          --wait \
+          --timeout 10m
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      args:
+        executable: /bin/bash
+
+    - name: "Show Monitoring Endpoints"
+      debug:
+        msg:
+          - "============================================"
+          - "  Monitoring Stack is LIVE on Mac K3s!"
+          - "============================================"
+          - "  Grafana   : http://localhost:{{ grafana_nodeport }}"
+          - "  Prometheus: http://localhost:{{ prometheus_nodeport }}"
+          - "  Username  : admin"
+          - "  Password  : {{ grafana_admin_password }}"
+          - "============================================"
+          - "  ไม่ต้อง SSH Tunnel — เข้าถึงได้ทันทีจาก Mac"
+          - "============================================"
+          - "  AWS Agents สามารถยิง Remote Write มาที่:"
+          - "  http://{{ mac_master_ip }}:{{ prometheus_nodeport }}"
+          - "============================================"

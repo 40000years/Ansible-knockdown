@@ -1,0 +1,58 @@
+---
+# ==============================================================
+# Start kubectl port-forward for Grafana (Mac Local)
+#
+# ใช้แทน start_grafana_tunnel.yml
+#
+# เนื่องจาก Grafana อยู่บน Mac แล้ว ไม่ต้อง SSM Tunnel
+# แค่ port-forward จาก K3s service ก็เข้าใช้งานได้ทันที
+#
+# วิธีใช้ใน Semaphore:
+#   - Inventory : inventory.local_mac.yml
+#   - Playbook  : start_grafana_local.yml
+# ==============================================================
+
+- name: "Start kubectl port-forward for Grafana (Mac Local)"
+  hosts: mac-master
+  become: yes
+  gather_facts: false
+  vars:
+    grafana_local_port: 3000
+
+  tasks:
+    - name: "Kill existing port-forward on port {{ grafana_local_port }} (if any)"
+      shell: "pkill -f '[k]ubectl port-forward.*monitoring-grafana' || true"
+      args:
+        executable: /bin/bash
+
+    - name: "Start kubectl port-forward for Grafana in background"
+      shell: |
+        nohup kubectl port-forward svc/monitoring-grafana {{ grafana_local_port }}:80 \
+          -n monitoring --address 0.0.0.0 \
+          > /tmp/grafana-pf.log 2>&1 &
+        echo $!
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      args:
+        executable: /bin/bash
+      register: pf_pid
+
+    - name: "Wait 3 seconds for port-forward to be ready"
+      wait_for:
+        port: "{{ grafana_local_port }}"
+        host: "127.0.0.1"
+        timeout: 15
+
+    - name: "Show connection info"
+      debug:
+        msg:
+          - "============================================"
+          - "  Grafana port-forward is running on Mac!"
+          - "============================================"
+          - "  PID: {{ pf_pid.stdout }}"
+          - ""
+          - "  เปิดเบราว์เซอร์ได้ทันที:"
+          - "  http://localhost:{{ grafana_local_port }}"
+          - ""
+          - "  ไม่ต้อง SSM Tunnel — Grafana อยู่บน Mac แล้ว"
+          - "============================================"

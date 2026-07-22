@@ -1,21 +1,21 @@
 ---
 # ==============================================================
-# Reconfigure Zabbix Agents บน AWS ให้ชี้หา Zabbix Server บน Azure
+# Reconfigure Zabbix Agents บน AWS ให้ชี้หา Zabbix Server บน Mac
 #
 # วิธีใช้ใน Semaphore:
 #   - Inventory : inventory.aws_ec2.yml
 #   - SSH Key   : AWS Key
 #   - Playbook  : reconfigure_zabbix_agents.yml
 #   - Extra Variables:
-#       zabbix_server_ip: "4.230.18.31"
+#       zabbix_server_ip: "<Mac-IP-ที่-AWS-เข้าถึงได้>"
 # ==============================================================
 
-- name: "Reconfigure Zabbix Agents to point to Azure Zabbix Server"
+- name: "Reconfigure Zabbix Agents to point to Mac Zabbix Server"
   hosts: all
   become: yes
   gather_facts: true
   vars:
-    zabbix_server_ip: "CHANGE_ME"  # ใส่ Public IP ของ Azure
+    zabbix_server_ip: "CHANGE_ME"  # ใส่ IP ของ Mac ที่ AWS เข้าถึงได้ (เช่น Tailscale IP)
 
   tasks:
     - name: "Check if Zabbix Agent 2 is installed"

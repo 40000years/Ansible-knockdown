@@ -1,0 +1,283 @@
+---
+# ==============================================================
+# K3s + Zabbix Monitoring Playbook (Mac Master + AWS Workers)
+#
+# ใช้แทน setup_k3s_zabbix.yml
+#
+# Architecture:
+#   - K3s Server (Master)     : Mac Local
+#   - K3s Agent (Workers)     : AWS EC2 Instances
+#   - Zabbix Server+Frontend  : Docker Compose บน Mac
+#   - Zabbix Agent            : ติดตั้งบน AWS Workers
+#
+# วิธีใช้งานใน Semaphore:
+#   - Inventory : inventory.local_mac.yml (สำหรับ Mac Master)
+#                 inventory.aws_ec2.yml  (สำหรับ AWS Workers)
+#
+#   ⚠️ เนื่องจาก playbook นี้ต้องใช้ 2 inventory
+#     แนะนำให้แยกรันเป็น 2 task:
+#     Task 1: setup_k3s_mac_master.yml (inventory.local_mac.yml)
+#     Task 2: join_k3s_aws_workers.yml (inventory.aws_ec2.yml)
+#     Task 3: setup_zabbix_mac.yml     (inventory.local_mac.yml)
+#     Task 4: reconfigure_zabbix_agents.yml (inventory.aws_ec2.yml)
+#
+#   หรือรัน playbook นี้กับ inventory.local_mac.yml แล้วเพิ่ม
+#   AWS inventory ด้วย -i ถ้ารันจาก CLI
+#
+#   Extra Variables:
+#     mac_master_ip: "<IP-ที่-AWS-เข้าถึงได้>"
+#     k3s_token: "<token-from-phase-1>"  (ถ้ารันแยก Phase)
+# ==============================================================
+
+# ==============================================================
+# PLAY 1: ติดตั้ง K3s Server บน Mac (Master Node)
+# ==============================================================
+- name: "Play 1: Install K3s Server (Mac Master)"
+  hosts: mac-master
+  become: yes
+  gather_facts: true
+  vars:
+    mac_master_ip: "CHANGE_ME"
+
+  tasks:
+    - name: "Check if k3s is already installed"
+      stat:
+        path: /usr/local/bin/k3s
+      register: k3s_binary
+
+    - name: "Install K3s Server"
+      shell: |
+        curl -sfL https://get.k3s.io | \
+          INSTALL_K3S_EXEC="server \
+            --disable traefik \
+            --write-kubeconfig-mode 644 \
+            --tls-san {{ mac_master_ip }} \
+            --tls-san 127.0.0.1 \
+            --node-name mac-master" \
+          sh -
+      when: not k3s_binary.stat.exists
+      args:
+        executable: /bin/bash
+
+    - name: "Wait for K3s node-token"
+      wait_for:
+        path: /var/lib/rancher/k3s/server/node-token
+        timeout: 120
+
+    - name: "Read K3s node-token"
+      slurp:
+        src: /var/lib/rancher/k3s/server/node-token
+      register: k3s_token_raw
+
+    - name: "Set k3s_token fact for workers to use"
+      set_fact:
+        k3s_token: "{{ k3s_token_raw.content | b64decode | trim }}"
+        k3s_master_ip: "{{ mac_master_ip }}"
+
+    - name: "Show K3s Master Info"
+      debug:
+        msg:
+          - "K3s Master on Mac is READY"
+          - "Token: {{ k3s_token }}"
+          - "API: https://{{ mac_master_ip }}:6443"
+
+# ==============================================================
+# PLAY 2: ติดตั้ง Zabbix Agent บน AWS Workers
+#         (รันเฉพาะเมื่อใช้ combined inventory)
+# ==============================================================
+- name: "Play 2: Install Zabbix Agent on AWS Workers"
+  hosts: "all:!mac-master"
+  become: yes
+  gather_facts: true
+  vars:
+    mac_master_ip: "CHANGE_ME"
+    zabbix_version: "7.0"
+
+  tasks:
+    # ---- Ubuntu ----
+    - name: "Add Zabbix repo (Ubuntu)"
+      shell: |
+        if ! dpkg -l | grep -q zabbix-release; then
+          wget -q https://repo.zabbix.com/zabbix/{{ zabbix_version }}/ubuntu/pool/main/z/zabbix-release/zabbix-release_latest_{{ zabbix_version }}+ubuntu$(lsb_release -rs)_all.deb -O /tmp/zabbix-release.deb
+          dpkg -i /tmp/zabbix-release.deb
+          apt-get update -qq
+        fi
+      args:
+        executable: /bin/bash
+      when: ansible_os_family == "Debian"
+
+    - name: "Install Zabbix Agent 2 (Ubuntu)"
+      apt:
+        name: zabbix-agent2
+        state: present
+      when: ansible_os_family == "Debian"
+
+    # ---- Amazon Linux / RedHat ----
+    - name: "Add Zabbix repo (Amazon Linux)"
+      shell: |
+        if ! rpm -q zabbix-release &>/dev/null; then
+          rpm -Uvh https://repo.zabbix.com/zabbix/{{ zabbix_version }}/rhel/9/x86_64/zabbix-release-latest.el9.noarch.rpm
+          dnf makecache
+        fi
+      args:
+        executable: /bin/bash
+      when: ansible_os_family == "RedHat" or ansible_distribution == "Amazon"
+
+    - name: "Install Zabbix Agent 2 (Amazon Linux)"
+      dnf:
+        name: zabbix-agent2
+        state: present
+      when: ansible_os_family == "RedHat" or ansible_distribution == "Amazon"
+
+    - name: "Configure Zabbix Agent 2 to point to Mac Master"
+      blockinfile:
+        path: /etc/zabbix/zabbix_agent2.conf
+        block: |
+          Server={{ mac_master_ip }}
+          ServerActive={{ mac_master_ip }}
+          Hostname={{ inventory_hostname }}
+          # Enable K3s/Docker monitoring plugins
+          Plugins.Docker.Endpoint=unix:///var/run/docker.sock
+        marker: "# {mark} ANSIBLE MANAGED BLOCK"
+      notify: Restart Zabbix Agent
+
+    - name: "Enable and start Zabbix Agent 2"
+      service:
+        name: zabbix-agent2
+        state: started
+        enabled: yes
+
+  handlers:
+    - name: Restart Zabbix Agent
+      service:
+        name: zabbix-agent2
+        state: restarted
+
+# ==============================================================
+# PLAY 3: ติดตั้ง Zabbix Server + Frontend บน Mac
+# ==============================================================
+- name: "Play 3: Deploy Zabbix Server + Frontend on Mac"
+  hosts: mac-master
+  become: yes
+  gather_facts: true
+  vars:
+    mac_master_ip: "CHANGE_ME"
+    zabbix_db_password: "Zabbix@Secure123"
+    zabbix_web_port: 8088
+
+  tasks:
+    - name: "Check if Docker is installed"
+      shell: "docker --version"
+      register: docker_check
+      ignore_errors: true
+      changed_when: false
+
+    - name: "Fail if Docker is not installed"
+      fail:
+        msg: |
+          ❌ Docker is not installed on this Mac!
+          กรุณาติดตั้ง Docker Desktop for Mac ก่อน
+      when: docker_check.rc != 0
+
+    - name: "Ensure Docker is running"
+      shell: "docker info > /dev/null 2>&1"
+      register: docker_running
+      ignore_errors: true
+      changed_when: false
+
+    - name: "Fail if Docker is not running"
+      fail:
+        msg: "❌ Docker is not running! กรุณาเปิด Docker Desktop ก่อน"
+      when: docker_running.rc != 0
+
+    - name: "Create Zabbix directory"
+      file:
+        path: /opt/zabbix
+        state: directory
+        mode: '0755'
+
+    - name: "Create Zabbix Docker Compose file"
+      copy:
+        dest: /opt/zabbix/docker-compose.yml
+        content: |
+          version: '3.8'
+          services:
+            zabbix-db:
+              image: mariadb:10.11
+              container_name: zabbix-db
+              restart: unless-stopped
+              environment:
+                MYSQL_ROOT_PASSWORD: "rootpass"
+                MYSQL_DATABASE: "zabbix"
+                MYSQL_USER: "zabbix"
+                MYSQL_PASSWORD: "{{ zabbix_db_password }}"
+              command: >
+                --character-set-server=utf8mb4
+                --collation-server=utf8mb4_bin
+                --default-authentication-plugin=mysql_native_password
+              volumes:
+                - zabbix-db-data:/var/lib/mysql
+              mem_limit: 512m
+
+            zabbix-server:
+              image: zabbix/zabbix-server-mysql:7.0-ubuntu-latest
+              container_name: zabbix-server
+              restart: unless-stopped
+              ports:
+                - "10051:10051"
+              environment:
+                DB_SERVER_HOST: zabbix-db
+                MYSQL_DATABASE: "zabbix"
+                MYSQL_USER: "zabbix"
+                MYSQL_PASSWORD: "{{ zabbix_db_password }}"
+                ZBX_JAVAGATEWAY_ENABLE: "false"
+              depends_on:
+                - zabbix-db
+              mem_limit: 512m
+
+            zabbix-web:
+              image: zabbix/zabbix-web-nginx-mysql:7.0-ubuntu-latest
+              container_name: zabbix-web
+              restart: unless-stopped
+              ports:
+                - "{{ zabbix_web_port }}:8080"
+              environment:
+                ZBX_SERVER_HOST: zabbix-server
+                DB_SERVER_HOST: zabbix-db
+                MYSQL_DATABASE: "zabbix"
+                MYSQL_USER: "zabbix"
+                MYSQL_PASSWORD: "{{ zabbix_db_password }}"
+                PHP_TZ: "Asia/Bangkok"
+              depends_on:
+                - zabbix-server
+              mem_limit: 256m
+
+          volumes:
+            zabbix-db-data:
+
+    - name: "Start Zabbix Stack with Docker Compose"
+      shell: |
+        cd /opt/zabbix
+        docker compose up -d
+      args:
+        executable: /bin/bash
+
+    - name: "Wait for Zabbix Web to be responsive"
+      wait_for:
+        port: "{{ zabbix_web_port }}"
+        host: "127.0.0.1"
+        timeout: 300
+        delay: 30
+
+    - name: "Show Zabbix Access Information"
+      debug:
+        msg:
+          - "============================================"
+          - "  Zabbix Monitoring Stack is LIVE on Mac!"
+          - "============================================"
+          - "  Web UI : http://localhost:{{ zabbix_web_port }}"
+          - "  Username: Admin"
+          - "  Password: zabbix  (เปลี่ยนทันทีหลัง login)"
+          - "============================================"
+          - "  AWS Agents ชี้มาที่: {{ mac_master_ip }}"
+          - "============================================"

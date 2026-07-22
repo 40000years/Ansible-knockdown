@@ -1,17 +1,18 @@
 ---
 # ==============================================================
-# PHASE 2: Join AWS EC2 Workers เข้า K3s Cluster บน Azure
+# PHASE 2: Join AWS EC2 Workers เข้า K3s Cluster บน Mac Master
 #
 # วิธีใช้ใน Semaphore:
 #   - Inventory : inventory.aws_ec2.yml (ตัวเดิมของ AWS)
 #   - SSH Key   : AWS Key (NIST.pem)
 #   - Playbook  : join_k3s_aws_workers.yml
 #   - Extra Variables (บังคับต้องใส่):
-#       k3s_master_ip: "4.230.18.31"
+#       k3s_master_ip: "<Mac-IP-ที่-AWS-เข้าถึงได้>"  (เช่น Tailscale IP)
 #       k3s_token: "<token-from-phase-1-output>"
-#       k3s_master_id: "azure-master"  ← ใส่ค่านี้เพื่อยกเว้นตัว master
+#       k3s_master_id: "mac-master"  ← ใส่ค่านี้เพื่อยกเว้นตัว master
 #
-# ⚠️  ต้องรัน Phase 1 ให้เสร็จก่อน แล้วก๊อปปี้ token มาใส่ด้านบน
+# ⚠️  ต้องรัน Phase 1 (setup_k3s_mac_master.yml) ให้เสร็จก่อน
+#     แล้วก๊อปปี้ token มาใส่ด้านบน
 # ==============================================================
 
 - name: "Phase 2: Join AWS EC2 Instances as K3s Workers"
@@ -20,9 +21,9 @@
   gather_facts: true
   vars:
     # กำหนดค่านี้ผ่าน Semaphore Extra Variables
-    k3s_master_ip: "CHANGE_ME"   # Public IP ของ Azure Master
-    k3s_token: "CHANGE_ME"       # Token จาก Output ของ Phase 1
-    k3s_master_id: "azure-master" # ไม่ต้องเปลี่ยน
+    k3s_master_ip: "CHANGE_ME"   # IP ของ Mac Master ที่ AWS เข้าถึงได้ (เช่น Tailscale IP)
+    k3s_token: "CHANGE_ME"       # Token จาก Output ของ Phase 1 (setup_k3s_mac_master.yml)
+    k3s_master_id: "mac-master"  # ไม่ต้องเปลี่ยน
 
   tasks:
     - name: "Check if K3s agent is already installed"
@@ -30,7 +31,7 @@
         path: /usr/local/bin/k3s
       register: k3s_binary
 
-    - name: "Test connectivity to Azure Master (port 6443)"
+    - name: "Test connectivity to Mac Master (port 6443)"
       wait_for:
         host: "{{ k3s_master_ip }}"
         port: 6443
@@ -38,16 +39,18 @@
       register: connectivity_check
       ignore_errors: true
 
-    - name: "Fail early if Azure Master is unreachable"
+    - name: "Fail early if Mac Master is unreachable"
       fail:
         msg: |
-          ❌ ไม่สามารถเชื่อมต่อ Azure Master ที่ {{ k3s_master_ip }}:6443 ได้!
+          ❌ ไม่สามารถเชื่อมต่อ Mac Master ที่ {{ k3s_master_ip }}:6443 ได้!
           กรุณาตรวจสอบ:
-          1. Azure NSG: เปิด Inbound Port 6443 จาก 0.0.0.0/0 หรือเปล่า?
-          2. K3s Master บน Azure ทำงานอยู่หรือเปล่า?
+          1. K3s Server บน Mac ทำงานอยู่หรือเปล่า? (sudo k3s server)
+          2. Network connectivity: AWS EC2 สามารถเข้าถึง Mac IP นี้ได้หรือไม่?
+             - ถ้าใช้ Tailscale: ตรวจสอบว่า Tailscale เชื่อมต่อทั้ง 2 ฝั่ง
+             - ถ้าใช้ ngrok/tunnel: ตรวจสอบว่า tunnel ยัง active อยู่
       when: connectivity_check.failed
 
-    - name: "Join K3s Cluster as Worker (or update Master IP)"
+    - name: "Join K3s Cluster as Worker (connect to Mac Master)"
       shell: |
         curl -sfL https://get.k3s.io | \
           K3S_URL="https://{{ k3s_master_ip }}:6443" \
@@ -68,4 +71,4 @@
         msg:
           - "✅ {{ inventory_hostname }} joined K3s cluster successfully!"
           - "   Master: https://{{ k3s_master_ip }}:6443"
-          - "   To verify: run 'kubectl get nodes' on Azure Master"
+          - "   To verify: run 'kubectl get nodes' on Mac Master"

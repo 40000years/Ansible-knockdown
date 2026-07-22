@@ -7,7 +7,7 @@
 #   - SSH Key      : AWS Key
 #   - Playbook     : setup_prometheus_agent_aws.yml
 #   - Extra Variables:
-#       prometheus_server_ip: "4.230.18.31"
+#       prometheus_server_ip: "<Mac-IP-ที่-AWS-เข้าถึงได้>"
 #       prometheus_server_port: "32090"
 #
 # สิ่งที่ Playbook นี้ทำ:
@@ -16,7 +16,7 @@
 #      -> รันบน localhost:9100 (ไม่ expose ออก Public)
 #   2. ติดตั้ง Prometheus ในโหมด Agent (--enable-feature=agent)
 #      -> ดูดข้อมูลจาก node_exporter ที่ localhost:9100
-#      -> ยิง Remote Write ไปหา Prometheus Server บน Azure
+#      -> ยิง Remote Write ไปหา Prometheus Server บน Mac Master
 #      -> ใช้ RAM น้อยกว่า Full Prometheus มาก (~50MB)
 # ==============================================================
 - name: "Install Prometheus Agent + Node Exporter on AWS EC2"
@@ -27,9 +27,9 @@
     # -------------------------------------------------------
     # ค่าที่ต้องกรอกผ่าน Extra Variables ใน Semaphore
     # -------------------------------------------------------
-    # IP ของ Azure Prometheus Server ที่จะยิง Remote Write ไปหา
+    # IP ของ Mac Prometheus Server ที่จะยิง Remote Write ไปหา
     prometheus_server_ip: "CHANGE_ME"
-    # NodePort ที่เปิดไว้บน Azure สำหรับรับ Remote Write
+    # NodePort ที่เปิดไว้บน Mac K3s สำหรับรับ Remote Write
     prometheus_server_port: "32090"
 
     # -------------------------------------------------------
@@ -157,7 +157,7 @@
             evaluation_interval: 60s  # Agent Mode ไม่มี Alerting Rule แต่ต้องใส่ไว้
 
           # ==========================================
-          # Remote Write: ยิงข้อมูลไปหา Azure
+          # Remote Write: ยิงข้อมูลไปหา Mac Master
           # ==========================================
           remote_write:
             - url: "http://{{ prometheus_server_ip | regex_replace('\"', '') }}:{{ prometheus_server_port }}/api/v1/write"
@@ -166,7 +166,7 @@
                 max_samples_per_send: 1000
                 max_shards: 2
                 capacity: 2500
-              # ถ้า Azure ชั่วคราวไม่ตอบ ให้ retry (ไม่ทิ้งข้อมูล)
+              # ถ้า Mac ชั่วคราวไม่ตอบ ให้ retry (ไม่ทิ้งข้อมูล)
               metadata_config:
                 send: true
                 send_interval: 1m
@@ -196,7 +196,7 @@
         dest: /etc/systemd/system/prometheus-agent.service
         content: |
           [Unit]
-          Description=Prometheus Agent - Remote Write to Azure
+          Description=Prometheus Agent - Remote Write to Mac Master
           After=network.target node_exporter.service
 
           [Service]

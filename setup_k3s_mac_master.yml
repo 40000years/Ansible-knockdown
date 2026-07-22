@@ -1,0 +1,91 @@
+---
+# ==============================================================
+# PHASE 1: ติดตั้ง K3s Server บน Mac Local (Master Node)
+#
+# ใช้แทน setup_k3s_azure_master.yml
+#
+# วิธีใช้ใน Semaphore:
+#   - Inventory : inventory.local_mac.yml
+#   - Playbook  : setup_k3s_mac_master.yml
+#   - Extra Variables:
+#       mac_master_ip: "<IP-ที่-AWS-เข้าถึงได้>"  (เช่น Tailscale IP)
+#
+# หลังรันเสร็จ ให้ก๊อปปี้ค่า k3s_token ที่ขึ้นใน Output
+# แล้วนำไปใส่ใน Phase 2 (Extra Variables)
+# ==============================================================
+
+- name: "Phase 1: Install K3s Master on Mac Local"
+  hosts: mac-master
+  become: yes
+  gather_facts: true
+  vars:
+    # IP ที่ AWS EC2 สามารถเข้าถึง Mac ได้ (เช่น Tailscale IP, ngrok, หรือ Public IP)
+    mac_master_ip: "CHANGE_ME"
+
+  tasks:
+    - name: "Update Homebrew (macOS)"
+      shell: brew update
+      args:
+        executable: /bin/bash
+      become: no
+      ignore_errors: true
+      when: ansible_os_family == "Darwin"
+
+    - name: "Check if K3s is already installed"
+      stat:
+        path: /usr/local/bin/k3s
+      register: k3s_binary
+
+    - name: "Install K3s Server on macOS"
+      shell: |
+        curl -sfL https://get.k3s.io | \
+          INSTALL_K3S_EXEC="server \
+            --disable traefik \
+            --write-kubeconfig-mode 644 \
+            --tls-san {{ mac_master_ip }} \
+            --tls-san 127.0.0.1 \
+            --node-name mac-master" \
+          sh -
+      when: not k3s_binary.stat.exists
+      args:
+        executable: /bin/bash
+
+    - name: "Wait for K3s node-token to be ready"
+      wait_for:
+        path: /var/lib/rancher/k3s/server/node-token
+        timeout: 120
+
+    - name: "Read K3s node-token"
+      slurp:
+        src: /var/lib/rancher/k3s/server/node-token
+      register: k3s_token_raw
+
+    - name: "Check K3s node status"
+      shell: kubectl get nodes -o wide
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      register: nodes_output
+      changed_when: false
+
+    - name: "Show Phase 1 Results"
+      debug:
+        msg:
+          - "============================================"
+          - "  K3s Master is READY on Mac!"
+          - "============================================"
+          - "  Master IP (for AWS)  : {{ mac_master_ip }}"
+          - "  K3s API Endpoint     : https://{{ mac_master_ip }}:6443"
+          - "============================================"
+          - "  >>> COPY THIS TOKEN for Phase 2 <<<"
+          - ""
+          - "  {{ k3s_token_raw.content | b64decode | trim }}"
+          - ""
+          - "============================================"
+          - "  Current Nodes:"
+          - "{{ nodes_output.stdout }}"
+          - "============================================"
+          - "  NEXT STEP: Run 'join_k3s_aws_workers.yml'"
+          - "  Extra Variables:"
+          - "    k3s_master_ip: \"{{ mac_master_ip }}\""
+          - "    k3s_token: \"<paste-token-here>\""
+          - "============================================"

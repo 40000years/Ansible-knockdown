@@ -1,0 +1,105 @@
+---
+# ==============================================================
+# เปิดให้ Prometheus บน Mac รับ Remote Write ได้
+#
+# ใช้แทน enable_prometheus_remote_write.yml
+#
+# วิธีใช้ใน Semaphore:
+#   - Inventory : inventory.local_mac.yml
+#   - Playbook  : enable_prometheus_remote_write_mac.yml
+#   - Extra Variables:
+#       mac_master_ip: "<IP-ที่-AWS-เข้าถึงได้>"
+#
+# สิ่งที่ Playbook นี้ทำ:
+#   1. อัปเดต Helm Values ของ kube-prometheus-stack
+#      เพื่อเปิด Flag --web.enable-remote-write-receiver
+#   2. เพิ่ม NodePort Service บนพอร์ต 32090 (แยกจาก Grafana)
+#      เพื่อให้ AWS Agent ยิง Remote Write เข้ามาได้
+# ==============================================================
+- name: "Enable Prometheus Remote Write Receiver on Mac"
+  hosts: mac-master
+  become: yes
+  gather_facts: false
+  vars:
+    # IP ของ Mac ที่ AWS เข้าถึงได้ (เช่น Tailscale IP)
+    mac_master_ip: "CHANGE_ME"
+    # NodePort ที่ AWS Agent จะยิง Remote Write มาที่นี่
+    prometheus_remote_write_port: 32090
+
+  tasks:
+    - name: "Patch Prometheus Custom Resource to enable Remote Write"
+      shell: |
+        export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+        kubectl patch prometheus monitoring-kube-prometheus-prometheus -n monitoring \
+          --type='merge' \
+          -p '{"spec":{"enableRemoteWriteReceiver":true}}'
+      args:
+        executable: /bin/bash
+
+    - name: "Create dedicated NodePort Service for Remote Write"
+      copy:
+        dest: /tmp/prometheus-remote-write-svc.yaml
+        content: |
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: prometheus-remote-write
+            namespace: monitoring
+            labels:
+              app: prometheus-remote-write
+          spec:
+            type: NodePort
+            selector:
+              # ชี้ไปที่ Pod ของ Prometheus Server ตัวจริง
+              app.kubernetes.io/name: prometheus
+              operator.prometheus.io/name: monitoring-kube-prometheus-prometheus
+            ports:
+              - name: remote-write
+                protocol: TCP
+                port: 9090
+                targetPort: 9090
+                # พอร์ตที่ AWS Agent จะส่งมาหา
+                nodePort: {{ prometheus_remote_write_port }}
+
+    - name: "Apply Remote Write Service"
+      shell: |
+        export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+        kubectl apply -f /tmp/prometheus-remote-write-svc.yaml
+      args:
+        executable: /bin/bash
+
+    - name: "Wait for Prometheus to restart with new config (60s)"
+      pause:
+        seconds: 60
+
+    - name: "Verify Remote Write endpoint is accessible"
+      shell: |
+        curl -s -o /dev/null -w "%{http_code}" \
+          http://localhost:{{ prometheus_remote_write_port }}/api/v1/write \
+          -X POST \
+          --data-binary ""
+      args:
+        executable: /bin/bash
+      register: endpoint_check
+      ignore_errors: true
+
+    - name: "Show setup results"
+      debug:
+        msg:
+          - "============================================"
+          - "  Prometheus Remote Write Receiver Ready!"
+          - "============================================"
+          - "  Remote Write Endpoint (local):"
+          - "  http://localhost:{{ prometheus_remote_write_port }}/api/v1/write"
+          - ""
+          - "  Remote Write Endpoint (for AWS Agents):"
+          - "  http://{{ mac_master_ip }}:{{ prometheus_remote_write_port }}/api/v1/write"
+          - "============================================"
+          - "  HTTP Status Check: {{ endpoint_check.stdout }}"
+          - "  (204 หรือ 200 = ใช้งานได้, 404 = ยังไม่พร้อม)"
+          - "============================================"
+          - "  NEXT STEP: รัน setup_prometheus_agent_aws.yml บน AWS"
+          - "  Extra Variables:"
+          - "    prometheus_server_ip: \"{{ mac_master_ip }}\""
+          - "    prometheus_server_port: \"{{ prometheus_remote_write_port }}\""
+          - "============================================"
