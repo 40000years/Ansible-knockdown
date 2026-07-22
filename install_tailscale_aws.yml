@@ -39,9 +39,7 @@
 
     - name: "Install Tailscale via official script"
       shell: "curl -fsSL https://tailscale.com/install.sh | sh"
-      when: tailscale_installed.rc != 0
-      args:
-        warn: false # Suppress curl warning
+      when: tailscale_installed.rc != 0 # Suppress curl warning
 
     - name: "Enable and start Tailscale service"
       systemd:
