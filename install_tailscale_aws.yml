@@ -1,0 +1,67 @@
+---
+# ==============================================================
+# Playbook: Install and Configure Tailscale on AWS EC2 Workers
+# ==============================================================
+# วิธีใช้ใน Semaphore:
+#   - Inventory : AWS SSM Plugin
+#   - Playbook  : install_tailscale_aws.yml
+#   - Extra Variables (บังคับต้องใส่):
+#       tailscale_auth_key: "<Your-Tailscale-Auth-Key>"
+#
+# หมายเหตุ: สามารถสร้าง Auth Key ได้ที่ https://login.tailscale.com/admin/settings/keys
+# แนะนำให้ใช้แบบ Reusable และ Ephemeral
+# ==============================================================
+
+- name: "Install and Connect Tailscale on AWS EC2"
+  hosts: all
+  become: yes
+  gather_facts: true
+  vars:
+    tailscale_auth_key: "CHANGE_ME"
+
+  tasks:
+    - name: "Validate required Extra Variables"
+      fail:
+        msg: |
+          ❌ ยังไม่ได้ใส่ค่า tailscale_auth_key ใน Extra Variables!
+          กรุณาสร้าง Auth Key ที่หน้า Admin Console ของ Tailscale
+          แล้วนำมากำหนดใน Semaphore UI (Extra Variables) เช่น:
+          {
+            "tailscale_auth_key": "tskey-auth-xxxxx-yyyyy"
+          }
+      when: tailscale_auth_key == "CHANGE_ME"
+
+    - name: "Check if Tailscale is already installed"
+      shell: "which tailscale"
+      register: tailscale_installed
+      ignore_errors: true
+      changed_when: false
+
+    - name: "Install Tailscale via official script"
+      shell: "curl -fsSL https://tailscale.com/install.sh | sh"
+      when: tailscale_installed.rc != 0
+      args:
+        warn: false # Suppress curl warning
+
+    - name: "Enable and start Tailscale service"
+      systemd:
+        name: tailscaled
+        state: started
+        enabled: yes
+
+    - name: "Authenticate and connect to Tailscale network"
+      shell: "tailscale up --authkey={{ tailscale_auth_key }} --hostname={{ inventory_hostname }} --accept-routes"
+      register: tailscale_up
+      changed_when: "'Success' in tailscale_up.stdout or tailscale_up.rc == 0"
+
+    - name: "Get Tailscale IP"
+      shell: "tailscale ip -4"
+      register: tailscale_ip
+      changed_when: false
+
+    - name: "Show Tailscale Status"
+      debug:
+        msg:
+          - "✅ Tailscale connected successfully!"
+          - "   Hostname: {{ inventory_hostname }}"
+          - "   Tailscale IP: {{ tailscale_ip.stdout }}"
