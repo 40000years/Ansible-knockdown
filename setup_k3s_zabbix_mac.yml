@@ -48,10 +48,15 @@
         msg: "❌ ไม่พบคำสั่ง docker หรือ Docker Daemon ไม่ได้เชื่อมต่อ! กรุณา rebuild Semaphore container โดยรัน 'cd Semaphore && docker compose up -d --build' และเปิด Docker Desktop"
       when: docker_running.rc != 0
 
-    - name: "Check if K3s container is already running"
-      shell: "docker ps -q -f name=^/k3s-server$ -f status=running"
-      register: k3s_container_status
+    - name: "Check if K3s API port 6443 is responding"
+      shell: "curl -k -s -o /dev/null -w '%{http_code}' https://127.0.0.1:6443"
+      register: k3s_api_check
+      ignore_errors: true
       changed_when: false
+
+    - name: "Remove broken/outdated K3s container (if port 6443 is not responding)"
+      shell: "docker rm -f k3s-server 2>/dev/null || true"
+      when: k3s_api_check.stdout not in ['200', '401', '403', '404']
 
     - name: "Start K3s Server Docker container"
       shell: |
@@ -71,7 +76,7 @@
           --tls-san {{ mac_master_ip }} \
           --tls-san 127.0.0.1 \
           --node-name mac-master
-      when: k3s_container_status.stdout == ""
+      when: k3s_api_check.stdout not in ['200', '401', '403', '404']
 
     - name: "Wait for K3s node-token to be ready"
       shell: "docker exec k3s-server cat /var/lib/rancher/k3s/server/node-token"
