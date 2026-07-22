@@ -1,0 +1,62 @@
+---
+# ==============================================================
+# Diagnostic Playbook: ตรวจสอบ Network Connectivity จาก AWS EC2 ไป Mac
+# ==============================================================
+- name: "Diagnose Network: AWS EC2 → Mac Master"
+  hosts: all
+  become: yes
+  gather_facts: true
+  vars:
+    mac_master_ip: "100.102.177.44"
+
+  tasks:
+    - name: "1. Check if Tailscale is installed"
+      shell: "which tailscale 2>/dev/null && tailscale version || echo 'TAILSCALE_NOT_INSTALLED'"
+      register: tailscale_check
+      ignore_errors: true
+      changed_when: false
+
+    - name: "2. Check Tailscale status (if installed)"
+      shell: "tailscale status 2>&1 | head -10 || echo 'TAILSCALE_NOT_RUNNING'"
+      register: tailscale_status
+      ignore_errors: true
+      changed_when: false
+      when: "'TAILSCALE_NOT_INSTALLED' not in tailscale_check.stdout"
+
+    - name: "3. Check if can ping Mac IP"
+      shell: "ping -c 2 -W 3 {{ mac_master_ip }} 2>&1 || echo 'PING_FAILED'"
+      register: ping_check
+      ignore_errors: true
+      changed_when: false
+
+    - name: "4. Check TCP connection to Mac port 6443"
+      shell: "timeout 5 bash -c 'echo > /dev/tcp/{{ mac_master_ip }}/6443' 2>&1 && echo 'PORT_6443_OPEN' || echo 'PORT_6443_CLOSED'"
+      register: port_check
+      ignore_errors: true
+      changed_when: false
+
+    - name: "5. Check route to Mac IP"
+      shell: "ip route get {{ mac_master_ip }} 2>&1 || echo 'NO_ROUTE'"
+      register: route_check
+      ignore_errors: true
+      changed_when: false
+
+    - name: "6. Show all network interfaces"
+      shell: "ip addr show | grep -E '(^[0-9]|inet )' | head -30"
+      register: interfaces
+      ignore_errors: true
+      changed_when: false
+
+    - name: "=== DIAGNOSTIC RESULTS ==="
+      debug:
+        msg:
+          - "============================================"
+          - "  Host: {{ inventory_hostname }}"
+          - "============================================"
+          - "  1. Tailscale: {{ tailscale_check.stdout }}"
+          - "  2. Tailscale Status: {{ tailscale_status.stdout | default('SKIPPED') }}"
+          - "  3. Ping {{ mac_master_ip }}: {{ 'SUCCESS' if ping_check.rc == 0 else 'FAILED' }}"
+          - "  4. Port 6443: {{ port_check.stdout }}"
+          - "  5. Route: {{ route_check.stdout }}"
+          - "  6. Interfaces: {{ interfaces.stdout }}"
+          - "============================================"
