@@ -45,7 +45,7 @@
 
     - name: "Fail if Docker is not running"
       fail:
-        msg: "❌ Docker is not running! กรุณาเปิด Docker Desktop ก่อน"
+        msg: "❌ ไม่พบคำสั่ง docker หรือ Docker Daemon ไม่ได้เชื่อมต่อ! กรุณา rebuild Semaphore container โดยรัน 'cd Semaphore && docker compose up -d --build' และเปิด Docker Desktop"
       when: docker_running.rc != 0
 
     - name: "Check if K3s container is already running"
