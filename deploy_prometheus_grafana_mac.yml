@@ -37,17 +37,38 @@
       ignore_errors: true
       changed_when: false
 
-    - name: "Install Helm"
+    - name: "Install Helm (no sudo)"
       shell: |
-        if ! command -v helm &>/dev/null; then
-          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | VERIFY_CHECKSUM=false bash
+        if ! command -v helm &>/dev/null && [ ! -f /usr/local/bin/helm ]; then
+          HELM_VERSION=$(curl -sL https://api.github.com/repos/helm/helm/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
+          OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "x86_64" ]; then ARCH="amd64"; elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then ARCH="arm64"; fi
+          curl -fsSL "https://get.helm.sh/helm-${HELM_VERSION}-${OS}-${ARCH}.tar.gz" -o /tmp/helm.tar.gz
+          tar -zxf /tmp/helm.tar.gz -C /tmp
+          mkdir -p ~/.local/bin
+          mv /tmp/${OS}-${ARCH}/helm ~/.local/bin/helm
+          rm -rf /tmp/helm.tar.gz /tmp/${OS}-${ARCH}
+          export PATH="$HOME/.local/bin:$PATH"
+          echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
         fi
       args:
         executable: /bin/bash
       when: helm_check.rc != 0
 
+    - name: "Create helm symlink in /usr/local/bin if writable"
+      shell: |
+        if [ -f ~/.local/bin/helm ] && [ -w /usr/local/bin ]; then
+          ln -sf ~/.local/bin/helm /usr/local/bin/helm
+        fi
+      args:
+        executable: /bin/bash
+      ignore_errors: true
+      when: helm_check.rc != 0
+
     - name: "Add Prometheus Helm repo"
       shell: |
+        export PATH="$HOME/.local/bin:$PATH"
         docker exec k3s-server helm repo add prometheus-community https://prometheus-community.github.io/helm-charts 2>/dev/null || \
         helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
         docker exec k3s-server helm repo update 2>/dev/null || helm repo update
