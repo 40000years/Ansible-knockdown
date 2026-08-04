@@ -153,6 +153,7 @@
           Server={{ mac_master_ip }}
           ServerActive={{ mac_master_ip }}
           Hostname={{ inventory_hostname }}
+          HostMetadataItem=system.uname
           # Enable K3s/Docker monitoring plugins
           Plugins.Docker.Endpoint=unix:///var/run/docker.sock
         marker: "# {mark} ANSIBLE MANAGED BLOCK"
