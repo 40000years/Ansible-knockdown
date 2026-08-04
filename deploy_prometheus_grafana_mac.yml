@@ -86,7 +86,8 @@
             --set prometheus.prometheusSpec.evaluationInterval=15s \
             --set prometheus-node-exporter.enabled=false \
             --set prometheusOperator.admissionWebhooks.enabled=false \
-            --set prometheusOperator.tls.enabled=false
+            --set prometheusOperator.tls.enabled=false \
+            --set "kube-state-metrics.nodeSelector.kubernetes\.io/hostname=mac-master"
         '
       args:
         executable: /bin/bash
