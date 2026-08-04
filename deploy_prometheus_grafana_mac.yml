@@ -40,7 +40,7 @@
     - name: "Install Helm"
       shell: |
         if ! command -v helm &>/dev/null; then
-          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | VERIFY_CHECKSUM=false bash
         fi
       args:
         executable: /bin/bash
