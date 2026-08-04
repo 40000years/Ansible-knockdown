@@ -38,6 +38,7 @@
         curl -fsSL "https://get.helm.sh/helm-${HELM_VERSION}-linux-${ARCH}.tar.gz" -o /tmp/helm.tar.gz
         tar -zxf /tmp/helm.tar.gz -C /tmp
         # Copy binary เข้าไปใน k3s container
+        docker exec k3s-server mkdir -p /usr/local/bin
         docker cp /tmp/linux-${ARCH}/helm k3s-server:/usr/local/bin/helm
         docker exec k3s-server chmod +x /usr/local/bin/helm
         # Clean up บน host
