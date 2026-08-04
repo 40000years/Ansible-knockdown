@@ -52,6 +52,7 @@
     - name: "Add Prometheus Helm repo inside k3s-server"
       shell: |
         docker exec k3s-server sh -c '
+          export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
           helm repo add prometheus-community https://prometheus-community.github.io/helm-charts 2>/dev/null || true
           helm repo update
         '
@@ -71,6 +72,7 @@
     - name: "Deploy kube-prometheus-stack (Prometheus + Grafana)"
       shell: |
         docker exec k3s-server sh -c '
+          export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
           kubectl create namespace monitoring 2>/dev/null || true
           helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
             --namespace monitoring \
