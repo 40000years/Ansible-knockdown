@@ -24,12 +24,15 @@
   tasks:
     - name: "Export K3s Kubeconfig locally"
       shell: |
-        mkdir -p /etc/rancher/k3s /tmp 2>/dev/null || true
-        docker exec k3s-server cat /etc/rancher/k3s/k3s.yaml > /etc/rancher/k3s/k3s.yaml 2>/dev/null || \
-        docker exec k3s-server cat /etc/rancher/k3s/k3s.yaml > /tmp/k3s.yaml
-        chmod 644 /etc/rancher/k3s/k3s.yaml 2>/dev/null || chmod 644 /tmp/k3s.yaml
+        mkdir -p /tmp/k3s-config
+        docker exec k3s-server cat /etc/rancher/k3s/k3s.yaml > /tmp/k3s-config/k3s.yaml
+        # แทนที่ 127.0.0.1 ด้วย Mac IP เพื่อให้ kubectl บน Host เชื่อมต่อได้
+        sed -i '' "s|server: https://127.0.0.1:6443|server: https://{{ mac_master_ip }}:6443|" /tmp/k3s-config/k3s.yaml 2>/dev/null || \
+        sed -i "s|server: https://127.0.0.1:6443|server: https://{{ mac_master_ip }}:6443|" /tmp/k3s-config/k3s.yaml
+        chmod 644 /tmp/k3s-config/k3s.yaml
       changed_when: false
-      ignore_errors: true
+      args:
+        executable: /bin/bash
 
     - name: "Check if Helm is installed"
       shell: "command -v helm"
@@ -69,20 +72,18 @@
     - name: "Add Prometheus Helm repo"
       shell: |
         export PATH="$HOME/.local/bin:$PATH"
-        docker exec k3s-server helm repo add prometheus-community https://prometheus-community.github.io/helm-charts 2>/dev/null || \
-        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-        docker exec k3s-server helm repo update 2>/dev/null || helm repo update
+        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts 2>/dev/null || true
+        helm repo update
       args:
         executable: /bin/bash
       environment:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        KUBECONFIG: /tmp/k3s-config/k3s.yaml
 
     - name: "Wait for all K3s nodes to be Ready"
       shell: |
-        docker exec k3s-server kubectl wait --for=condition=Ready nodes --all --timeout=180s 2>/dev/null || \
         kubectl wait --for=condition=Ready nodes --all --timeout=180s
       environment:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        KUBECONFIG: /tmp/k3s-config/k3s.yaml
       register: nodes_ready
       until: nodes_ready.rc == 0
       retries: 5
@@ -90,18 +91,10 @@
 
     - name: "Deploy kube-prometheus-stack (Prometheus + Grafana)"
       shell: |
-        docker exec k3s-server kubectl create namespace monitoring 2>/dev/null || true
-        docker exec k3s-server helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
-          --namespace monitoring \
-          --set grafana.adminPassword="{{ grafana_admin_password }}" \
-          --set grafana.service.type=NodePort \
-          --set grafana.service.nodePort={{ grafana_nodeport }} \
-          --set prometheus.service.type=NodePort \
-          --set prometheus.service.nodePort={{ prometheus_nodeport }} \
-          --set prometheus.prometheusSpec.scrapeInterval=15s \
-          --set prometheus.prometheusSpec.evaluationInterval=15s \
-          --wait \
-          --timeout 10m 2>/dev/null || \
+        export PATH="$HOME/.local/bin:$PATH"
+        # สร้าง namespace monitoring
+        kubectl create namespace monitoring 2>/dev/null || true
+        # ติดตั้งผ่าน Helm บน Host โดยใช้ KUBECONFIG
         helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
           --namespace monitoring \
           --create-namespace \
@@ -112,10 +105,11 @@
           --set prometheus.service.nodePort={{ prometheus_nodeport }} \
           --set prometheus.prometheusSpec.scrapeInterval=15s \
           --set prometheus.prometheusSpec.evaluationInterval=15s \
+          --set prometheus.prometheusSpec.remoteWrite[0].url="http://{{ mac_master_ip }}:{{ prometheus_nodeport }}/api/v1/write" \
           --wait \
           --timeout 10m
       environment:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+        KUBECONFIG: /tmp/k3s-config/k3s.yaml
       args:
         executable: /bin/bash
 
