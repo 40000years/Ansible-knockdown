@@ -84,8 +84,7 @@
             --set prometheus.service.nodePort={{ prometheus_nodeport }} \
             --set prometheus.prometheusSpec.scrapeInterval=15s \
             --set prometheus.prometheusSpec.evaluationInterval=15s \
-            --wait \
-            --timeout 10m
+            --set prometheus-node-exporter.enabled=false
         '
       args:
         executable: /bin/bash
