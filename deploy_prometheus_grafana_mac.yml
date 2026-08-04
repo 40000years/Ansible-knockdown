@@ -87,7 +87,8 @@
             --set prometheus-node-exporter.enabled=false \
             --set prometheusOperator.admissionWebhooks.enabled=false \
             --set prometheusOperator.tls.enabled=false \
-            --set "kube-state-metrics.nodeSelector.kubernetes\.io/hostname=mac-master"
+            --set "kube-state-metrics.nodeSelector.kubernetes\.io/hostname=mac-master" \
+            --set prometheus.prometheusSpec.enableRemoteWriteReceiver=true
         '
       args:
         executable: /bin/bash
