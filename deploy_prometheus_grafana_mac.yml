@@ -88,6 +88,10 @@
             --set prometheusOperator.admissionWebhooks.enabled=false \
             --set prometheusOperator.tls.enabled=false \
             --set "kube-state-metrics.nodeSelector.kubernetes\.io/hostname=mac-master" \
+            --set "prometheus.prometheusSpec.nodeSelector.kubernetes\.io/hostname=mac-master" \
+            --set "grafana.nodeSelector.kubernetes\.io/hostname=mac-master" \
+            --set "alertmanager.alertmanagerSpec.nodeSelector.kubernetes\.io/hostname=mac-master" \
+            --set "prometheusOperator.nodeSelector.kubernetes\.io/hostname=mac-master" \
             --set prometheus.prometheusSpec.enableRemoteWriteReceiver=true
         '
       args:
