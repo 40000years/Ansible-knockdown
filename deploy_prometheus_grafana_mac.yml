@@ -81,20 +81,20 @@
 
     - name: "Wait for all K3s nodes to be Ready"
       shell: |
-        kubectl wait --for=condition=Ready nodes --all --timeout=180s
-      environment:
-        KUBECONFIG: /tmp/k3s-config/k3s.yaml
+        docker exec k3s-server kubectl wait --for=condition=Ready nodes --all --timeout=180s
       register: nodes_ready
       until: nodes_ready.rc == 0
       retries: 5
       delay: 15
+      args:
+        executable: /bin/bash
 
     - name: "Deploy kube-prometheus-stack (Prometheus + Grafana)"
       shell: |
         export PATH="$HOME/.local/bin:$PATH"
         # สร้าง namespace monitoring
-        kubectl create namespace monitoring 2>/dev/null || true
-        # ติดตั้งผ่าน Helm บน Host โดยใช้ KUBECONFIG
+        docker exec k3s-server kubectl create namespace monitoring 2>/dev/null || true
+        # ติดตั้งผ่าน Helm บน Host โดยใช้ KUBECONFIG ที่ชี้ไป mac_master_ip
         helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
           --namespace monitoring \
           --create-namespace \
@@ -105,7 +105,6 @@
           --set prometheus.service.nodePort={{ prometheus_nodeport }} \
           --set prometheus.prometheusSpec.scrapeInterval=15s \
           --set prometheus.prometheusSpec.evaluationInterval=15s \
-          --set prometheus.prometheusSpec.remoteWrite[0].url="http://{{ mac_master_ip }}:{{ prometheus_nodeport }}/api/v1/write" \
           --wait \
           --timeout 10m
       environment:
