@@ -28,18 +28,22 @@
       ignore_errors: true
       changed_when: false
 
-    - name: "Install Helm inside k3s-server container (no sudo needed)"
+    - name: "Install Helm (download on host, copy into k3s-server container)"
       shell: |
-        docker exec k3s-server sh -c '
-          HELM_VERSION="v3.16.3"
-          ARCH=$(uname -m)
-          if [ "$ARCH" = "x86_64" ]; then ARCH="amd64"; elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then ARCH="arm64"; fi
-          curl -fsSL "https://get.helm.sh/helm-${HELM_VERSION}-linux-${ARCH}.tar.gz" -o /tmp/helm.tar.gz
-          tar -zxf /tmp/helm.tar.gz -C /tmp
-          mv /tmp/linux-${ARCH}/helm /usr/local/bin/helm
-          rm -rf /tmp/helm.tar.gz /tmp/linux-${ARCH}
-          helm version
-        '
+        set -e
+        HELM_VERSION="v3.16.3"
+        ARCH=$(uname -m)
+        if [ "$ARCH" = "x86_64" ]; then ARCH="amd64"; elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then ARCH="arm64"; fi
+        # Download บน Host (Semaphore Container ที่มี curl)
+        curl -fsSL "https://get.helm.sh/helm-${HELM_VERSION}-linux-${ARCH}.tar.gz" -o /tmp/helm.tar.gz
+        tar -zxf /tmp/helm.tar.gz -C /tmp
+        # Copy binary เข้าไปใน k3s container
+        docker cp /tmp/linux-${ARCH}/helm k3s-server:/usr/local/bin/helm
+        docker exec k3s-server chmod +x /usr/local/bin/helm
+        # Clean up บน host
+        rm -rf /tmp/helm.tar.gz /tmp/linux-${ARCH}
+        # ยืนยันว่า helm ใช้งานได้ใน container
+        docker exec k3s-server helm version
       args:
         executable: /bin/bash
       when: helm_check.rc != 0
