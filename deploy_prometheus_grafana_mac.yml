@@ -22,93 +22,65 @@
     prometheus_nodeport: 32001
 
   tasks:
-    - name: "Export K3s Kubeconfig locally"
-      shell: |
-        mkdir -p /tmp/k3s-config
-        docker exec k3s-server cat /etc/rancher/k3s/k3s.yaml > /tmp/k3s-config/k3s.yaml
-        # แทนที่ 127.0.0.1 ด้วย Mac IP เพื่อให้ kubectl บน Host เชื่อมต่อได้
-        sed -i '' "s|server: https://127.0.0.1:6443|server: https://{{ mac_master_ip }}:6443|" /tmp/k3s-config/k3s.yaml 2>/dev/null || \
-        sed -i "s|server: https://127.0.0.1:6443|server: https://{{ mac_master_ip }}:6443|" /tmp/k3s-config/k3s.yaml
-        chmod 644 /tmp/k3s-config/k3s.yaml
-      changed_when: false
-      args:
-        executable: /bin/bash
-
-    - name: "Check if Helm is installed"
-      shell: "command -v helm"
+    - name: "Check if Helm is installed inside k3s-server container"
+      shell: "docker exec k3s-server which helm"
       register: helm_check
       ignore_errors: true
       changed_when: false
 
-    - name: "Install Helm (no sudo)"
+    - name: "Install Helm inside k3s-server container (no sudo needed)"
       shell: |
-        if ! command -v helm &>/dev/null && [ ! -f /usr/local/bin/helm ]; then
-          HELM_VERSION=$(curl -sL https://api.github.com/repos/helm/helm/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
-          OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+        docker exec k3s-server sh -c '
+          HELM_VERSION=$(wget -qO- https://api.github.com/repos/helm/helm/releases/latest | grep "tag_name" | cut -d"\"" -f4)
+          OS=linux
           ARCH=$(uname -m)
           if [ "$ARCH" = "x86_64" ]; then ARCH="amd64"; elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then ARCH="arm64"; fi
-          curl -fsSL "https://get.helm.sh/helm-${HELM_VERSION}-${OS}-${ARCH}.tar.gz" -o /tmp/helm.tar.gz
+          wget -qO /tmp/helm.tar.gz "https://get.helm.sh/helm-${HELM_VERSION}-${OS}-${ARCH}.tar.gz"
           tar -zxf /tmp/helm.tar.gz -C /tmp
-          mkdir -p ~/.local/bin
-          mv /tmp/${OS}-${ARCH}/helm ~/.local/bin/helm
+          mv /tmp/${OS}-${ARCH}/helm /usr/local/bin/helm
           rm -rf /tmp/helm.tar.gz /tmp/${OS}-${ARCH}
-          export PATH="$HOME/.local/bin:$PATH"
-          echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-        fi
+          helm version
+        '
       args:
         executable: /bin/bash
       when: helm_check.rc != 0
 
-    - name: "Create helm symlink in /usr/local/bin if writable"
+    - name: "Add Prometheus Helm repo inside k3s-server"
       shell: |
-        if [ -f ~/.local/bin/helm ] && [ -w /usr/local/bin ]; then
-          ln -sf ~/.local/bin/helm /usr/local/bin/helm
-        fi
+        docker exec k3s-server sh -c '
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts 2>/dev/null || true
+          helm repo update
+        '
       args:
         executable: /bin/bash
-      ignore_errors: true
-      when: helm_check.rc != 0
-
-    - name: "Add Prometheus Helm repo"
-      shell: |
-        export PATH="$HOME/.local/bin:$PATH"
-        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts 2>/dev/null || true
-        helm repo update
-      args:
-        executable: /bin/bash
-      environment:
-        KUBECONFIG: /tmp/k3s-config/k3s.yaml
 
     - name: "Wait for all K3s nodes to be Ready"
       shell: |
         docker exec k3s-server kubectl wait --for=condition=Ready nodes --all --timeout=180s
       register: nodes_ready
       until: nodes_ready.rc == 0
-      retries: 5
+      retries: 10
       delay: 15
       args:
         executable: /bin/bash
 
     - name: "Deploy kube-prometheus-stack (Prometheus + Grafana)"
       shell: |
-        export PATH="$HOME/.local/bin:$PATH"
-        # สร้าง namespace monitoring
-        docker exec k3s-server kubectl create namespace monitoring 2>/dev/null || true
-        # ติดตั้งผ่าน Helm บน Host โดยใช้ KUBECONFIG ที่ชี้ไป mac_master_ip
-        helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
-          --namespace monitoring \
-          --create-namespace \
-          --set grafana.adminPassword="{{ grafana_admin_password }}" \
-          --set grafana.service.type=NodePort \
-          --set grafana.service.nodePort={{ grafana_nodeport }} \
-          --set prometheus.service.type=NodePort \
-          --set prometheus.service.nodePort={{ prometheus_nodeport }} \
-          --set prometheus.prometheusSpec.scrapeInterval=15s \
-          --set prometheus.prometheusSpec.evaluationInterval=15s \
-          --wait \
-          --timeout 10m
-      environment:
-        KUBECONFIG: /tmp/k3s-config/k3s.yaml
+        docker exec k3s-server sh -c '
+          kubectl create namespace monitoring 2>/dev/null || true
+          helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
+            --namespace monitoring \
+            --create-namespace \
+            --set grafana.adminPassword="{{ grafana_admin_password }}" \
+            --set grafana.service.type=NodePort \
+            --set grafana.service.nodePort={{ grafana_nodeport }} \
+            --set prometheus.service.type=NodePort \
+            --set prometheus.service.nodePort={{ prometheus_nodeport }} \
+            --set prometheus.prometheusSpec.scrapeInterval=15s \
+            --set prometheus.prometheusSpec.evaluationInterval=15s \
+            --wait \
+            --timeout 10m
+        '
       args:
         executable: /bin/bash
 
@@ -118,12 +90,10 @@
           - "============================================"
           - "  Monitoring Stack is LIVE on Mac K3s!"
           - "============================================"
-          - "  Grafana   : http://localhost:{{ grafana_nodeport }}"
-          - "  Prometheus: http://localhost:{{ prometheus_nodeport }}"
+          - "  Grafana   : http://{{ mac_master_ip }}:{{ grafana_nodeport }}"
+          - "  Prometheus: http://{{ mac_master_ip }}:{{ prometheus_nodeport }}"
           - "  Username  : admin"
           - "  Password  : {{ grafana_admin_password }}"
-          - "============================================"
-          - "  ไม่ต้อง SSH Tunnel — เข้าถึงได้ทันทีจาก Mac"
           - "============================================"
           - "  AWS Agents สามารถยิง Remote Write มาที่:"
           - "  http://{{ mac_master_ip }}:{{ prometheus_nodeport }}"
