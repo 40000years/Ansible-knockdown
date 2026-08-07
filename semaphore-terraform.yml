@@ -4,12 +4,68 @@
   connection: local
   gather_facts: false
 
+  vars:
+    tf_state_bucket: "project-state-radahn-backend"
+    tf_state_region: "ap-southeast-1"
+
   tasks:
     - name: Debug AWS Variables from Semaphore
       debug:
         msg: |
           Extra Var Access Key: "{{ AWS_ACCESS_KEY_ID | default('NOT_FOUND_IN_EXTRA_VARS') }}"
           Env Var Access Key: "{{ lookup('env', 'AWS_ACCESS_KEY_ID') | default('NOT_FOUND_IN_ENV', true) }}"
+
+    - name: "Ensure AWS CLI is installed"
+      shell: |
+        if ! command -v aws &> /dev/null; then
+          echo "AWS CLI not found. Downloading and installing locally..."
+          curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          python3 -m zipfile -e awscliv2.zip .
+          ./aws/install -i $(pwd)/aws-cli -b $(pwd)/bin
+        fi
+        aws --version
+      args:
+        executable: /bin/bash
+      environment:
+        AWS_ACCESS_KEY_ID: "{{ AWS_ACCESS_KEY_ID | default(lookup('env', 'AWS_ACCESS_KEY_ID'), true) }}"
+        AWS_SECRET_ACCESS_KEY: "{{ AWS_SECRET_ACCESS_KEY | default(lookup('env', 'AWS_SECRET_ACCESS_KEY'), true) }}"
+        AWS_DEFAULT_REGION: "{{ AWS_DEFAULT_REGION | default(lookup('env', 'AWS_DEFAULT_REGION'), true) | default('ap-southeast-1', true) }}"
+
+    - name: "Auto-create S3 Terraform backend bucket (if not exists)"
+      shell: |
+        export PATH="$(pwd)/bin:$PATH"
+        # เช็คก่อนว่า Bucket มีอยู่แล้วหรือยัง
+        if aws s3api head-bucket --bucket "{{ tf_state_bucket }}" --region "{{ tf_state_region }}" 2>/dev/null; then
+          echo "✅ Bucket {{ tf_state_bucket }} already exists, skipping creation."
+        else
+          echo "🚀 Bucket not found, creating {{ tf_state_bucket }}..."
+          # ap-southeast-1 ต้องระบุ LocationConstraint (us-east-1 ไม่ต้องใส่)
+          aws s3api create-bucket \
+            --bucket "{{ tf_state_bucket }}" \
+            --region "{{ tf_state_region }}" \
+            --create-bucket-configuration LocationConstraint="{{ tf_state_region }}"
+
+          # เปิด Versioning ให้ Bucket เพื่อสามารถ Rollback State ได้
+          aws s3api put-bucket-versioning \
+            --bucket "{{ tf_state_bucket }}" \
+            --versioning-configuration Status=Enabled \
+            --region "{{ tf_state_region }}"
+
+          # Block Public Access ทั้งหมด (Security Best Practice)
+          aws s3api put-public-access-block \
+            --bucket "{{ tf_state_bucket }}" \
+            --public-access-block-configuration \
+              BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true \
+            --region "{{ tf_state_region }}"
+
+          echo "✅ Bucket {{ tf_state_bucket }} created successfully with versioning enabled!"
+        fi
+      args:
+        executable: /bin/bash
+      environment:
+        AWS_ACCESS_KEY_ID: "{{ AWS_ACCESS_KEY_ID | default(lookup('env', 'AWS_ACCESS_KEY_ID'), true) }}"
+        AWS_SECRET_ACCESS_KEY: "{{ AWS_SECRET_ACCESS_KEY | default(lookup('env', 'AWS_SECRET_ACCESS_KEY'), true) }}"
+        AWS_DEFAULT_REGION: "{{ AWS_DEFAULT_REGION | default(lookup('env', 'AWS_DEFAULT_REGION'), true) | default('ap-southeast-1', true) }}"
 
     - name: Ensure Terraform is initialized
       shell: |
@@ -20,17 +76,6 @@
         AWS_SECRET_ACCESS_KEY: "{{ AWS_SECRET_ACCESS_KEY | default(lookup('env', 'AWS_SECRET_ACCESS_KEY'), true) }}"
         AWS_DEFAULT_REGION: "{{ AWS_DEFAULT_REGION | default(lookup('env', 'AWS_DEFAULT_REGION'), true) | default('ap-southeast-1', true) }}"
 
-    - name: Ensure AWS CLI is installed (required for dashboard generation)
-      shell: |
-        if ! command -v aws &> /dev/null; then
-          echo "AWS CLI not found. Downloading and installing locally..."
-          curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-          python3 -m zipfile -e awscliv2.zip .
-          ./aws/install -i $(pwd)/aws-cli -b $(pwd)/bin
-        fi
-      args:
-        executable: /bin/bash
-
     - name: Apply Terraform configuration
       shell: |
         export PATH="$(pwd)/bin:$PATH"
@@ -40,3 +85,4 @@
         AWS_ACCESS_KEY_ID: "{{ AWS_ACCESS_KEY_ID | default(lookup('env', 'AWS_ACCESS_KEY_ID'), true) }}"
         AWS_SECRET_ACCESS_KEY: "{{ AWS_SECRET_ACCESS_KEY | default(lookup('env', 'AWS_SECRET_ACCESS_KEY'), true) }}"
         AWS_DEFAULT_REGION: "{{ AWS_DEFAULT_REGION | default(lookup('env', 'AWS_DEFAULT_REGION'), true) | default('ap-southeast-1', true) }}"
+
