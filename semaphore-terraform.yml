@@ -76,6 +76,31 @@
           secret_key = "{{ AWS_SECRET_ACCESS_KEY | default(lookup('env', 'AWS_SECRET_ACCESS_KEY'), true) }}"
           region     = "{{ tf_state_region }}"
 
+    - name: "Verify backend config file content (masked)"
+      shell: |
+        echo "=== Backend config file ==="
+        grep "access_key" /tmp/tf-backend.hcl | sed 's/=.*$/= "***MASKED***"/'
+        grep "region" /tmp/tf-backend.hcl
+        echo ""
+        echo "=== Test S3 bucket access with AWS CLI ==="
+        export PATH="$(pwd)/bin:$PATH"
+        aws s3 ls s3://{{ tf_state_bucket }}/ --region {{ tf_state_region }} && echo "✅ S3 access OK" || echo "❌ S3 access FAILED"
+        aws s3api head-bucket --bucket {{ tf_state_bucket }} --region {{ tf_state_region }} && echo "✅ Bucket accessible" || echo "❌ Bucket not accessible"
+      args:
+        executable: /bin/bash
+      environment:
+        AWS_ACCESS_KEY_ID: "{{ AWS_ACCESS_KEY_ID | default(lookup('env', 'AWS_ACCESS_KEY_ID'), true) }}"
+        AWS_SECRET_ACCESS_KEY: "{{ AWS_SECRET_ACCESS_KEY | default(lookup('env', 'AWS_SECRET_ACCESS_KEY'), true) }}"
+        AWS_DEFAULT_REGION: "{{ tf_state_region }}"
+      ignore_errors: true
+
+    - name: "Clear stale Terraform cache"
+      shell: |
+        rm -rf terraform/.terraform
+        echo "✅ Cleared .terraform cache"
+      args:
+        executable: /bin/bash
+
     - name: Ensure Terraform is initialized
       shell: |
         cd terraform
