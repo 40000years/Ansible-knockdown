@@ -67,6 +67,19 @@
         AWS_SECRET_ACCESS_KEY: "{{ AWS_SECRET_ACCESS_KEY | default(lookup('env', 'AWS_SECRET_ACCESS_KEY'), true) }}"
         AWS_DEFAULT_REGION: "{{ AWS_DEFAULT_REGION | default(lookup('env', 'AWS_DEFAULT_REGION'), true) | default('ap-southeast-1', true) }}"
 
+    - name: "DEBUG: Show credential resolution"
+      debug:
+        msg:
+          - "AWS_ACCESS_KEY_ID (Ansible var): {{ AWS_ACCESS_KEY_ID | default('⚠️ NOT SET IN ANSIBLE VARS') }}"
+          - "AWS_ACCESS_KEY_ID (env lookup): {{ lookup('env', 'AWS_ACCESS_KEY_ID') | default('⚠️ NOT SET IN ENV') }}"
+          - "Combined value length: {{ (AWS_ACCESS_KEY_ID | default(lookup('env', 'AWS_ACCESS_KEY_ID'), true) | default('')).__len__() }} chars"
+          - "Starts with: {{ (AWS_ACCESS_KEY_ID | default(lookup('env', 'AWS_ACCESS_KEY_ID'), true) | default('EMPTY'))[:4] }}..."
+
+    - name: "Remove old backend config file (force recreate)"
+      file:
+        path: /tmp/tf-backend.hcl
+        state: absent
+
     - name: "Write Terraform backend credentials to temp file"
       copy:
         dest: /tmp/tf-backend.hcl
@@ -75,6 +88,15 @@
           access_key = "{{ AWS_ACCESS_KEY_ID | default(lookup('env', 'AWS_ACCESS_KEY_ID'), true) }}"
           secret_key = "{{ AWS_SECRET_ACCESS_KEY | default(lookup('env', 'AWS_SECRET_ACCESS_KEY'), true) }}"
           region     = "{{ tf_state_region }}"
+
+    - name: "DEBUG: Show backend file access_key length"
+      shell: |
+        KEY=$(grep 'access_key' /tmp/tf-backend.hcl | sed 's/access_key = "\(.*\)"/\1/')
+        echo "access_key length: ${#KEY} chars"
+        echo "access_key starts: ${KEY:0:4}..."
+        echo "region: $(grep 'region' /tmp/tf-backend.hcl)"
+      args:
+        executable: /bin/bash
 
     - name: "Verify backend config file content (masked)"
       shell: |
