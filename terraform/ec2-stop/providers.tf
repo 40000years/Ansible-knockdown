@@ -13,7 +13,7 @@ terraform {
   }
   # State แยกจาก dashboard — ป้องกัน conflict กับ workspace หลัก
   backend "s3" {
-    bucket = "project-state-radahn-backend"
+    bucket = "ansible-knockdown-tfstate"
     key    = "ec2-power/stop/terraform.tfstate"
     region = "ap-southeast-1"
   }

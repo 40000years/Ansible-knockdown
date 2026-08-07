@@ -5,7 +5,7 @@
   gather_facts: false
 
   vars:
-    tf_state_bucket: "project-state-radahn-backend"
+    tf_state_bucket: "ansible-knockdown-tfstate"
     tf_state_region: "ap-southeast-1"
 
   tasks:
