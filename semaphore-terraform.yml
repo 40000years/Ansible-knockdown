@@ -72,8 +72,7 @@
         msg:
           - "AWS_ACCESS_KEY_ID (Ansible var): {{ AWS_ACCESS_KEY_ID | default('⚠️ NOT SET IN ANSIBLE VARS') }}"
           - "AWS_ACCESS_KEY_ID (env lookup): {{ lookup('env', 'AWS_ACCESS_KEY_ID') | default('⚠️ NOT SET IN ENV') }}"
-          - "Combined value length: {{ (AWS_ACCESS_KEY_ID | default(lookup('env', 'AWS_ACCESS_KEY_ID'), true) | default('')).__len__() }} chars"
-          - "Starts with: {{ (AWS_ACCESS_KEY_ID | default(lookup('env', 'AWS_ACCESS_KEY_ID'), true) | default('EMPTY'))[:4] }}..."
+          - "Combined value length: {{ (AWS_ACCESS_KEY_ID | default(lookup('env', 'AWS_ACCESS_KEY_ID'), true) | default('')) | length }} chars"
 
     - name: "Remove old backend config file (force recreate)"
       file:
