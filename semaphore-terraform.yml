@@ -70,7 +70,12 @@
     - name: Ensure Terraform is initialized
       shell: |
         cd terraform
-        terraform init -reconfigure -no-color
+        # ส่ง Credentials เข้า S3 Backend โดยตรงผ่าน -backend-config
+        # เพราะ Terraform S3 Backend ไม่ได้อ่านจาก var.* ต้องส่งผ่าน backend-config หรือ ENV เท่านั้น
+        terraform init -reconfigure -no-color \
+          -backend-config="access_key=${AWS_ACCESS_KEY_ID}" \
+          -backend-config="secret_key=${AWS_SECRET_ACCESS_KEY}" \
+          -backend-config="region=${AWS_DEFAULT_REGION}"
       environment:
         AWS_ACCESS_KEY_ID: "{{ AWS_ACCESS_KEY_ID | default(lookup('env', 'AWS_ACCESS_KEY_ID'), true) }}"
         AWS_SECRET_ACCESS_KEY: "{{ AWS_SECRET_ACCESS_KEY | default(lookup('env', 'AWS_SECRET_ACCESS_KEY'), true) }}"
