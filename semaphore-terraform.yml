@@ -33,6 +33,7 @@
 
     - name: "Auto-create S3 Terraform backend bucket (if not exists)"
       shell: |
+        set -e
         export PATH="$(pwd)/bin:$PATH"
         # เช็คก่อนว่า Bucket มีอยู่แล้วหรือยัง
         if aws s3api head-bucket --bucket "{{ tf_state_bucket }}" --region "{{ tf_state_region }}" 2>/dev/null; then
