@@ -11,7 +11,7 @@ terraform {
   # S3 Backend: shared between Terraform and OpenTofu runs.
   # OpenTofu reads/writes the same terraform.tfstate file transparently.
   backend "s3" {
-    bucket = "project-state-radahn-backend"
+    bucket = "ansible-knockdown-tfstate"
     key    = "ec2-fetch/terraform.tfstate"
     region = "ap-southeast-1"
   }
