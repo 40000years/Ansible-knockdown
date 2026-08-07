@@ -40,14 +40,13 @@
       when: k3s_master_ip == "CHANGE_ME" or k3s_token == "CHANGE_ME" or tailscale_auth_key == "CHANGE_ME"
 
     - name: "Check if Tailscale is already installed"
-      shell: "which tailscale"
+      stat:
+        path: /usr/bin/tailscale
       register: tailscale_installed
-      ignore_errors: true
-      changed_when: false
 
     - name: "Install Tailscale via official script"
       shell: "curl -fsSL https://tailscale.com/install.sh | sh"
-      when: tailscale_installed.rc != 0
+      when: not tailscale_installed.stat.exists
 
     - name: "Enable and start Tailscale service"
       systemd:

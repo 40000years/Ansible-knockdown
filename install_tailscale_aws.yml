@@ -32,14 +32,13 @@
       when: tailscale_auth_key == "CHANGE_ME"
 
     - name: "Check if Tailscale is already installed"
-      shell: "which tailscale"
+      stat:
+        path: /usr/bin/tailscale
       register: tailscale_installed
-      ignore_errors: true
-      changed_when: false
 
     - name: "Install Tailscale via official script"
       shell: "curl -fsSL https://tailscale.com/install.sh | sh"
-      when: tailscale_installed.rc != 0 # Suppress curl warning
+      when: not tailscale_installed.stat.exists
 
     - name: "Enable and start Tailscale service"
       systemd:
