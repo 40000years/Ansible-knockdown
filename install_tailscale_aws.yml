@@ -45,6 +45,7 @@
         name: tailscaled
         state: started
         enabled: yes
+        daemon_reload: yes
 
     - name: "Authenticate and connect to Tailscale network"
       shell: "tailscale up --authkey={{ tailscale_auth_key }} --hostname={{ inventory_hostname }} --accept-routes"
