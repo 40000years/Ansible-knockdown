@@ -47,6 +47,12 @@
     - name: "Install Tailscale via official script"
       shell: "curl -fsSL https://tailscale.com/install.sh | sh"
       when: not tailscale_installed.stat.exists
+      register: tailscale_install_result
+
+    - name: "Debug Tailscale installation output"
+      debug:
+        var: tailscale_install_result.stdout_lines
+      when: not tailscale_installed.stat.exists
 
     - name: "Enable and start Tailscale service"
       systemd:
