@@ -92,8 +92,10 @@
     - name: "DEBUG: Show backend file access_key length"
       shell: |
         KEY=$(grep 'access_key' /tmp/tf-backend.hcl | sed 's/access_key = "\(.*\)"/\1/')
-        echo "access_key length: ${#KEY} chars"
-        echo "access_key starts: ${KEY:0:4}..."
+        LEN=$(echo -n "$KEY" | wc -c)
+        STARTS=$(echo "$KEY" | cut -c 1-4)
+        echo "access_key length: $LEN chars"
+        echo "access_key starts: $STARTS..."
         echo "region: $(grep 'region' /tmp/tf-backend.hcl)"
       args:
         executable: /bin/bash
