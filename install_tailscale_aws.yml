@@ -37,7 +37,9 @@
       register: tailscale_installed
 
     - name: "Install Tailscale via official script"
-      shell: "curl -fsSL https://tailscale.com/install.sh | sh"
+      shell: "set -o pipefail; curl -fsSL --connect-timeout 15 https://tailscale.com/install.sh | sh"
+      args:
+        executable: /bin/bash
       when: not tailscale_installed.stat.exists
 
     - name: "Enable and start Tailscale service"
