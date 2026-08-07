@@ -153,7 +153,7 @@
           # ชื่อ Job ที่ใช้ระบุว่า Metric นี้มาจากที่ไหน
           # จะปรากฏใน Grafana ในรูป label job="aws-node"
           global:
-            scrape_interval: 60s      # ดูด Metrics ทุก 60 วินาที (ไม่บ่อยไป ประหยัด RAM)
+            scrape_interval: 15s      # เปลี่ยนเป็น 15s เพื่อให้สอดคล้องกับ Dashboard มาตรฐานของ Grafana (แก้ปัญหา No data ใน CPU/Disk IO/Network)
             evaluation_interval: 60s  # Agent Mode ไม่มี Alerting Rule แต่ต้องใส่ไว้
 
           # ==========================================
